@@ -97,8 +97,8 @@
 
     .topbar {
         display: grid;
-        grid-template-columns: auto minmax(0, 1fr) 290px;
-        gap: 8px;
+        grid-template-columns: auto minmax(0, 1fr) 236px;
+        gap: 6px;
         align-items: center;
         background:
           linear-gradient(135deg, rgba(255, 255, 255, 0.62), rgba(241, 234, 255, 0.9));
@@ -123,9 +123,10 @@
     .button-row {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
-      width: 290px;
+      gap: 8px;
+      width: 236px;
       justify-self: end;
+      align-self: center;
     }
 
     .info-panel {
@@ -133,8 +134,8 @@
       display: grid;
       grid-template-columns: auto minmax(0, 1fr);
       align-items: center;
-      gap: 12px;
-      padding: 8px 14px;
+      gap: 10px;
+      padding: 8px 12px;
       border-radius: 28px;
       background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(239, 244, 255, 0.9));
       border: 1px solid rgba(255, 255, 255, 0.72);
@@ -205,7 +206,7 @@
       background: rgba(255, 255, 255, 0.95);
       border: 1px solid rgba(52, 31, 20, 0.08);
       border-radius: 999px;
-      padding: 10px 16px;
+      padding: 8px 12px;
       font-weight: 700;
       white-space: nowrap;
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
@@ -757,9 +758,12 @@
     button {
       border: 0;
       border-radius: 999px;
-      padding: 11px 14px;
+      min-width: 0;
+      padding: 8px 10px;
       font: inherit;
       font-weight: 700;
+      font-size: 0.83rem;
+      line-height: 1.05;
       cursor: pointer;
       transition: transform 120ms ease, opacity 120ms ease, background 120ms ease, box-shadow 120ms ease;
       box-shadow: 0 10px 18px rgba(31, 26, 23, 0.08);
@@ -930,8 +934,8 @@
         <div class="button-row">
           <button class="primary" id="addCardBtn">+1</button>
           <button class="secondary" id="useLettersBtn">Clear</button>
-          <button class="ghost" id="startLiveBtn">Start Live</button>
-          <button class="ghost" id="showQrBtn">Show QR</button>
+          <button class="ghost" id="startLiveBtn">Live</button>
+          <button class="ghost" id="showQrBtn">QR</button>
           <button class="ghost sound-btn" id="soundBtn">Sound</button>
           <button class="ghost" id="resetBtn">Reset</button>
         </div>
