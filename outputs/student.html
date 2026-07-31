@@ -45,6 +45,10 @@
       letter-spacing: -0.06em;
       text-transform: uppercase;
     }
+    section {
+      display: grid;
+      gap: 14px;
+    }
     p { margin: 0; color: var(--muted); }
     input, button {
       width: 100%;
@@ -58,7 +62,8 @@
     .letters {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
+      gap: 14px;
+      margin: 6px 0 2px;
     }
     .letter {
       min-height: 140px;
@@ -70,12 +75,20 @@
       font-size: 4rem;
       font-weight: 900;
     }
+    .play-stack {
+      display: grid;
+      gap: 14px;
+    }
+    .join-stack {
+      display: grid;
+      gap: 14px;
+    }
     .hidden { display: none !important; }
   </style>
 </head>
 <body>
   <main class="card">
-    <section id="joinView">
+    <section id="joinView" class="join-stack">
       <h1>Join</h1>
       <p>Enter your team name in English.</p>
       <input id="teamName" placeholder="Team name">
@@ -87,8 +100,7 @@
       <p>Stay ready. The teacher will start the game.</p>
     </section>
 
-    <section id="playView" class="hidden">
-      <h1>Play</h1>
+    <section id="playView" class="hidden play-stack">
       <div class="letters" id="letters"></div>
       <input id="wordInput" placeholder="Type your word">
       <button id="submitBtn">Send Word</button>

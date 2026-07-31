@@ -1597,7 +1597,6 @@
       soundBtn.textContent = soundEnabled ? "Sound On" : "Sound";
       if (soundEnabled) {
         getAudioContext();
-        scheduleMusicLoop();
         playSuccessSound();
       } else {
         stopMusic();
