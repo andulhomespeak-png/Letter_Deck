@@ -177,11 +177,9 @@
       border-radius: 38px;
       background:
         linear-gradient(145deg, rgba(255, 255, 255, 1), rgba(242, 247, 255, 1));
-      display: grid;
-      place-items: center;
-      font-size: clamp(7rem, 18vw, 14rem);
-      font-weight: 900;
-      letter-spacing: -0.08em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       box-shadow:
         0 28px 48px rgba(31, 26, 23, 0.12),
         inset 0 1px 0 rgba(255, 255, 255, 0.9);
@@ -215,6 +213,33 @@
     .card[data-color="2"] { color: #10bf67; }
     .card[data-color="3"] { color: #f3c645; }
     .card[data-color="4"] { color: #ba60dc; }
+
+    .card-letter {
+      font-size: clamp(7rem, 18vw, 14rem);
+      font-weight: 900;
+      letter-spacing: -0.08em;
+      line-height: 0.9;
+      position: relative;
+      z-index: 1;
+    }
+
+    .card-score {
+      position: absolute;
+      top: 22px;
+      right: 22px;
+      min-width: 42px;
+      padding: 7px 10px 6px;
+      border-radius: 999px;
+      background: rgba(22, 15, 46, 0.08);
+      border: 1px solid rgba(22, 15, 46, 0.08);
+      color: rgba(22, 15, 46, 0.76);
+      font-size: clamp(0.95rem, 1.6vw, 1.25rem);
+      font-weight: 900;
+      line-height: 1;
+      text-align: center;
+      box-shadow: 0 10px 18px rgba(31, 26, 23, 0.08);
+      z-index: 1;
+    }
 
     .team-name,
     .live-answer-banner {
@@ -840,9 +865,39 @@
     let seenLiveSubmissionIds = new Set();
     let queuedLiveSubmissions = [];
     let activeLiveSubmission = null;
+    const letterPoints = {
+      A: 1, E: 1, I: 1, O: 1, N: 1, R: 1, T: 1, L: 1, S: 1, U: 1,
+      D: 2, G: 2,
+      B: 3, C: 3, M: 3, P: 3,
+      F: 4, H: 4, V: 4, W: 4, Y: 4,
+      K: 5,
+      J: 8, X: 8,
+      Q: 10, Z: 10
+    };
 
     function drawLetter() {
       return alphabet[Math.floor(Math.random() * alphabet.length)];
+    }
+
+    function getLengthBonus(length) {
+      if (length >= 8) return 15;
+      if (length === 7) return 10;
+      if (length === 6) return 6;
+      if (length === 5) return 3;
+      if (length === 4) return 1;
+      return 0;
+    }
+
+    function getWordScore(word) {
+      const lettersScore = word
+        .split("")
+        .reduce((total, letter) => total + (letterPoints[letter] || 0), 0);
+      const bonus = getLengthBonus(word.length);
+      return {
+        lettersScore,
+        bonus,
+        total: lettersScore + bonus
+      };
     }
 
     function setMessage(text, tone = "") {
@@ -1207,9 +1262,9 @@
       }
     }
 
-    function showCelebration(team) {
+    function showCelebration(team, points) {
       celebrationName.textContent = team.name;
-      celebrationPoints.textContent = `+1 point`;
+      celebrationPoints.textContent = `+${points} pts`;
       celebration.classList.add("is-visible");
       if (overlayTimer) {
         clearTimeout(overlayTimer);
@@ -1353,16 +1408,21 @@
 
     function completeValidWord(word, rawWord) {
       const team = getActiveTeam();
+      const scoreBreakdown = getWordScore(word);
       consumeLettersForWord(word);
       lastRenderedLettersKey = "";
 
       if (team) {
-        team.score += 1;
+        team.score += scoreBreakdown.total;
         celebrateTeam(team.id);
-        showCelebration(team);
+        showCelebration(team, scoreBreakdown.total);
         playSuccessSound();
       }
-      setMessage(`<strong>${team ? team.name : "Team"}</strong> scored with <strong>${rawWord}</strong>.`, "good");
+      setMessage(
+        `<strong>${team ? team.name : "Team"}</strong> scored <strong>+${scoreBreakdown.total}</strong> with <strong>${rawWord}</strong> ` +
+        `(${scoreBreakdown.lettersScore} letters + ${scoreBreakdown.bonus} bonus).`,
+        "good"
+      );
 
       if (activeLetters.length <= 1) {
         ensureMinimumLettersForNextRound();
@@ -1465,7 +1525,16 @@
         card.className = "card";
         card.dataset.color = String(colors[index % colors.length]);
         card.style.setProperty("--tilt", `${index % 2 === 0 ? -2 : 2}deg`);
-        card.textContent = letter;
+        const value = document.createElement("div");
+        value.className = "card-score";
+        value.textContent = String(letterPoints[letter] || 0);
+
+        const glyph = document.createElement("div");
+        glyph.className = "card-letter";
+        glyph.textContent = letter;
+
+        card.appendChild(value);
+        card.appendChild(glyph);
         activeCards.appendChild(card);
       });
     }
