@@ -105,17 +105,20 @@
     }
 
     .brand {
-      margin: 0;
-      display: flex;
-      align-items: center;
-    }
+        margin: 0;
+        display: flex;
+        align-items: center;
+        min-height: 76px;
+      }
 
     .brand-logo {
-      display: block;
-      width: clamp(220px, 26vw, 460px);
-      height: auto;
-      filter: drop-shadow(0 10px 18px rgba(20, 12, 55, 0.18));
-    }
+        display: block;
+        width: auto;
+        height: auto;
+        max-width: min(30vw, 420px);
+        max-height: 72px;
+        filter: drop-shadow(0 10px 18px rgba(20, 12, 55, 0.18));
+      }
 
     .status-strip,
     .button-row,
