@@ -70,39 +70,39 @@
     }
 
     .page {
-      width: min(1680px, calc(100% - 24px));
-      margin: 0 auto;
-      padding: 12px 0;
-      position: relative;
-      z-index: 1;
-    }
+        width: min(1680px, calc(100% - 12px));
+        margin: 0 auto;
+        padding: 6px 0;
+        position: relative;
+        z-index: 1;
+      }
 
     .app-shell {
-      min-height: calc(100vh - 24px);
-      display: grid;
-      grid-template-rows: auto 1fr;
-      gap: 12px;
-    }
+        min-height: calc(100vh - 12px);
+        display: grid;
+        grid-template-rows: auto 1fr;
+        gap: 8px;
+      }
 
     .panel {
       background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(255, 247, 253, 0.82)),
         var(--panel);
-      border: 1px solid rgba(255, 255, 255, 0.66);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: 18px;
-      backdrop-filter: blur(14px);
-    }
+        border: 1px solid rgba(255, 255, 255, 0.66);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 14px;
+        backdrop-filter: blur(14px);
+      }
 
     .topbar {
-      display: grid;
-      grid-template-columns: auto 1fr auto;
-      gap: 12px;
-      align-items: center;
-      background:
-        linear-gradient(135deg, rgba(255, 255, 255, 0.62), rgba(241, 234, 255, 0.9));
-    }
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 10px;
+        align-items: center;
+        background:
+          linear-gradient(135deg, rgba(255, 255, 255, 0.62), rgba(241, 234, 255, 0.9));
+      }
 
     .brand {
         margin: 0;
@@ -130,27 +130,27 @@
     }
 
     .workspace {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 300px;
-      gap: 14px;
-      min-height: 0;
-    }
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 300px;
+        gap: 10px;
+        min-height: 0;
+      }
 
     .playfield {
-      display: grid;
-      grid-template-rows: 1fr auto auto;
-      gap: 12px;
-      min-height: 0;
-    }
+        display: grid;
+        grid-template-rows: 1fr auto auto;
+        gap: 10px;
+        min-height: 0;
+      }
 
     .sidebar {
-      display: grid;
-      grid-template-rows: auto 1fr auto;
-      gap: 12px;
-      align-content: start;
-      background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(236, 244, 255, 0.94));
-    }
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        gap: 10px;
+        align-content: start;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(236, 244, 255, 0.94));
+      }
 
     .stat {
       background: rgba(255, 255, 255, 0.95);
