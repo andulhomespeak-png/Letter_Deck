@@ -120,12 +120,61 @@
         filter: drop-shadow(0 10px 18px rgba(20, 12, 55, 0.18));
       }
 
-    .status-strip,
     .button-row {
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
       gap: 10px;
+    }
+
+    .info-panel {
+      min-height: 88px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: center;
+      gap: 14px;
+      padding: 10px 16px;
+      border-radius: 28px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(239, 244, 255, 0.9));
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    }
+
+    .info-round {
+      align-self: center;
+    }
+
+    .info-copy {
+      min-width: 0;
+      display: grid;
+      gap: 6px;
+      align-content: center;
+    }
+
+    .info-headline,
+    .info-detail {
+      min-width: 0;
+      line-height: 1.2;
+    }
+
+    .info-headline {
+      font-size: clamp(1rem, 1.45vw, 1.22rem);
+      font-weight: 900;
+      color: var(--ink);
+    }
+
+    .info-detail {
+      min-height: 1.3em;
+      font-size: clamp(0.92rem, 1.15vw, 1rem);
+      color: var(--ink-soft);
+    }
+
+    .info-detail.good {
+      color: #0e6d52;
+    }
+
+    .info-detail.bad {
+      color: #b83c20;
     }
 
     .workspace {
@@ -240,8 +289,7 @@
       z-index: 1;
     }
 
-    .team-name,
-    .live-answer-banner {
+    .team-name {
       width: 100%;
       border: 1px solid rgba(52, 31, 20, 0.1);
       border-radius: 18px;
@@ -255,37 +303,6 @@
       padding: 10px 12px;
       font-size: 0.95rem;
       font-weight: 700;
-    }
-
-    .live-answer-banner {
-      min-height: 52px;
-      display: grid;
-      place-items: center;
-      text-align: center;
-      color: var(--ink-soft);
-      font-weight: 700;
-    }
-
-    .message {
-      min-height: 48px;
-      border-radius: 20px;
-      padding: 12px 16px;
-      background: rgba(238, 235, 255, 0.88);
-      line-height: 1.45;
-      text-align: center;
-      border: 1px solid rgba(52, 31, 20, 0.06);
-      color: var(--ink-soft);
-      transition: opacity 140ms ease, transform 140ms ease;
-    }
-
-    .message.good {
-      background: rgba(12, 166, 120, 0.14);
-      color: #0e6d52;
-    }
-
-    .message.bad {
-      background: rgba(255, 90, 54, 0.16);
-      color: #b83c20;
     }
 
     .celebration {
@@ -656,6 +673,8 @@
     }
 
     .qr-people-list {
+      display: grid;
+      gap: 10px;
       align-content: start;
     }
 
@@ -671,6 +690,15 @@
       font-size: 0.94rem;
       line-height: 1.4;
       color: var(--ink-soft);
+    }
+
+    .qr-room {
+      margin-top: 10px;
+      font-size: 0.92rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      color: var(--ink-soft);
+      text-transform: uppercase;
     }
 
     .team-points {
@@ -842,7 +870,7 @@
       }
 
       .brand,
-      .status-strip,
+      .info-panel,
       .button-row {
         justify-self: center;
       }
@@ -876,11 +904,12 @@
         <h1 class="brand">
           <img class="brand-logo" src="./letter-clash-logo.png" alt="Letter Clash">
         </h1>
-        <div class="status-strip">
-          <div class="stat" id="turnCount">Round 0</div>
-          <div class="stat" id="activeCount">Cards 0</div>
-          <div class="stat" id="turnOwner">Turn: None</div>
-          <div class="stat" id="timerCount">+1 in 20s</div>
+        <div class="info-panel">
+          <div class="stat info-round" id="turnCount">Round 0</div>
+          <div class="info-copy">
+            <div class="info-headline" id="infoHeadline">Student answers appear here.</div>
+            <div class="info-detail" id="infoDetail">Waiting for the next word.</div>
+          </div>
         </div>
         <div class="button-row">
           <button class="primary" id="addCardBtn">+1</button>
@@ -895,10 +924,6 @@
       <section class="workspace">
         <section class="panel playfield">
           <div class="cards" id="activeCards"></div>
-
-          <div class="live-answer-banner" id="liveAnswerBanner">Answers come from student phones.</div>
-
-          <div class="message" id="messageBox"></div>
         </section>
 
         <aside class="panel sidebar">
@@ -917,6 +942,7 @@
           <div class="qr-box">
             <img id="qrImage" alt="Room QR">
           </div>
+          <div class="qr-room" id="qrRoomText"></div>
           <div class="qr-url" id="qrUrlText"></div>
         </div>
         <div class="qr-people">
@@ -974,25 +1000,19 @@
     ];
 
     const activeCards = document.getElementById("activeCards");
-    const messageBox = document.getElementById("messageBox");
     const turnCountEl = document.getElementById("turnCount");
-    const activeCountEl = document.getElementById("activeCount");
-    const turnOwnerEl = document.getElementById("turnOwner");
-    const timerCountEl = document.getElementById("timerCount");
+    const infoHeadlineEl = document.getElementById("infoHeadline");
+    const infoDetailEl = document.getElementById("infoDetail");
     const addCardBtn = document.getElementById("addCardBtn");
     const useLettersBtn = document.getElementById("useLettersBtn");
     const startLiveBtn = document.getElementById("startLiveBtn");
     const showQrBtn = document.getElementById("showQrBtn");
     const resetBtn = document.getElementById("resetBtn");
-    const liveAnswerBanner = document.getElementById("liveAnswerBanner");
     const teamList = document.getElementById("teamList");
-    const liveStatusBtn = { textContent: "", classList: { toggle() {}, remove() {} } };
-    const scorePlusBtn = { disabled: false, addEventListener() {} };
-    const scoreMinusBtn = { disabled: false, addEventListener() {} };
-    const scoreResetBtn = { addEventListener() {} };
     const soundBtn = document.getElementById("soundBtn");
     const qrOverlay = document.getElementById("qrOverlay");
     const qrImage = document.getElementById("qrImage");
+    const qrRoomText = document.getElementById("qrRoomText");
     const qrUrlText = document.getElementById("qrUrlText");
     const qrPeopleList = document.getElementById("qrPeopleList");
     const closeQrBtn = document.getElementById("closeQrBtn");
@@ -1013,6 +1033,9 @@
     let musicStep = 0;
     let confirmState = null;
     let latestDefinitionRequest = 0;
+    let infoMessageHtml = "";
+    let infoMessageTone = "";
+    let liveBannerHtml = "Student answers appear here.";
     let seenLiveSubmissionIds = new Set();
     let queuedLiveSubmissions = [];
     let activeLiveSubmission = null;
@@ -1097,13 +1120,31 @@
       };
     }
 
+    function renderInfoPanel() {
+      const activeTeam = getActiveTeam();
+      const liveStatus = liveEnabled && liveRoom
+        ? (liveRoom.status === "live" ? "Live answers are on." : "Waiting for teams...")
+        : "Student answers appear here.";
+      const turnStatus = activeTeam
+        ? `${activeTeam.name} is up.`
+        : (liveRoom?.status === "live" ? "Waiting for the next correct word." : liveStatus);
+
+      turnCountEl.textContent = `Round ${turnCount}`;
+      infoHeadlineEl.innerHTML = liveBannerHtml || turnStatus;
+      infoDetailEl.className = infoMessageTone ? `info-detail ${infoMessageTone}` : "info-detail";
+      infoDetailEl.innerHTML = infoMessageHtml || turnStatus;
+    }
+
     function setMessage(text, tone = "") {
-      messageBox.className = tone ? `message ${tone}` : "message";
-      messageBox.innerHTML = text;
+      infoMessageHtml = text;
+      infoMessageTone = tone;
+      renderInfoPanel();
     }
 
     function clearMessage() {
-      setMessage("");
+      infoMessageHtml = "";
+      infoMessageTone = "";
+      renderInfoPanel();
     }
 
     async function fetchWordDefinition(rawWord) {
@@ -1265,10 +1306,9 @@
       seenLiveSubmissionIds = new Set((liveRoom?.submissions || []).map((item) => item.id));
     }
 
-    function setLiveAnswerBanner(text = "Answers come from student phones.") {
-      if (liveAnswerBanner) {
-        liveAnswerBanner.innerHTML = text;
-      }
+    function setLiveAnswerBanner(text = "Student answers appear here.") {
+      liveBannerHtml = text;
+      renderInfoPanel();
     }
 
     function evaluateWord(rawInput) {
@@ -1759,100 +1799,6 @@
       releaseActiveLiveSubmission();
     }
 
-    function renderTeams() {
-      teamList.innerHTML = "";
-
-      if (liveEnabled && liveRoom) {
-        if (!liveRoom.teams.length) {
-          const empty = document.createElement("div");
-          empty.className = "team-card waiting-card";
-          empty.innerHTML = `<div class="team-name">Waiting for teams...</div>`;
-          teamList.appendChild(empty);
-          return;
-        }
-
-        const rankedLiveTeams = liveRoom.teams
-          .map((team) => ({ liveTeam: team, localTeam: getTeamByLiveEntry(team) || { id: team.id, name: team.name, score: 0 } }))
-          .sort((a, b) => (b.localTeam.score - a.localTeam.score) || a.localTeam.name.localeCompare(b.localTeam.name));
-
-        rankedLiveTeams.forEach(({ localTeam }) => {
-          const card = document.createElement("div");
-          card.className = "team-card";
-          if (localTeam.id === activeTeamId) {
-            card.classList.add("active-turn");
-          }
-          if (localTeam.id === celebratingTeamId) {
-            card.classList.add("is-celebrating");
-          }
-          card.innerHTML = `
-            <div class="team-row">
-              <div class="team-row-main">
-                <div class="team-name">${localTeam.name}</div>
-              </div>
-              <div class="team-actions">
-                <div class="team-points">${localTeam.score} pts</div>
-                <button class="delete-btn" type="button" aria-label="Remove ${localTeam.name}">×</button>
-              </div>
-            </div>
-          `;
-          card.querySelector(".delete-btn").addEventListener("click", (event) => {
-            event.stopPropagation();
-            removeLiveTeam(localTeam.id, localTeam.name).catch(() => {});
-          });
-          teamList.appendChild(card);
-        });
-        return;
-      }
-
-      const rankedTeams = [...teams]
-        .sort((a, b) => (b.score - a.score) || a.name.localeCompare(b.name));
-
-      rankedTeams.forEach((team) => {
-        const card = document.createElement("div");
-        card.className = "team-card";
-        if (team.id === activeTeamId) {
-          card.classList.add("active-turn");
-        }
-        if (team.id === celebratingTeamId) {
-          card.classList.add("is-celebrating");
-        }
-
-        const row = document.createElement("div");
-        row.className = "team-row";
-
-        const input = document.createElement("input");
-        input.className = "team-name";
-        input.value = team.name;
-        input.addEventListener("change", (event) => renameTeam(team.id, event.target.value));
-        input.addEventListener("blur", (event) => renameTeam(team.id, event.target.value));
-
-        const main = document.createElement("div");
-        main.className = "team-row-main";
-        main.appendChild(input);
-        row.appendChild(main);
-
-        const actions = document.createElement("div");
-        actions.className = "team-actions";
-        const score = document.createElement("div");
-        score.className = "team-points";
-        score.textContent = `${team.score} pts`;
-        actions.appendChild(score);
-        const removeBtn = document.createElement("button");
-        removeBtn.className = "delete-btn";
-        removeBtn.type = "button";
-        removeBtn.setAttribute("aria-label", `Delete ${team.name}`);
-        removeBtn.textContent = "×";
-        removeBtn.addEventListener("click", (event) => {
-          event.stopPropagation();
-          removeLocalTeam(team.id, team.name).catch(() => {});
-        });
-        actions.appendChild(removeBtn);
-        row.appendChild(actions);
-        card.appendChild(row);
-        teamList.appendChild(card);
-      });
-    }
-
     function renderCards() {
       const lettersKey = activeLetters.join("|");
       if (lettersKey === lastRenderedLettersKey) {
@@ -1861,10 +1807,6 @@
       lastRenderedLettersKey = lettersKey;
       activeCards.innerHTML = "";
       if (activeLetters.length === 0) {
-        const empty = document.createElement("div");
-        empty.className = "message";
-        empty.textContent = "No cards on the table.";
-        activeCards.appendChild(empty);
         return;
       }
 
@@ -1873,6 +1815,7 @@
         card.className = "card";
         card.dataset.color = String(colors[index % colors.length]);
         card.style.setProperty("--tilt", `${index % 2 === 0 ? -2 : 2}deg`);
+
         const value = document.createElement("div");
         value.className = "card-score";
         value.textContent = String(letterPoints[letter] || 0);
@@ -1889,96 +1832,85 @@
 
     function renderTeams() {
       teamList.innerHTML = "";
+      const rankedTeamsSource = liveEnabled && liveRoom
+        ? liveRoom.teams.map((team) => getTeamByLiveEntry(team) || { id: team.id, name: team.name, score: 0 })
+        : teams.slice();
 
-      if (liveEnabled && liveRoom) {
-        if (!liveRoom.teams.length) {
-          const empty = document.createElement("div");
-          empty.className = "team-card waiting-card";
-          empty.innerHTML = `<div class="team-name">Waiting for teams...</div>`;
-          teamList.appendChild(empty);
-          return;
-        }
-
-        const rankedLiveTeams = liveRoom.teams
-          .map((team) => ({ localTeam: getTeamByLiveEntry(team) || { id: team.id, name: team.name, score: 0 } }))
-          .sort((a, b) => (b.localTeam.score - a.localTeam.score) || a.localTeam.name.localeCompare(b.localTeam.name));
-
-        rankedLiveTeams.forEach(({ localTeam }) => {
-          const card = document.createElement("div");
-          card.className = "team-card";
-          if (localTeam.id === activeTeamId) {
-            card.classList.add("active-turn");
-          }
-          if (localTeam.id === celebratingTeamId) {
-            card.classList.add("is-celebrating");
-          }
-          card.innerHTML = `
-            <div class="team-row">
-              <div class="team-row-main">
-                <div class="team-name">${localTeam.name}</div>
-              </div>
-              <div class="team-actions">
-                <div class="team-points">${localTeam.score} pts</div>
-                <button class="delete-btn" type="button" aria-label="Remove ${localTeam.name}">x</button>
-              </div>
-            </div>
-          `;
-          card.querySelector(".delete-btn").addEventListener("click", (event) => {
-            event.stopPropagation();
-            removeLiveTeam(localTeam.id, localTeam.name).catch(() => {});
-          });
-          teamList.appendChild(card);
-        });
+      if (!rankedTeamsSource.length) {
+        const empty = document.createElement("div");
+        empty.className = "team-card waiting-card";
+        empty.innerHTML = `<div class="team-name">Waiting for teams...</div>`;
+        teamList.appendChild(empty);
         return;
       }
 
-      const rankedTeams = [...teams]
-        .sort((a, b) => (b.score - a.score) || a.name.localeCompare(b.name));
+      rankedTeamsSource
+        .sort((a, b) => (b.score - a.score) || a.name.localeCompare(b.name))
+        .forEach((team) => {
+          const card = document.createElement("div");
+          card.className = "team-card";
+          if (team.id === activeTeamId) {
+            card.classList.add("active-turn");
+          }
+          if (team.id === celebratingTeamId) {
+            card.classList.add("is-celebrating");
+          }
 
-      rankedTeams.forEach((team) => {
-        const card = document.createElement("div");
-        card.className = "team-card";
-        if (team.id === activeTeamId) {
-          card.classList.add("active-turn");
-        }
-        if (team.id === celebratingTeamId) {
-          card.classList.add("is-celebrating");
-        }
+          const isLiveTeam = !!(liveEnabled && liveRoom && liveRoom.teams.some((item) => item.id === team.id));
+          if (isLiveTeam) {
+            card.innerHTML = `
+              <div class="team-row">
+                <div class="team-row-main">
+                  <div class="team-name">${team.name}</div>
+                </div>
+                <div class="team-actions">
+                  <div class="team-points">${team.score} pts</div>
+                  <button class="delete-btn" type="button" aria-label="Remove ${team.name}">x</button>
+                </div>
+              </div>
+            `;
+            card.querySelector(".delete-btn").addEventListener("click", (event) => {
+              event.stopPropagation();
+              removeLiveTeam(team.id, team.name).catch(() => {});
+            });
+          } else {
+            const row = document.createElement("div");
+            row.className = "team-row";
 
-        const row = document.createElement("div");
-        row.className = "team-row";
+            const input = document.createElement("input");
+            input.className = "team-name";
+            input.value = team.name;
+            input.addEventListener("change", (event) => renameTeam(team.id, event.target.value));
+            input.addEventListener("blur", (event) => renameTeam(team.id, event.target.value));
 
-        const input = document.createElement("input");
-        input.className = "team-name";
-        input.value = team.name;
-        input.addEventListener("change", (event) => renameTeam(team.id, event.target.value));
-        input.addEventListener("blur", (event) => renameTeam(team.id, event.target.value));
+            const main = document.createElement("div");
+            main.className = "team-row-main";
+            main.appendChild(input);
+            row.appendChild(main);
 
-        const main = document.createElement("div");
-        main.className = "team-row-main";
-        main.appendChild(input);
-        row.appendChild(main);
+            const actions = document.createElement("div");
+            actions.className = "team-actions";
+            const score = document.createElement("div");
+            score.className = "team-points";
+            score.textContent = `${team.score} pts`;
+            actions.appendChild(score);
 
-        const actions = document.createElement("div");
-        actions.className = "team-actions";
-        const score = document.createElement("div");
-        score.className = "team-points";
-        score.textContent = `${team.score} pts`;
-        actions.appendChild(score);
-        const removeBtn = document.createElement("button");
-        removeBtn.className = "delete-btn";
-        removeBtn.type = "button";
-        removeBtn.setAttribute("aria-label", `Delete ${team.name}`);
-        removeBtn.textContent = "x";
-        removeBtn.addEventListener("click", (event) => {
-          event.stopPropagation();
-          removeLocalTeam(team.id, team.name).catch(() => {});
+            const removeBtn = document.createElement("button");
+            removeBtn.className = "delete-btn";
+            removeBtn.type = "button";
+            removeBtn.setAttribute("aria-label", `Delete ${team.name}`);
+            removeBtn.textContent = "x";
+            removeBtn.addEventListener("click", (event) => {
+              event.stopPropagation();
+              removeLocalTeam(team.id, team.name).catch(() => {});
+            });
+            actions.appendChild(removeBtn);
+            row.appendChild(actions);
+            card.appendChild(row);
+          }
+
+          teamList.appendChild(card);
         });
-        actions.appendChild(removeBtn);
-        row.appendChild(actions);
-        card.appendChild(row);
-        teamList.appendChild(card);
-      });
     }
 
     function renderQrPeople() {
@@ -1986,7 +1918,10 @@
         return;
       }
       qrPeopleList.innerHTML = "";
-      const connectedTeams = liveRoom?.teams || [];
+      const connectedTeams = (liveRoom?.teams || [])
+        .map((team) => getTeamByLiveEntry(team) || { id: team.id, name: team.name, score: 0 })
+        .sort((a, b) => (b.score - a.score) || a.name.localeCompare(b.name));
+
       if (!connectedTeams.length) {
         const empty = document.createElement("div");
         empty.className = "qr-empty";
@@ -1995,141 +1930,39 @@
         return;
       }
 
-      connectedTeams
-        .slice()
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .forEach((team) => {
-          const row = document.createElement("div");
-          row.className = "qr-person";
-          row.innerHTML = `
-            <div class="qr-person-main">
-              <span>${team.name}</span>
-            </div>
-            <div class="qr-person-actions">
-              <span class="qr-person-count">${team.members}</span>
-              <button class="delete-btn" type="button" aria-label="Remove ${team.name}">×</button>
-            </div>
-          `;
-          row.querySelector(".delete-btn").addEventListener("click", (event) => {
-            event.stopPropagation();
-            removeLiveTeam(team.id, team.name).catch(() => {});
-          });
-          qrPeopleList.appendChild(row);
+      connectedTeams.forEach((team) => {
+        const row = document.createElement("div");
+        row.className = "qr-person";
+        row.innerHTML = `
+          <div class="qr-person-main">
+            <span>${team.name}</span>
+          </div>
+          <div class="qr-person-actions">
+            <button class="delete-btn" type="button" aria-label="Remove ${team.name}">x</button>
+          </div>
+        `;
+        row.querySelector(".delete-btn").addEventListener("click", (event) => {
+          event.stopPropagation();
+          removeLiveTeam(team.id, team.name).catch(() => {});
         });
+        qrPeopleList.appendChild(row);
+      });
     }
 
     function render() {
       renderCards();
       renderTeams();
       renderQrPeople();
-      turnCountEl.textContent = `Round ${turnCount}`;
-      activeCountEl.textContent = `Cards ${activeLetters.length}`;
-      const activeTeam = getActiveTeam();
-      turnOwnerEl.textContent = activeTeam ? `Turn: ${activeTeam.name}` : liveRoom ? `Room: ${liveRoom.code}` : "Turn: None";
-      timerCountEl.textContent = activeLetters.length >= maxActiveLetters ? "Max 8 cards" : `+1 in ${autoLetterCountdown}s`;
+      renderInfoPanel();
       useLettersBtn.disabled = activeLetters.length === 0;
-      scorePlusBtn.disabled = !activeTeam;
-      scoreMinusBtn.disabled = !activeTeam;
       if (liveEnabled && liveRoom) {
-        liveStatusBtn.textContent = liveRoom.status === "live" ? "Live" : "Waiting";
-        liveStatusBtn.classList.toggle("live-badge", liveRoom.status === "live");
+        qrRoomText.textContent = `Room ${liveRoom.code}`;
         qrUrlText.textContent = getLiveJoinUrl();
         qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=420x420&data=${encodeURIComponent(getLiveJoinUrl())}`;
       } else {
-        liveStatusBtn.textContent = "Offline";
-        liveStatusBtn.classList.remove("live-badge");
-      }
-    }
-
-    function completeValidWord(word, rawWord, usage) {
-      const team = getActiveTeam();
-      const scoreBreakdown = getWordScore(word, usage.stolenLetters);
-      consumeLettersForWord(usage.consumed);
-      lastRenderedLettersKey = "";
-
-      if (team) {
-        team.score += scoreBreakdown.total;
-        celebrateTeam(team.id);
-        showCelebration(team, scoreBreakdown.total);
-        playSuccessSound();
-      }
-
-      const baseMessage =
-        `<strong>${team ? team.name : "Team"}</strong> scored <strong>+${scoreBreakdown.total}</strong> with <strong>${rawWord}</strong> ` +
-        `(${scoreBreakdown.lettersScore} letters + ${scoreBreakdown.lengthBonus} length + ${scoreBreakdown.stealBonus} steal).`;
-      setMessage(baseMessage, "good");
-
-      const definitionRequestId = ++latestDefinitionRequest;
-      fetchWordDefinition(rawWord).then((definition) => {
-        if (!definition || definitionRequestId !== latestDefinitionRequest) {
-          return;
-        }
-        setMessage(`${baseMessage}<span class="definition-text">${definition}</span>`, "good");
-      });
-
-      if (activeLetters.length <= 1) {
-        ensureMinimumLettersForNextRound();
-        turnCount += 1;
-        activeTeamId = "";
-      }
-      if (activeLetters.length <= maxActiveLetters - 1) {
-        restartAutoLetterTimer();
-      }
-
-      render();
-      syncLiveRoom(liveRoom?.status || "live").catch(() => {});
-      releaseActiveLiveSubmission();
-    }
-
-    function renderQrPeople() {
-      if (!qrPeopleList) {
-        return;
-      }
-      qrPeopleList.innerHTML = "";
-      const connectedTeams = liveRoom?.teams || [];
-      if (!connectedTeams.length) {
-        const empty = document.createElement("div");
-        empty.className = "qr-empty";
-        empty.textContent = "Waiting for teams...";
-        qrPeopleList.appendChild(empty);
-        return;
-      }
-
-      connectedTeams
-        .slice()
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .forEach((team) => {
-          const row = document.createElement("div");
-          row.className = "qr-person";
-          row.innerHTML = `
-            <div class="qr-person-main">
-              <span>${team.name}</span>
-            </div>
-            <div class="qr-person-actions">
-              <button class="delete-btn" type="button" aria-label="Remove ${team.name}">x</button>
-            </div>
-          `;
-          row.querySelector(".delete-btn").addEventListener("click", (event) => {
-            event.stopPropagation();
-            removeLiveTeam(team.id, team.name).catch(() => {});
-          });
-          qrPeopleList.appendChild(row);
-        });
-    }
-
-    function render() {
-      renderCards();
-      renderTeams();
-      renderQrPeople();
-      turnCountEl.textContent = `Round ${turnCount}`;
-      activeCountEl.textContent = `Cards ${activeLetters.length}`;
-      const activeTeam = getActiveTeam();
-      turnOwnerEl.textContent = activeTeam ? `Turn: ${activeTeam.name}` : liveRoom ? `Room: ${liveRoom.code}` : "Turn: None";
-      timerCountEl.textContent = activeLetters.length >= maxActiveLetters ? "Max 8 cards" : `+1 in ${autoLetterCountdown}s`;
-      useLettersBtn.disabled = activeLetters.length === 0;
-      if (liveEnabled && liveRoom) {
-        qrUrlText.textContent = getLiveJoinUrl();
-        qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=420x420&data=${encodeURIComponent(getLiveJoinUrl())}`;
+        qrRoomText.textContent = "";
+        qrUrlText.textContent = "";
+        qrImage.removeAttribute("src");
       }
     }
 
@@ -2199,18 +2032,6 @@
       });
       if (confirmed) {
         resetGame();
-      }
-    });
-    scorePlusBtn.addEventListener("click", () => changeScore(1));
-    scoreMinusBtn.addEventListener("click", () => changeScore(-1));
-    scoreResetBtn.addEventListener("click", async () => {
-      const confirmed = await openConfirm({
-        title: "Reset Scores?",
-        text: "This will set every team score back to zero.",
-        confirmLabel: "Reset Scores"
-      });
-      if (confirmed) {
-        resetScores();
       }
     });
     resetGame();
