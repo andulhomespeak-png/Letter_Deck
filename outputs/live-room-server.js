@@ -226,6 +226,19 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { ok: true, room: serialize(room) });
     }
 
+    if (req.method === "POST" && url.pathname === "/api/live/remove-team") {
+      const { code, teamId } = await body(req);
+      const room = getRoom(code);
+      const before = room.teams.length;
+      room.teams = room.teams.filter((team) => team.id !== teamId);
+      if (room.teams.length === before) {
+        throw new Error("Team not found");
+      }
+      room.submissions = room.submissions.filter((submission) => submission.teamId !== teamId);
+      touch(room);
+      return json(res, 200, { room: serialize(room) });
+    }
+
     res.writeHead(404);
     res.end("Not found");
   } catch (error) {
