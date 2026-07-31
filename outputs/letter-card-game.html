@@ -1,0 +1,1497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Letter Deck</title>
+  <style>
+    :root {
+      --bg: #fff36b;
+      --bg-deep: #ff8a00;
+      --panel: rgba(255, 255, 255, 0.78);
+      --panel-strong: rgba(255, 255, 255, 0.94);
+      --ink: #160f2e;
+      --ink-soft: #4a3f7a;
+      --line: rgba(22, 15, 46, 0.18);
+      --accent: #ff4d2d;
+      --accent-soft: #ffe95b;
+      --mint: #00d084;
+      --blue: #2457ff;
+      --pink: #ff2f92;
+      --violet: #7a2cff;
+      --shadow: 0 28px 70px rgba(67, 28, 145, 0.22);
+      --shadow-soft: 0 16px 30px rgba(67, 28, 145, 0.14);
+      --radius: 28px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Avenir Next Condensed", "Franklin Gothic Medium", "Trebuchet MS", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 10% 8%, rgba(255, 47, 146, 0.36), transparent 18%),
+        radial-gradient(circle at 88% 12%, rgba(36, 87, 255, 0.34), transparent 16%),
+        radial-gradient(circle at 50% 100%, rgba(0, 208, 132, 0.2), transparent 26%),
+        linear-gradient(180deg, #fffcc5 0%, var(--bg) 42%, var(--bg-deep) 100%);
+      overflow: hidden;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: auto;
+      width: 34vw;
+      height: 34vw;
+      border-radius: 50%;
+      filter: blur(26px);
+      pointer-events: none;
+      opacity: 0.38;
+      z-index: 0;
+      animation: drift 14s ease-in-out infinite;
+    }
+
+    body::before {
+      top: -8vw;
+      left: -8vw;
+      background: radial-gradient(circle, rgba(255, 47, 146, 0.5) 0%, rgba(255, 47, 146, 0) 70%);
+    }
+
+    body::after {
+      right: -10vw;
+      bottom: -12vw;
+      background: radial-gradient(circle, rgba(36, 87, 255, 0.4) 0%, rgba(36, 87, 255, 0) 70%);
+      animation-delay: -5s;
+    }
+
+    .page {
+      width: min(1680px, calc(100% - 24px));
+      margin: 0 auto;
+      padding: 12px 0;
+      position: relative;
+      z-index: 1;
+    }
+
+    .app-shell {
+      min-height: calc(100vh - 24px);
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 12px;
+    }
+
+    .panel {
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(255, 247, 253, 0.82)),
+        var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.66);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px;
+      backdrop-filter: blur(14px);
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 12px;
+      align-items: center;
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.62), rgba(241, 234, 255, 0.9));
+    }
+
+    .brand {
+      margin: 0;
+      display: flex;
+      align-items: center;
+    }
+
+    .brand-logo {
+      display: block;
+      width: clamp(220px, 26vw, 460px);
+      height: auto;
+      filter: drop-shadow(0 10px 18px rgba(20, 12, 55, 0.18));
+    }
+
+    .status-strip,
+    .button-row,
+    .scorebar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 300px;
+      gap: 14px;
+      min-height: 0;
+    }
+
+    .playfield {
+      display: grid;
+      grid-template-rows: 1fr auto auto;
+      gap: 12px;
+      min-height: 0;
+    }
+
+    .sidebar {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 12px;
+      align-content: start;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(236, 244, 255, 0.94));
+    }
+
+    .stat {
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(52, 31, 20, 0.08);
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-weight: 700;
+      white-space: nowrap;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 22px;
+      min-height: 0;
+      align-content: stretch;
+      perspective: 1200px;
+    }
+
+    .card {
+      min-height: clamp(220px, 38vh, 420px);
+      border: 1px solid rgba(56, 31, 18, 0.12);
+      border-radius: 38px;
+      background:
+        linear-gradient(145deg, rgba(255, 255, 255, 1), rgba(242, 247, 255, 1));
+      display: grid;
+      place-items: center;
+      font-size: clamp(7rem, 18vw, 14rem);
+      font-weight: 900;
+      letter-spacing: -0.08em;
+      box-shadow:
+        0 28px 48px rgba(31, 26, 23, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      transform: rotate(var(--tilt));
+      position: relative;
+      overflow: hidden;
+      animation: cardDeal 320ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(130deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0) 36%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0));
+      pointer-events: none;
+    }
+
+    .card::after {
+      content: "";
+      position: absolute;
+      inset: 14px;
+      border-radius: 28px;
+      border: 1px dashed rgba(52, 31, 20, 0.08);
+      pointer-events: none;
+    }
+
+    .card[data-color="0"] { color: #ff3b30; }
+    .card[data-color="1"] { color: #5b2be0; }
+    .card[data-color="2"] { color: #10bf67; }
+    .card[data-color="3"] { color: #f3c645; }
+    .card[data-color="4"] { color: #ba60dc; }
+
+    .compact-input {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+    }
+
+    .compact-input input,
+    .team-name {
+      width: 100%;
+      border: 1px solid rgba(52, 31, 20, 0.1);
+      border-radius: 18px;
+      padding: 14px 16px;
+      font: inherit;
+      font-size: 1rem;
+      background: rgba(255, 255, 255, 0.88);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    }
+
+    .team-name {
+      padding: 10px 12px;
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+
+    .message {
+      min-height: 48px;
+      border-radius: 20px;
+      padding: 12px 16px;
+      background: rgba(238, 235, 255, 0.88);
+      line-height: 1.45;
+      text-align: center;
+      border: 1px solid rgba(52, 31, 20, 0.06);
+      color: var(--ink-soft);
+      transition: opacity 140ms ease, transform 140ms ease;
+    }
+
+    .message.good {
+      background: rgba(12, 166, 120, 0.14);
+      color: #0e6d52;
+    }
+
+    .message.bad {
+      background: rgba(255, 90, 54, 0.16);
+      color: #b83c20;
+    }
+
+    .celebration {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 180ms ease;
+      z-index: 20;
+    }
+
+    .celebration.is-visible {
+      opacity: 1;
+    }
+
+    .celebration-burst {
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 20% 30%, rgba(255, 233, 91, 0.34), transparent 14%),
+        radial-gradient(circle at 75% 24%, rgba(255, 47, 146, 0.3), transparent 16%),
+        radial-gradient(circle at 66% 74%, rgba(36, 87, 255, 0.32), transparent 18%),
+        radial-gradient(circle at 30% 78%, rgba(0, 208, 132, 0.28), transparent 16%),
+        rgba(16, 9, 41, 0.38);
+      animation: celebrateBackdrop 900ms ease;
+    }
+
+    .celebration-card {
+      position: relative;
+      padding: 28px 34px;
+      min-width: min(86vw, 720px);
+      border-radius: 36px;
+      text-align: center;
+      background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(251, 243, 255, 0.98));
+      box-shadow: 0 36px 80px rgba(24, 11, 58, 0.3);
+      border: 2px solid rgba(255, 255, 255, 0.8);
+      animation: celebratePop 900ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .celebration-label {
+      margin: 0 0 10px;
+      font-size: 0.9rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+    }
+
+    .celebration-name {
+      margin: 0;
+      font-size: clamp(2.8rem, 7vw, 5.8rem);
+      line-height: 0.92;
+      letter-spacing: -0.06em;
+      text-transform: uppercase;
+      color: var(--ink);
+      text-shadow: 0 6px 20px rgba(255, 79, 163, 0.16);
+    }
+
+    .celebration-points {
+      margin-top: 10px;
+      font-size: clamp(1.1rem, 2vw, 1.5rem);
+      font-weight: 800;
+      color: #0f8f69;
+      letter-spacing: 0.04em;
+    }
+
+    .qr-overlay {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: rgba(14, 10, 37, 0.76);
+      z-index: 25;
+      padding: 24px;
+    }
+
+    .qr-overlay.hidden {
+      display: none !important;
+    }
+
+    .confirm-overlay {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: rgba(14, 10, 37, 0.7);
+      z-index: 26;
+      padding: 24px;
+    }
+
+    .confirm-overlay.hidden {
+      display: none !important;
+    }
+
+    .confirm-modal {
+      width: min(92vw, 520px);
+      border-radius: 34px;
+      padding: 24px;
+      background: linear-gradient(145deg, rgba(255,255,255,0.99), rgba(251,243,255,0.99));
+      box-shadow: 0 36px 80px rgba(24, 11, 58, 0.3);
+      display: grid;
+      gap: 14px;
+      text-align: center;
+      border: 1px solid rgba(255, 255, 255, 0.9);
+    }
+
+    .confirm-kicker {
+      margin: 0;
+      font-size: 0.82rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--pink);
+      font-weight: 800;
+    }
+
+    .confirm-title {
+      margin: 0;
+      font-size: clamp(1.8rem, 4vw, 3rem);
+      line-height: 0.92;
+      letter-spacing: -0.06em;
+      text-transform: uppercase;
+    }
+
+    .confirm-text {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 1rem;
+      line-height: 1.45;
+    }
+
+    .confirm-actions {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .qr-modal {
+      width: min(92vw, 720px);
+      border-radius: 36px;
+      padding: 24px;
+      background: linear-gradient(145deg, rgba(255,255,255,0.99), rgba(251,243,255,0.99));
+      box-shadow: 0 36px 80px rgba(24, 11, 58, 0.3);
+      text-align: center;
+      display: grid;
+      gap: 16px;
+    }
+
+    .qr-modal h2 {
+      margin: 0;
+      font-size: clamp(2rem, 5vw, 3.6rem);
+      line-height: 0.9;
+      letter-spacing: -0.06em;
+      text-transform: uppercase;
+    }
+
+    .qr-box {
+      width: min(100%, 420px);
+      margin: 0 auto;
+      background: white;
+      border-radius: 26px;
+      padding: 16px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+    }
+
+    .qr-box img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .qr-url {
+      word-break: break-all;
+      color: var(--ink-soft);
+      font-size: 1rem;
+    }
+
+    .live-badge {
+      background: linear-gradient(180deg, #ff63c1, var(--pink));
+      color: white;
+    }
+
+    .side-title {
+      margin: 0;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--ink-soft);
+    }
+
+    .team-list {
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+
+    .team-card {
+      background: rgba(255, 255, 255, 0.76);
+      border: 1px solid rgba(52, 31, 20, 0.08);
+      border-radius: 22px;
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+      box-shadow: var(--shadow-soft);
+      transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+    }
+
+    .team-card.waiting-card {
+      padding: 10px 12px;
+      gap: 4px;
+      box-shadow: none;
+      background: rgba(255, 255, 255, 0.52);
+    }
+
+    .team-card:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 20px 26px rgba(31, 26, 23, 0.08);
+    }
+
+    .team-card.active-turn {
+      border-color: rgba(255, 47, 146, 0.45);
+      box-shadow:
+        0 18px 28px rgba(255, 47, 146, 0.22),
+        inset 0 0 0 2px rgba(255, 47, 146, 0.2);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 220, 240, 0.98));
+    }
+
+    .team-card.is-celebrating {
+      animation: teamCelebrate 720ms cubic-bezier(0.22, 1, 0.36, 1);
+      border-color: rgba(0, 208, 132, 0.52);
+      box-shadow:
+        0 24px 36px rgba(0, 208, 132, 0.28),
+        inset 0 0 0 2px rgba(0, 208, 132, 0.22);
+      background:
+        radial-gradient(circle at top center, rgba(255, 233, 91, 0.7), transparent 55%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(208, 255, 235, 0.96));
+    }
+
+    .team-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .team-points {
+      font-weight: 700;
+      text-align: center;
+      border-radius: 16px;
+      padding: 10px 12px;
+      background: linear-gradient(180deg, rgba(240, 237, 255, 0.98), rgba(222, 231, 255, 0.98));
+      color: var(--ink);
+      letter-spacing: 0.02em;
+    }
+
+    .team-card.waiting-card .team-name,
+    .team-card.waiting-card .team-points {
+      text-align: left;
+    }
+
+    .team-card.waiting-card .team-name {
+      font-size: 0.92rem;
+      color: var(--ink-soft);
+      font-weight: 700;
+    }
+
+    .team-card.waiting-card .team-points {
+      padding: 0;
+      background: transparent;
+      color: rgba(74, 63, 122, 0.82);
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    .team-card.is-celebrating .team-points {
+      background: linear-gradient(180deg, rgba(255, 239, 120, 0.99), rgba(175, 255, 229, 0.99));
+      color: #0b6a51;
+      transform: scale(1.04);
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 13px 18px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 120ms ease, opacity 120ms ease, background 120ms ease, box-shadow 120ms ease;
+      box-shadow: 0 10px 18px rgba(31, 26, 23, 0.08);
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 24px rgba(31, 26, 23, 0.12);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+      transform: none;
+    }
+
+    .primary {
+      background: linear-gradient(180deg, #4f46ff, #2412b8);
+      color: white;
+    }
+
+    .secondary {
+      background: linear-gradient(180deg, #fff27a, #ffcb2f);
+      color: var(--ink);
+    }
+
+    .accent {
+      background: linear-gradient(180deg, #ff7a45, var(--accent));
+      color: white;
+    }
+
+    .ghost {
+      background: rgba(255, 255, 255, 0.86);
+      color: var(--ink);
+      border: 1px solid rgba(31, 26, 23, 0.08);
+    }
+
+    .team-turn-btn.active-turn {
+      background: linear-gradient(180deg, #ff63c1, var(--pink));
+      color: white;
+      border-color: transparent;
+    }
+
+    .scorebar .accent,
+    .scorebar .secondary,
+    .scorebar .ghost {
+      min-width: 72px;
+    }
+
+    .sound-btn.is-on {
+      background: linear-gradient(180deg, #00d084, #00a36a);
+      color: white;
+    }
+
+    .message:empty {
+      opacity: 0;
+      transform: translateY(4px);
+      min-height: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+      border-width: 0;
+    }
+
+    @keyframes cardDeal {
+      from {
+        opacity: 0;
+        transform: translateY(18px) scale(0.96) rotate(var(--tilt));
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1) rotate(var(--tilt));
+      }
+    }
+
+    @keyframes drift {
+      0%, 100% {
+        transform: translate3d(0, 0, 0) scale(1);
+      }
+      50% {
+        transform: translate3d(2vw, -1.2vw, 0) scale(1.06);
+      }
+    }
+
+    @keyframes teamCelebrate {
+      0% {
+        transform: translateY(0) scale(1);
+      }
+      25% {
+        transform: translateY(-6px) scale(1.03);
+      }
+      55% {
+        transform: translateY(0) scale(1.015);
+      }
+      100% {
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes celebratePop {
+      0% {
+        opacity: 0;
+        transform: translateY(32px) scale(0.84);
+      }
+      30% {
+        opacity: 1;
+        transform: translateY(-8px) scale(1.04);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes celebrateBackdrop {
+      0% {
+        opacity: 0;
+      }
+      20% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 1;
+      }
+    }
+
+    @media (max-width: 980px) {
+      .topbar,
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .brand,
+      .status-strip,
+      .button-row,
+      .scorebar {
+        justify-self: center;
+      }
+
+      .compact-input {
+        grid-template-columns: 1fr;
+      }
+
+      .cards {
+        grid-template-columns: 1fr;
+      }
+
+      .card {
+        min-height: 200px;
+      }
+
+      .sidebar {
+        grid-template-rows: auto auto auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="app-shell">
+      <header class="panel topbar">
+        <h1 class="brand">
+          <img class="brand-logo" src="./letter-clash-logo.png" alt="Letter Clash">
+        </h1>
+        <div class="status-strip">
+          <div class="stat" id="turnCount">Round 0</div>
+          <div class="stat" id="activeCount">Cards 0</div>
+          <div class="stat" id="turnOwner">Turn: None</div>
+        </div>
+        <div class="button-row">
+          <button class="primary" id="addCardBtn">+1</button>
+          <button class="secondary" id="useLettersBtn">Clear</button>
+          <button class="ghost" id="startLiveBtn">Start Live</button>
+          <button class="ghost" id="showQrBtn">Show QR</button>
+          <button class="ghost sound-btn" id="soundBtn">Sound</button>
+          <button class="ghost" id="resetBtn">Reset</button>
+        </div>
+      </header>
+
+      <section class="workspace">
+        <section class="panel playfield">
+          <div class="cards" id="activeCards"></div>
+
+          <div class="compact-input">
+            <input id="wordInput" type="text" placeholder="Type a word">
+            <button class="primary" id="checkWordBtn">Check</button>
+          </div>
+
+          <div class="message" id="messageBox"></div>
+        </section>
+
+        <aside class="panel sidebar">
+          <h2 class="side-title">Teams</h2>
+          <div class="team-list" id="teamList"></div>
+          <div class="scorebar">
+            <button class="ghost" id="liveStatusBtn">Offline</button>
+            <button class="accent" id="scorePlusBtn">+1</button>
+            <button class="secondary" id="scoreMinusBtn">-1</button>
+            <button class="ghost" id="scoreResetBtn">Scores</button>
+          </div>
+        </aside>
+      </section>
+    </section>
+  </main>
+
+  <div class="qr-overlay hidden" id="qrOverlay">
+    <div class="qr-modal">
+      <h2>Scan To Join</h2>
+      <div class="qr-box">
+        <img id="qrImage" alt="Room QR">
+      </div>
+      <div class="qr-url" id="qrUrlText"></div>
+      <button class="primary" id="closeQrBtn">Close</button>
+    </div>
+  </div>
+
+  <div class="confirm-overlay hidden" id="confirmOverlay">
+    <div class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <p class="confirm-kicker">Confirm</p>
+      <h2 class="confirm-title" id="confirmTitle">Are you sure?</h2>
+      <p class="confirm-text" id="confirmText">This action may affect the current session.</p>
+      <div class="confirm-actions">
+        <button class="ghost" id="confirmCancelBtn">Cancel</button>
+        <button class="accent" id="confirmAcceptBtn">Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="celebration" id="celebration">
+    <div class="celebration-burst"></div>
+    <div class="celebration-card">
+      <p class="celebration-label">Correct Answer</p>
+      <h2 class="celebration-name" id="celebrationName">Team 1</h2>
+      <div class="celebration-points" id="celebrationPoints">+1 point</div>
+    </div>
+  </div>
+
+  <script src="./english-words.js"></script>
+  <script>
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+    const colors = [0, 1, 2, 3, 4];
+    const dictionaryWords = typeof window.ENGLISH_WORDS_RAW === "string"
+      ? window.ENGLISH_WORDS_RAW.split("\n")
+      : [];
+    const dictionary = new Set(dictionaryWords);
+
+    let activeLetters = [];
+    let turnCount = 0;
+    let activeTeamId = "";
+    let celebratingTeamId = "";
+    let teamIdCounter = 3;
+    let liveRoom = null;
+    let livePollTimer = null;
+    let liveEnabled = window.location.protocol.startsWith("http");
+    let liveBaseUrl = window.location.origin;
+    let lastRenderedLettersKey = "";
+    let teams = [
+      { id: "team-1", name: "Team 1", score: 0 },
+      { id: "team-2", name: "Team 2", score: 0 }
+    ];
+
+    const activeCards = document.getElementById("activeCards");
+    const messageBox = document.getElementById("messageBox");
+    const turnCountEl = document.getElementById("turnCount");
+    const activeCountEl = document.getElementById("activeCount");
+    const turnOwnerEl = document.getElementById("turnOwner");
+    const wordInput = document.getElementById("wordInput");
+    const addCardBtn = document.getElementById("addCardBtn");
+    const useLettersBtn = document.getElementById("useLettersBtn");
+    const startLiveBtn = document.getElementById("startLiveBtn");
+    const showQrBtn = document.getElementById("showQrBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const checkWordBtn = document.getElementById("checkWordBtn");
+    const liveStatusBtn = document.getElementById("liveStatusBtn");
+    const scorePlusBtn = document.getElementById("scorePlusBtn");
+    const scoreMinusBtn = document.getElementById("scoreMinusBtn");
+    const scoreResetBtn = document.getElementById("scoreResetBtn");
+    const teamList = document.getElementById("teamList");
+    const soundBtn = document.getElementById("soundBtn");
+    const qrOverlay = document.getElementById("qrOverlay");
+    const qrImage = document.getElementById("qrImage");
+    const qrUrlText = document.getElementById("qrUrlText");
+    const closeQrBtn = document.getElementById("closeQrBtn");
+    const confirmOverlay = document.getElementById("confirmOverlay");
+    const confirmTitle = document.getElementById("confirmTitle");
+    const confirmText = document.getElementById("confirmText");
+    const confirmCancelBtn = document.getElementById("confirmCancelBtn");
+    const confirmAcceptBtn = document.getElementById("confirmAcceptBtn");
+    const celebration = document.getElementById("celebration");
+    const celebrationName = document.getElementById("celebrationName");
+    const celebrationPoints = document.getElementById("celebrationPoints");
+    let celebrateTimer = null;
+    let overlayTimer = null;
+    let audioCtx = null;
+    let musicGain = null;
+    let musicTimer = null;
+    let soundEnabled = false;
+    let musicStep = 0;
+    let confirmState = null;
+
+    function drawLetter() {
+      return alphabet[Math.floor(Math.random() * alphabet.length)];
+    }
+
+    function setMessage(text, tone = "") {
+      messageBox.className = tone ? `message ${tone}` : "message";
+      messageBox.innerHTML = text;
+    }
+
+    function clearMessage() {
+      setMessage("");
+    }
+
+    function closeConfirm(result = false) {
+      if (!confirmState) {
+        return;
+      }
+      const { resolve } = confirmState;
+      confirmState = null;
+      confirmOverlay.classList.add("hidden");
+      resolve(result);
+    }
+
+    function openConfirm({ title, text, confirmLabel = "Continue" }) {
+      confirmTitle.textContent = title;
+      confirmText.textContent = text;
+      confirmAcceptBtn.textContent = confirmLabel;
+      confirmOverlay.classList.remove("hidden");
+      confirmAcceptBtn.focus();
+      return new Promise((resolve) => {
+        confirmState = { resolve };
+      });
+    }
+
+    function getActiveTeam() {
+      return teams.find((team) => team.id === activeTeamId) || null;
+    }
+
+    async function liveApi(path, body, method = "POST") {
+      const response = await fetch(path, {
+        method,
+        headers: method === "POST" ? { "Content-Type": "application/json" } : undefined,
+        body: method === "POST" ? JSON.stringify(body || {}) : undefined
+      });
+      const data = await response.json();
+      if (!response.ok || data.error) {
+        throw new Error(data.error || "Live request failed");
+      }
+      return data;
+    }
+
+    async function hydrateLiveBaseUrl() {
+      if (!liveEnabled) {
+        return;
+      }
+      try {
+        const data = await liveApi("/api/live/server-info", null, "GET");
+        const onLocalHost = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+        if (onLocalHost && data?.localOrigin) {
+          liveBaseUrl = data.localOrigin;
+        } else if (data?.publicOrigin) {
+          liveBaseUrl = data.publicOrigin;
+        }
+      } catch (_) {
+      }
+    }
+
+    function getLiveJoinUrl() {
+      if (!liveRoom) {
+        return "";
+      }
+      return `${liveBaseUrl}/student.html?code=${encodeURIComponent(liveRoom.code)}`;
+    }
+
+    async function syncLiveRoom(status = liveRoom?.status || "waiting") {
+      if (!liveEnabled || !liveRoom) {
+        return;
+      }
+      const data = await liveApi("/api/live/sync", {
+        code: liveRoom.code,
+        letters: activeLetters,
+        status
+      });
+      liveRoom = data.room;
+      render();
+    }
+
+    async function pollLiveRoom() {
+      if (!liveEnabled || !liveRoom) {
+        return;
+      }
+      try {
+        const data = await liveApi(`/api/live/room?code=${encodeURIComponent(liveRoom.code)}`, null, "GET");
+        liveRoom = data.room;
+        render();
+      } catch (_) {
+      } finally {
+        livePollTimer = setTimeout(pollLiveRoom, 1000);
+      }
+    }
+
+    async function initLiveRoom() {
+      if (!liveEnabled) {
+        liveStatusBtn.textContent = "Offline";
+        return;
+      }
+      const data = await liveApi("/api/live/create-room");
+      liveRoom = data.room;
+      await syncLiveRoom("waiting");
+      if (livePollTimer) {
+        clearTimeout(livePollTimer);
+      }
+      pollLiveRoom();
+    }
+
+    async function startLiveGame() {
+      if (!liveEnabled || !liveRoom) {
+        return;
+      }
+      const data = await liveApi("/api/live/start", { code: liveRoom.code });
+      liveRoom = data.room;
+      await syncLiveRoom("live");
+      render();
+    }
+
+    function getAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === "suspended") {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    function tone({ frequency, start, duration, type = "sine", gain = 0.11 }) {
+      if (!soundEnabled) {
+        return;
+      }
+      const ctx = getAudioContext();
+      const osc = ctx.createOscillator();
+      const amp = ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(frequency, start);
+      amp.gain.setValueAtTime(0.0001, start);
+      amp.gain.linearRampToValueAtTime(gain, start + 0.02);
+      amp.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      osc.connect(amp);
+      amp.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + duration + 0.03);
+    }
+
+    function playSuccessSound() {
+      if (!soundEnabled) {
+        return;
+      }
+      const ctx = getAudioContext();
+      const now = ctx.currentTime;
+      tone({ frequency: 523.25, start: now, duration: 0.14, type: "triangle", gain: 0.06 });
+      tone({ frequency: 659.25, start: now + 0.08, duration: 0.16, type: "triangle", gain: 0.085 });
+      tone({ frequency: 783.99, start: now + 0.16, duration: 0.24, type: "triangle", gain: 0.1 });
+      tone({ frequency: 1046.5, start: now + 0.24, duration: 0.34, type: "sine", gain: 0.12 });
+    }
+
+    function playErrorSound() {
+      if (!soundEnabled) {
+        return;
+      }
+      const ctx = getAudioContext();
+      const now = ctx.currentTime;
+      tone({ frequency: 280, start: now, duration: 0.12, type: "square", gain: 0.095 });
+      tone({ frequency: 220, start: now + 0.1, duration: 0.18, type: "square", gain: 0.085 });
+    }
+
+    function stopMusic() {
+      if (musicTimer) {
+        clearTimeout(musicTimer);
+        musicTimer = null;
+      }
+      if (musicGain && audioCtx) {
+        musicGain.gain.cancelScheduledValues(audioCtx.currentTime);
+        musicGain.gain.linearRampToValueAtTime(0.0001, audioCtx.currentTime + 0.2);
+      }
+    }
+
+    function scheduleMusicLoop() {
+      if (!soundEnabled) {
+        return;
+      }
+      const ctx = getAudioContext();
+      if (!musicGain) {
+        musicGain = ctx.createGain();
+        musicGain.gain.value = 0.08;
+        musicGain.connect(ctx.destination);
+      }
+
+      const motif = [392, 523.25, 659.25, 523.25, 783.99, 659.25, 523.25, 440];
+      const bass = [196, 196, 261.63, 196, 293.66, 261.63, 196, 220];
+      const baseTime = ctx.currentTime + 0.04;
+
+      for (let i = 0; i < motif.length; i += 1) {
+        const start = baseTime + i * 0.28;
+
+        const lead = ctx.createOscillator();
+        const leadGain = ctx.createGain();
+        lead.type = i % 2 === 0 ? "triangle" : "sine";
+        lead.frequency.setValueAtTime(motif[(musicStep + i) % motif.length], start);
+        leadGain.gain.setValueAtTime(0.0001, start);
+        leadGain.gain.linearRampToValueAtTime(0.075, start + 0.02);
+        leadGain.gain.exponentialRampToValueAtTime(0.0001, start + 0.22);
+        lead.connect(leadGain);
+        leadGain.connect(musicGain);
+        lead.start(start);
+        lead.stop(start + 0.24);
+
+        const low = ctx.createOscillator();
+        const lowGain = ctx.createGain();
+        low.type = "sine";
+        low.frequency.setValueAtTime(bass[(musicStep + i) % bass.length], start);
+        lowGain.gain.setValueAtTime(0.0001, start);
+        lowGain.gain.linearRampToValueAtTime(0.04, start + 0.02);
+        lowGain.gain.exponentialRampToValueAtTime(0.0001, start + 0.24);
+        low.connect(lowGain);
+        lowGain.connect(musicGain);
+        low.start(start);
+        low.stop(start + 0.28);
+      }
+
+      musicStep = (musicStep + 1) % motif.length;
+      musicTimer = setTimeout(scheduleMusicLoop, 1850);
+    }
+
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      soundBtn.classList.toggle("is-on", soundEnabled);
+      soundBtn.textContent = soundEnabled ? "Sound On" : "Sound";
+      if (soundEnabled) {
+        getAudioContext();
+        scheduleMusicLoop();
+        playSuccessSound();
+      } else {
+        stopMusic();
+      }
+    }
+
+    function showCelebration(team) {
+      celebrationName.textContent = team.name;
+      celebrationPoints.textContent = `+1 point`;
+      celebration.classList.add("is-visible");
+      if (overlayTimer) {
+        clearTimeout(overlayTimer);
+      }
+      overlayTimer = setTimeout(() => {
+        celebration.classList.remove("is-visible");
+      }, 1400);
+    }
+
+    function resetGame() {
+      activeLetters = [drawLetter(), drawLetter()];
+      lastRenderedLettersKey = "";
+      turnCount = 1;
+      activeTeamId = "";
+      celebratingTeamId = "";
+      teams = teams.map((team) => ({ ...team, score: 0 }));
+      wordInput.value = "";
+      clearMessage();
+      render();
+      syncLiveRoom(liveRoom?.status || "waiting").catch(() => {});
+    }
+
+    function ensureMinimumLettersForNextRound() {
+      while (activeLetters.length < 2) {
+        activeLetters.push(drawLetter());
+      }
+    }
+
+    function addLetterToRound() {
+      if (activeLetters.length < 2) {
+        setMessage("Need 2 cards on the table first.", "bad");
+        playErrorSound();
+        return;
+      }
+      activeLetters.push(drawLetter());
+      activeTeamId = "";
+      clearMessage();
+      render();
+      syncLiveRoom(liveRoom?.status || "waiting").catch(() => {});
+    }
+
+    function finishRound() {
+      if (activeLetters.length === 0) {
+        setMessage("No active round.", "bad");
+        playErrorSound();
+        return;
+      }
+      activeLetters = [];
+      lastRenderedLettersKey = "";
+      activeTeamId = "";
+      celebratingTeamId = "";
+      wordInput.value = "";
+      turnCount += 1;
+      activeLetters = [drawLetter(), drawLetter()];
+      clearMessage();
+      render();
+      syncLiveRoom(liveRoom?.status || "waiting").catch(() => {});
+    }
+
+    function celebrateTeam(teamId) {
+      celebratingTeamId = teamId;
+      if (celebrateTimer) {
+        clearTimeout(celebrateTimer);
+      }
+      celebrateTimer = setTimeout(() => {
+        celebratingTeamId = "";
+        render();
+      }, 760);
+    }
+
+    function assignTurn(teamId) {
+      if (activeLetters.length < 2) {
+        setMessage("Need 2 cards on the table first.", "bad");
+        playErrorSound();
+        return;
+      }
+      activeTeamId = teamId;
+      clearMessage();
+      render();
+    }
+
+    function changeScore(amount) {
+      const team = getActiveTeam();
+      if (!team) {
+        setMessage("Assign a team turn first.", "bad");
+        playErrorSound();
+        return;
+      }
+      team.score = Math.max(0, team.score + amount);
+      render();
+    }
+
+    function addTeam() {
+      const nextId = `team-${teamIdCounter}`;
+      teams.push({ id: nextId, name: `Team ${teamIdCounter}`, score: 0 });
+      teamIdCounter += 1;
+      render();
+    }
+
+    function renameTeam(teamId, nextName) {
+      const cleanName = nextName.trim();
+      const team = teams.find((item) => item.id === teamId);
+      if (!team) {
+        return;
+      }
+      team.name = cleanName || team.name;
+      render();
+    }
+
+    function resetScores() {
+      teams.forEach((team) => {
+        team.score = 0;
+      });
+      clearMessage();
+      render();
+    }
+
+    function consumeLettersForWord(word) {
+      const first = word[0];
+      const last = word[word.length - 1];
+      let firstRemoved = false;
+      let lastRemoved = false;
+
+      activeLetters = activeLetters.filter((letter) => {
+        if (!firstRemoved && letter === first) {
+          firstRemoved = true;
+          return false;
+        }
+        if (!lastRemoved && letter === last) {
+          lastRemoved = true;
+          return false;
+        }
+        return true;
+      });
+    }
+
+    function completeValidWord() {
+      const team = getActiveTeam();
+      consumeLettersForWord(wordInput.value.trim().toUpperCase());
+      wordInput.value = "";
+      lastRenderedLettersKey = "";
+
+      if (team) {
+        team.score += 1;
+        celebrateTeam(team.id);
+        showCelebration(team);
+        playSuccessSound();
+      }
+
+      if (activeLetters.length <= 1) {
+        ensureMinimumLettersForNextRound();
+        turnCount += 1;
+        activeTeamId = "";
+      }
+
+      clearMessage();
+      render();
+      syncLiveRoom(liveRoom?.status || "live").catch(() => {});
+    }
+
+    function checkWord() {
+      const rawWord = wordInput.value.trim().toLowerCase();
+      const word = rawWord.toUpperCase();
+      if (activeLetters.length < 2) {
+        setMessage("Need 2 cards on the table first.", "bad");
+        playErrorSound();
+        return;
+      }
+      if (rawWord.length < 2) {
+        setMessage("Type a longer word.", "bad");
+        playErrorSound();
+        return;
+      }
+      if (!/^[a-z]+$/.test(rawWord)) {
+        setMessage("Use only letters A-Z.", "bad");
+        playErrorSound();
+        return;
+      }
+      if (!dictionary.has(rawWord)) {
+        setMessage(`"${rawWord}" is not in the local dictionary.`, "bad");
+        playErrorSound();
+        return;
+      }
+      const first = word[0];
+      const last = word[word.length - 1];
+      const valid = activeLetters.includes(first) && activeLetters.includes(last);
+      if (!valid) {
+        setMessage(`"${rawWord}" is real, but it must start and end with <strong>${activeLetters.join(" / ")}</strong>.`, "bad");
+        playErrorSound();
+        return;
+      }
+      completeValidWord();
+    }
+
+    function renderTeams() {
+      teamList.innerHTML = "";
+
+      if (liveEnabled && liveRoom) {
+        if (!liveRoom.teams.length) {
+          const empty = document.createElement("div");
+          empty.className = "team-card waiting-card";
+          empty.innerHTML = `<div class="team-name">Waiting for teams...</div>`;
+          teamList.appendChild(empty);
+          return;
+        }
+
+        liveRoom.teams.forEach((team) => {
+          const card = document.createElement("div");
+          card.className = "team-card";
+          card.innerHTML = `
+            <div class="team-row">
+              <div class="team-name">${team.name}</div>
+              <button class="ghost team-turn-btn" disabled>${team.members} in</button>
+            </div>
+            <div class="team-points">${team.members} connected</div>
+          `;
+          teamList.appendChild(card);
+        });
+        return;
+      }
+
+      teams.forEach((team) => {
+        const card = document.createElement("div");
+        card.className = "team-card";
+        if (team.id === activeTeamId) {
+          card.classList.add("active-turn");
+        }
+        if (team.id === celebratingTeamId) {
+          card.classList.add("is-celebrating");
+        }
+
+        const row = document.createElement("div");
+        row.className = "team-row";
+
+        const input = document.createElement("input");
+        input.className = "team-name";
+        input.value = team.name;
+        input.addEventListener("change", (event) => renameTeam(team.id, event.target.value));
+        input.addEventListener("blur", (event) => renameTeam(team.id, event.target.value));
+
+        const turnBtn = document.createElement("button");
+        turnBtn.className = "ghost team-turn-btn";
+        if (team.id === activeTeamId) {
+          turnBtn.classList.add("active-turn");
+        }
+        turnBtn.textContent = "Turn";
+        turnBtn.addEventListener("click", () => assignTurn(team.id));
+
+        row.appendChild(input);
+        row.appendChild(turnBtn);
+
+        const score = document.createElement("div");
+        score.className = "team-points";
+        score.textContent = `${team.score} pts`;
+
+        card.appendChild(row);
+        card.appendChild(score);
+        teamList.appendChild(card);
+      });
+    }
+
+    function renderCards() {
+      const lettersKey = activeLetters.join("|");
+      if (lettersKey === lastRenderedLettersKey) {
+        return;
+      }
+      lastRenderedLettersKey = lettersKey;
+      activeCards.innerHTML = "";
+      if (activeLetters.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "message";
+        empty.textContent = "No cards on the table.";
+        activeCards.appendChild(empty);
+        return;
+      }
+
+      activeLetters.forEach((letter, index) => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.dataset.color = String(colors[index % colors.length]);
+        card.style.setProperty("--tilt", `${index % 2 === 0 ? -2 : 2}deg`);
+        card.textContent = letter;
+        activeCards.appendChild(card);
+      });
+    }
+
+    function render() {
+      renderCards();
+      renderTeams();
+      turnCountEl.textContent = `Round ${turnCount}`;
+      activeCountEl.textContent = `Cards ${activeLetters.length}`;
+      const activeTeam = getActiveTeam();
+      turnOwnerEl.textContent = activeTeam ? `Turn: ${activeTeam.name}` : liveRoom ? `Room: ${liveRoom.code}` : "Turn: None";
+      useLettersBtn.disabled = activeLetters.length === 0;
+      scorePlusBtn.disabled = liveEnabled ? true : !activeTeam;
+      scoreMinusBtn.disabled = liveEnabled ? true : !activeTeam;
+      if (liveEnabled && liveRoom) {
+        liveStatusBtn.textContent = liveRoom.status === "live" ? "Live" : "Waiting";
+        liveStatusBtn.classList.toggle("live-badge", liveRoom.status === "live");
+        qrUrlText.textContent = getLiveJoinUrl();
+        qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=420x420&data=${encodeURIComponent(getLiveJoinUrl())}`;
+      } else {
+        liveStatusBtn.textContent = "Offline";
+        liveStatusBtn.classList.remove("live-badge");
+      }
+    }
+
+    addCardBtn.addEventListener("click", addLetterToRound);
+    useLettersBtn.addEventListener("click", async () => {
+      const confirmed = await openConfirm({
+        title: "Clear Round?",
+        text: "This will remove the current letters and deal a new round.",
+        confirmLabel: "Clear"
+      });
+      if (confirmed) {
+        finishRound();
+      }
+    });
+    startLiveBtn.addEventListener("click", async () => {
+      if (liveRoom?.status === "live") {
+        return;
+      }
+      const confirmed = await openConfirm({
+        title: "Start Live Game?",
+        text: "Waiting screens will switch to answer mode for connected students.",
+        confirmLabel: "Start"
+      });
+      if (confirmed) {
+        startLiveGame().catch(() => {});
+      }
+    });
+    showQrBtn.addEventListener("click", () => {
+      if (!liveRoom) {
+        setMessage("Open this page through the local server first.", "bad");
+        return;
+      }
+      qrOverlay.classList.remove("hidden");
+    });
+    closeQrBtn.addEventListener("click", () => {
+      qrOverlay.classList.add("hidden");
+    });
+    qrOverlay.addEventListener("click", (event) => {
+      if (event.target === qrOverlay) {
+        qrOverlay.classList.add("hidden");
+      }
+    });
+    confirmCancelBtn.addEventListener("click", () => closeConfirm(false));
+    confirmAcceptBtn.addEventListener("click", () => closeConfirm(true));
+    confirmOverlay.addEventListener("click", (event) => {
+      if (event.target === confirmOverlay) {
+        closeConfirm(false);
+      }
+    });
+    document.addEventListener("keydown", (event) => {
+      if (confirmOverlay.classList.contains("hidden")) {
+        return;
+      }
+      if (event.key === "Escape") {
+        closeConfirm(false);
+      }
+      if (event.key === "Enter") {
+        closeConfirm(true);
+      }
+    });
+    soundBtn.addEventListener("click", toggleSound);
+    resetBtn.addEventListener("click", async () => {
+      const confirmed = await openConfirm({
+        title: "Reset Game?",
+        text: "This will reset letters, scores, turn, and round.",
+        confirmLabel: "Reset"
+      });
+      if (confirmed) {
+        resetGame();
+      }
+    });
+    checkWordBtn.addEventListener("click", checkWord);
+    scorePlusBtn.addEventListener("click", () => changeScore(1));
+    scoreMinusBtn.addEventListener("click", () => changeScore(-1));
+    scoreResetBtn.addEventListener("click", async () => {
+      const confirmed = await openConfirm({
+        title: "Reset Scores?",
+        text: "This will set every team score back to zero.",
+        confirmLabel: "Reset Scores"
+      });
+      if (confirmed) {
+        resetScores();
+      }
+    });
+    wordInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        checkWord();
+      }
+    });
+
+    resetGame();
+    hydrateLiveBaseUrl()
+      .then(() => initLiveRoom())
+      .catch(() => {});
+  </script>
+</body>
+</html>

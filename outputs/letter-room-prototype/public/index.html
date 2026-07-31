@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Letter Room</title>
+  <style>
+    :root {
+      --bg: #fff36b;
+      --bg-deep: #ff8a00;
+      --panel: rgba(255, 255, 255, 0.78);
+      --ink: #160f2e;
+      --ink-soft: #4a3f7a;
+      --accent: #ff4d2d;
+      --mint: #00d084;
+      --blue: #2457ff;
+      --pink: #ff2f92;
+      --line: rgba(22, 15, 46, 0.18);
+      --shadow: 0 28px 70px rgba(67, 28, 145, 0.22);
+      --radius: 28px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Avenir Next Condensed", "Franklin Gothic Medium", "Trebuchet MS", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 10% 8%, rgba(255, 47, 146, 0.36), transparent 18%),
+        radial-gradient(circle at 88% 12%, rgba(36, 87, 255, 0.34), transparent 16%),
+        radial-gradient(circle at 50% 100%, rgba(0, 208, 132, 0.2), transparent 26%),
+        linear-gradient(180deg, #fffcc5 0%, var(--bg) 42%, var(--bg-deep) 100%);
+      overflow-x: hidden;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      width: 34vw;
+      height: 34vw;
+      border-radius: 50%;
+      filter: blur(26px);
+      pointer-events: none;
+      opacity: 0.38;
+      z-index: 0;
+      animation: drift 14s ease-in-out infinite;
+    }
+
+    body::before {
+      top: -8vw;
+      left: -8vw;
+      background: radial-gradient(circle, rgba(255, 47, 146, 0.5) 0%, rgba(255, 47, 146, 0) 70%);
+    }
+
+    body::after {
+      right: -10vw;
+      bottom: -12vw;
+      background: radial-gradient(circle, rgba(36, 87, 255, 0.4) 0%, rgba(36, 87, 255, 0) 70%);
+      animation-delay: -5s;
+    }
+
+    .page {
+      width: min(1560px, calc(100% - 24px));
+      margin: 0 auto;
+      padding: 12px 0 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    .title {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 4rem);
+      line-height: 0.88;
+      letter-spacing: -0.06em;
+      text-transform: uppercase;
+    }
+
+    .subtitle {
+      margin: 6px 0 0;
+      color: var(--ink-soft);
+      max-width: 760px;
+    }
+
+    .tabs,
+    .status-bar,
+    .toolbar,
+    .teacher-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .tab,
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 18px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 10px 18px rgba(31, 26, 23, 0.08);
+    }
+
+    .tab {
+      background: rgba(255, 255, 255, 0.86);
+      color: var(--ink);
+    }
+
+    .tab.active {
+      background: linear-gradient(180deg, #ff63c1, var(--pink));
+      color: white;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      gap: 14px;
+    }
+
+    .panel {
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(255, 247, 253, 0.82)),
+        var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.66);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px;
+      backdrop-filter: blur(14px);
+    }
+
+    .teacher-stage {
+      display: grid;
+      grid-template-rows: auto auto auto 1fr auto;
+      gap: 12px;
+    }
+
+    .topline {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .brand {
+      margin: 0;
+      font-size: clamp(1.7rem, 2.5vw, 2.8rem);
+      line-height: 0.9;
+      letter-spacing: -0.06em;
+      text-transform: uppercase;
+    }
+
+    .pill {
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(52, 31, 20, 0.08);
+      border-radius: 999px;
+      padding: 10px 14px;
+      font-weight: 700;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    }
+
+    .room-code {
+      margin: 0;
+      text-align: center;
+      font-size: clamp(2.4rem, 6vw, 5rem);
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+
+    .join-strip {
+      border-radius: 22px;
+      padding: 14px 16px;
+      background: linear-gradient(135deg, rgba(36, 87, 255, 0.14), rgba(255, 77, 45, 0.14));
+      border: 1px solid rgba(22, 15, 46, 0.08);
+      color: var(--ink);
+    }
+
+    .letters {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 20px;
+      align-content: start;
+    }
+
+    .letter-card {
+      min-height: clamp(220px, 34vh, 380px);
+      border-radius: 38px;
+      background: linear-gradient(145deg, rgba(255,255,255,1), rgba(242,247,255,1));
+      border: 1px solid rgba(255,255,255,0.75);
+      display: grid;
+      place-items: center;
+      font-size: clamp(5rem, 12vw, 8rem);
+      font-weight: 900;
+      letter-spacing: -0.08em;
+      color: #1f1636;
+      box-shadow: 0 28px 48px rgba(31, 26, 23, 0.12);
+    }
+
+    .sidebar {
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      gap: 12px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(236, 244, 255, 0.94));
+    }
+
+    h3 {
+      margin: 0;
+      color: var(--ink);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 0.95rem;
+    }
+
+    .teams,
+    .submission-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .team-card,
+    .submission-item {
+      border: 1px solid rgba(52, 31, 20, 0.08);
+      background: rgba(255,255,255,0.76);
+      border-radius: 22px;
+      padding: 12px;
+      box-shadow: 0 16px 30px rgba(67, 28, 145, 0.1);
+    }
+
+    .team-card.winner {
+      background: linear-gradient(180deg, rgba(0,208,132,0.18), rgba(255,255,255,0.76));
+      border-color: rgba(0,208,132,0.38);
+    }
+
+    .team-name {
+      font-weight: 800;
+      font-size: 1.05rem;
+    }
+
+    .team-score {
+      font-size: 1.8rem;
+      font-weight: 900;
+      margin-top: 4px;
+    }
+
+    .muted,
+    .team-players {
+      color: var(--ink-soft);
+      font-size: 0.92rem;
+    }
+
+    .submission-item.ok {
+      border-color: rgba(0,208,132,0.38);
+      background: rgba(0,208,132,0.12);
+    }
+
+    .submission-item.bad {
+      border-color: rgba(255,77,45,0.28);
+      background: rgba(255,77,45,0.08);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .teacher-share {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: 16px;
+      align-items: center;
+      border: 1px solid rgba(52, 31, 20, 0.08);
+      border-radius: 22px;
+      padding: 14px;
+      background: rgba(255,255,255,0.55);
+    }
+
+    .qr-box,
+    .qr-modal-box {
+      background: white;
+      border-radius: 24px;
+      padding: 14px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+    }
+
+    .qr-box img,
+    .qr-modal-box img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .share-url {
+      word-break: break-all;
+      color: var(--ink-soft);
+      font-size: 0.95rem;
+    }
+
+    .student-box {
+      display: grid;
+      gap: 10px;
+    }
+
+    input,
+    select {
+      width: 100%;
+      border: 1px solid rgba(52, 31, 20, 0.1);
+      background: rgba(255,255,255,0.88);
+      color: var(--ink);
+      border-radius: 18px;
+      padding: 13px 14px;
+      font: inherit;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
+    }
+
+    select option { color: black; }
+
+    .primary {
+      background: linear-gradient(180deg, #ff7a45, var(--accent));
+      color: white;
+    }
+
+    .secondary {
+      background: linear-gradient(180deg, #4f46ff, #2412b8);
+      color: white;
+    }
+
+    .ghost {
+      background: rgba(255, 255, 255, 0.86);
+      color: var(--ink);
+      border: 1px solid rgba(31, 26, 23, 0.08);
+    }
+
+    .qr-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(6, 10, 25, 0.82);
+      display: grid;
+      place-items: center;
+      z-index: 30;
+      padding: 24px;
+    }
+
+    .qr-overlay.hidden { display: none !important; }
+
+    .qr-modal {
+      width: min(92vw, 700px);
+      background: white;
+      color: #19132f;
+      border-radius: 32px;
+      padding: 22px;
+      box-shadow: 0 26px 70px rgba(0, 0, 0, 0.36);
+      display: grid;
+      gap: 16px;
+      text-align: center;
+    }
+
+    .qr-modal h2 {
+      margin: 0;
+      font-size: clamp(1.6rem, 4vw, 2.8rem);
+      letter-spacing: -0.05em;
+    }
+
+    .qr-modal p { margin: 0; color: #5d5975; }
+
+    @keyframes drift {
+      0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+      50% { transform: translate3d(2vw, -1.2vw, 0) scale(1.06); }
+    }
+
+    @media (max-width: 980px) {
+      .hero,
+      .topline,
+      .layout,
+      .teacher-share {
+        grid-template-columns: 1fr;
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .letters {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      }
+
+      .letter-card {
+        min-height: 180px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div>
+        <h1 class="title">Letter Room</h1>
+        <p class="subtitle">Use this as the teacher view. Students join from their phones with a room code or QR and race to submit the first correct word.</p>
+      </div>
+      <div class="tabs">
+        <button class="tab active" id="teacherTab">Teacher</button>
+        <button class="tab" id="studentTab">Student</button>
+      </div>
+    </section>
+
+    <section class="layout">
+      <section class="panel teacher-stage">
+        <div class="topline">
+          <h2 class="brand">Letter Deck Live</h2>
+          <div class="status-bar">
+            <div class="pill" id="roundPill">Round 0</div>
+            <div class="pill" id="codePill">Room ----</div>
+            <div class="pill" id="winnerPill">Winner: none</div>
+          </div>
+          <div class="toolbar">
+            <button class="primary" id="createRoomBtn">Create Room</button>
+            <button class="secondary" id="addCardBtn">+1 Letter</button>
+            <button class="ghost" id="nextRoundBtn">Next Round</button>
+            <button class="ghost" id="showQrBtn">Show QR</button>
+          </div>
+        </div>
+
+        <div class="join-strip" id="teacherIntro">Create a room first. Students can join from phones on the same Wi‑Fi network using the room code or QR.</div>
+
+        <div class="teacher-share hidden" id="teacherShare">
+          <div class="qr-box">
+            <img id="roomQr" alt="Room QR code">
+          </div>
+          <div>
+            <strong>Scan to join</strong>
+            <div class="share-url" id="roomUrl">Waiting for room...</div>
+            <div class="muted">This stays inside the teacher page, and you can also use the large QR button.</div>
+          </div>
+        </div>
+
+        <h2 class="room-code" id="roomCodeDisplay">-----</h2>
+        <div class="letters" id="letters"></div>
+
+        <div class="student-box hidden" id="studentJoin">
+          <input id="joinCode" placeholder="Room code">
+          <input id="studentName" placeholder="Your name">
+          <select id="studentTeam"></select>
+          <button class="primary" id="joinRoomBtn">Join Room</button>
+        </div>
+
+        <div class="student-box hidden" id="studentActions">
+          <input id="studentWord" placeholder="Type your word">
+          <button class="primary" id="submitWordBtn">Submit</button>
+          <button class="ghost" id="rejoinBtn">Change Team</button>
+        </div>
+
+        <div class="join-strip" id="feedbackBox">Waiting for room.</div>
+      </section>
+
+      <aside class="panel sidebar">
+        <div class="teacher-toolbar" id="teacherSideActions">
+          <button class="ghost" id="addTeamBtn">Add Team</button>
+          <button class="ghost" id="resetScoresBtn">Reset Scores</button>
+        </div>
+
+        <div>
+          <h3>Teams</h3>
+          <div class="teams" id="teams"></div>
+        </div>
+
+        <div>
+          <h3>Latest Submissions</h3>
+          <div class="submission-list" id="submissions"></div>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <div class="qr-overlay hidden" id="qrOverlay">
+    <div class="qr-modal">
+      <h2>Join This Room</h2>
+      <p>Scan with your phone camera.</p>
+      <div class="qr-modal-box">
+        <img id="roomQrLarge" alt="Large room QR code">
+      </div>
+      <div class="share-url" id="roomUrlLarge">Waiting for room...</div>
+      <button class="primary" id="closeQrBtn">Close</button>
+    </div>
+  </div>
+
+  <script>
+    const state = { role: "teacher", room: null, player: null, pollTimer: null };
+
+    const teacherTab = document.getElementById("teacherTab");
+    const studentTab = document.getElementById("studentTab");
+    const roomCodeDisplay = document.getElementById("roomCodeDisplay");
+    const roundPill = document.getElementById("roundPill");
+    const codePill = document.getElementById("codePill");
+    const winnerPill = document.getElementById("winnerPill");
+    const letters = document.getElementById("letters");
+    const teams = document.getElementById("teams");
+    const submissions = document.getElementById("submissions");
+    const teacherIntro = document.getElementById("teacherIntro");
+    const teacherShare = document.getElementById("teacherShare");
+    const roomQr = document.getElementById("roomQr");
+    const roomUrl = document.getElementById("roomUrl");
+    const studentJoin = document.getElementById("studentJoin");
+    const studentActions = document.getElementById("studentActions");
+    const teacherSideActions = document.getElementById("teacherSideActions");
+    const feedbackBox = document.getElementById("feedbackBox");
+    const createRoomBtn = document.getElementById("createRoomBtn");
+    const addCardBtn = document.getElementById("addCardBtn");
+    const nextRoundBtn = document.getElementById("nextRoundBtn");
+    const showQrBtn = document.getElementById("showQrBtn");
+    const addTeamBtn = document.getElementById("addTeamBtn");
+    const resetScoresBtn = document.getElementById("resetScoresBtn");
+    const joinCode = document.getElementById("joinCode");
+    const studentName = document.getElementById("studentName");
+    const studentTeam = document.getElementById("studentTeam");
+    const joinRoomBtn = document.getElementById("joinRoomBtn");
+    const studentWord = document.getElementById("studentWord");
+    const submitWordBtn = document.getElementById("submitWordBtn");
+    const rejoinBtn = document.getElementById("rejoinBtn");
+    const qrOverlay = document.getElementById("qrOverlay");
+    const roomQrLarge = document.getElementById("roomQrLarge");
+    const roomUrlLarge = document.getElementById("roomUrlLarge");
+    const closeQrBtn = document.getElementById("closeQrBtn");
+
+    async function api(path, body, method = "POST") {
+      const response = await fetch(path, {
+        method,
+        headers: method === "POST" ? { "Content-Type": "application/json" } : undefined,
+        body: method === "POST" ? JSON.stringify(body || {}) : undefined
+      });
+      const data = await response.json();
+      if (!response.ok || data.error) throw new Error(data.error || "Request failed");
+      return data;
+    }
+
+    function setRole(role) {
+      state.role = role;
+      teacherTab.classList.toggle("active", role === "teacher");
+      studentTab.classList.toggle("active", role === "student");
+      teacherIntro.classList.toggle("hidden", role !== "teacher");
+      teacherShare.classList.toggle("hidden", role !== "teacher" || !state.room);
+      teacherSideActions.classList.toggle("hidden", role !== "teacher");
+      studentJoin.classList.toggle("hidden", role !== "student" || !!state.player);
+      studentActions.classList.toggle("hidden", role !== "student" || !state.player);
+      feedbackBox.textContent = role === "teacher"
+        ? "Waiting for room."
+        : state.player ? "Joined. Submit from your phone." : "Join a room to start.";
+    }
+
+    function renderRoom() {
+      const room = state.room;
+      roomCodeDisplay.textContent = room ? room.code : "-----";
+      roundPill.textContent = `Round ${room ? room.round : 0}`;
+      codePill.textContent = `Room ${room ? room.code : "----"}`;
+      winnerPill.textContent = room && room.lastWinner ? `Winner: ${room.lastWinner.teamName}` : "Winner: none";
+
+      const joinUrl = room ? window.location.origin : "";
+      teacherShare.classList.toggle("hidden", !room || state.role !== "teacher");
+      if (room) {
+        const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=420x420&data=${encodeURIComponent(joinUrl)}`;
+        roomUrl.textContent = joinUrl;
+        roomUrlLarge.textContent = joinUrl;
+        roomQr.src = qrSrc;
+        roomQrLarge.src = qrSrc;
+      } else {
+        roomUrl.textContent = "Waiting for room...";
+        roomUrlLarge.textContent = "Waiting for room...";
+        roomQr.removeAttribute("src");
+        roomQrLarge.removeAttribute("src");
+      }
+
+      letters.innerHTML = "";
+      if (room) {
+        room.letters.forEach((letter) => {
+          const card = document.createElement("div");
+          card.className = "letter-card";
+          card.textContent = letter;
+          letters.appendChild(card);
+        });
+      }
+
+      teams.innerHTML = "";
+      if (room) {
+        room.teams.forEach((team) => {
+          const members = room.players.filter((player) => player.teamId === team.id).map((player) => player.name);
+          const card = document.createElement("div");
+          card.className = "team-card";
+          if (room.lastWinner && room.lastWinner.teamId === team.id) card.classList.add("winner");
+          card.innerHTML = `
+            <div class="team-name">${team.name}</div>
+            <div class="team-score">${team.score}</div>
+            <div class="team-players">${members.length ? members.join(", ") : "No players yet"}</div>
+          `;
+          teams.appendChild(card);
+        });
+      }
+
+      submissions.innerHTML = "";
+      if (room && room.submissions.length) {
+        room.submissions.forEach((item) => {
+          const entry = document.createElement("div");
+          entry.className = `submission-item ${item.ok ? "ok" : "bad"}`;
+          entry.innerHTML = `
+            <strong>${item.playerName}</strong> · ${item.teamName}
+            <div>${item.word || "(empty)"}</div>
+            <div class="muted">${item.reason}</div>
+          `;
+          submissions.appendChild(entry);
+        });
+      } else {
+        submissions.innerHTML = `<div class="submission-item"><div class="muted">No submissions yet.</div></div>`;
+      }
+
+      studentTeam.innerHTML = "";
+      if (room) {
+        room.teams.forEach((team) => {
+          const option = document.createElement("option");
+          option.value = team.id;
+          option.textContent = team.name;
+          studentTeam.appendChild(option);
+        });
+      }
+    }
+
+    async function pollRoom() {
+      if (!state.room) return;
+      try {
+        const data = await api(`/api/room?code=${encodeURIComponent(state.room.code)}`, null, "GET");
+        state.room = data.room;
+        renderRoom();
+      } catch (error) {
+        feedbackBox.textContent = error.message;
+      } finally {
+        state.pollTimer = setTimeout(pollRoom, 1000);
+      }
+    }
+
+    function restartPolling() {
+      if (state.pollTimer) clearTimeout(state.pollTimer);
+      if (state.room) pollRoom();
+    }
+
+    createRoomBtn.addEventListener("click", async () => {
+      const data = await api("/api/teacher/create-room");
+      state.room = data.room;
+      feedbackBox.textContent = "Room created. Share the code.";
+      renderRoom();
+      restartPolling();
+    });
+
+    addCardBtn.addEventListener("click", async () => {
+      if (!state.room) return;
+      const data = await api("/api/teacher/add-card", { code: state.room.code });
+      state.room = data.room;
+      renderRoom();
+    });
+
+    nextRoundBtn.addEventListener("click", async () => {
+      if (!state.room) return;
+      const data = await api("/api/teacher/reset-round", { code: state.room.code });
+      state.room = data.room;
+      renderRoom();
+    });
+
+    addTeamBtn.addEventListener("click", async () => {
+      if (!state.room) return;
+      const data = await api("/api/teacher/add-team", { code: state.room.code });
+      state.room = data.room;
+      renderRoom();
+    });
+
+    resetScoresBtn.addEventListener("click", async () => {
+      if (!state.room) return;
+      const data = await api("/api/teacher/reset-scores", { code: state.room.code });
+      state.room = data.room;
+      renderRoom();
+    });
+
+    showQrBtn.addEventListener("click", () => {
+      if (!state.room) {
+        feedbackBox.textContent = "Create a room first.";
+        return;
+      }
+      qrOverlay.classList.remove("hidden");
+    });
+
+    closeQrBtn.addEventListener("click", () => qrOverlay.classList.add("hidden"));
+    qrOverlay.addEventListener("click", (event) => {
+      if (event.target === qrOverlay) qrOverlay.classList.add("hidden");
+    });
+
+    joinRoomBtn.addEventListener("click", async () => {
+      const code = joinCode.value.trim().toUpperCase();
+      if (!code) {
+        feedbackBox.textContent = "Enter a room code.";
+        return;
+      }
+      const roomData = await api(`/api/room?code=${encodeURIComponent(code)}`, null, "GET");
+      state.room = roomData.room;
+      renderRoom();
+      const joinData = await api("/api/student/join", {
+        code,
+        name: studentName.value,
+        teamId: studentTeam.value || roomData.room.teams[0]?.id
+      });
+      state.player = joinData.player;
+      state.room = joinData.room;
+      studentJoin.classList.add("hidden");
+      studentActions.classList.remove("hidden");
+      feedbackBox.textContent = `Joined as ${state.player.name}`;
+      renderRoom();
+      restartPolling();
+    });
+
+    submitWordBtn.addEventListener("click", async () => {
+      if (!state.room || !state.player) return;
+      try {
+        const data = await api("/api/student/submit", {
+          code: state.room.code,
+          playerId: state.player.id,
+          word: studentWord.value
+        });
+        state.room = data.room;
+        studentWord.value = "";
+        feedbackBox.textContent = data.ok ? `${data.winner.playerName} scored for ${data.winner.teamName}` : data.reason;
+        renderRoom();
+      } catch (error) {
+        feedbackBox.textContent = error.message;
+      }
+    });
+
+    rejoinBtn.addEventListener("click", () => {
+      state.player = null;
+      studentJoin.classList.remove("hidden");
+      studentActions.classList.add("hidden");
+      feedbackBox.textContent = "Choose a room and team again.";
+    });
+
+    teacherTab.addEventListener("click", () => setRole("teacher"));
+    studentTab.addEventListener("click", () => setRole("student"));
+    studentWord.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") submitWordBtn.click();
+    });
+
+    setRole("teacher");
+    renderRoom();
+  </script>
+</body>
+</html>

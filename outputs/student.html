@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Join Room</title>
+  <style>
+    :root {
+      --bg: #160f2e;
+      --panel: rgba(255,255,255,0.12);
+      --ink: #fff;
+      --muted: #d6d4f3;
+      --accent: #ff4d2d;
+      --line: rgba(255,255,255,0.14);
+      --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Avenir Next Condensed", "Franklin Gothic Medium", sans-serif;
+      color: var(--ink);
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at top left, rgba(255,47,146,0.28), transparent 24%),
+        radial-gradient(circle at bottom right, rgba(36,87,255,0.28), transparent 20%),
+        linear-gradient(180deg, #24105f 0%, var(--bg) 100%);
+      padding: 18px;
+    }
+    .card {
+      width: min(100%, 520px);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 22px;
+      backdrop-filter: blur(14px);
+      display: grid;
+      gap: 14px;
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 8vw, 3.4rem);
+      line-height: 0.9;
+      letter-spacing: -0.06em;
+      text-transform: uppercase;
+    }
+    p { margin: 0; color: var(--muted); }
+    input, button {
+      width: 100%;
+      border-radius: 18px;
+      font: inherit;
+      padding: 14px 16px;
+      border: 0;
+    }
+    input { background: rgba(255,255,255,0.94); color: #20153d; }
+    button { background: linear-gradient(180deg, #ff7a45, var(--accent)); color: white; font-weight: 800; }
+    .letters {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .letter {
+      min-height: 140px;
+      border-radius: 24px;
+      background: rgba(255,255,255,0.94);
+      color: #20153d;
+      display: grid;
+      place-items: center;
+      font-size: 4rem;
+      font-weight: 900;
+    }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <section id="joinView">
+      <h1>Join</h1>
+      <p>Enter your team name in English.</p>
+      <input id="teamName" placeholder="Team name">
+      <button id="joinBtn">Join Room</button>
+    </section>
+
+    <section id="waitingView" class="hidden">
+      <h1>Waiting</h1>
+      <p>Stay ready. The teacher will start the game.</p>
+    </section>
+
+    <section id="playView" class="hidden">
+      <h1>Play</h1>
+      <div class="letters" id="letters"></div>
+      <input id="wordInput" placeholder="Type your word">
+      <button id="submitBtn">Send Word</button>
+    </section>
+  </main>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const code = (params.get("code") || "").toUpperCase();
+    const joinView = document.getElementById("joinView");
+    const waitingView = document.getElementById("waitingView");
+    const playView = document.getElementById("playView");
+    const teamName = document.getElementById("teamName");
+    const joinBtn = document.getElementById("joinBtn");
+    const letters = document.getElementById("letters");
+    const wordInput = document.getElementById("wordInput");
+    const submitBtn = document.getElementById("submitBtn");
+
+    let player = null;
+    let room = null;
+    let timer = null;
+
+    async function api(path, body, method = "POST") {
+      const response = await fetch(path, {
+        method,
+        headers: method === "POST" ? { "Content-Type": "application/json" } : undefined,
+        body: method === "POST" ? JSON.stringify(body || {}) : undefined
+      });
+      const data = await response.json();
+      if (!response.ok || data.error) throw new Error(data.error || "Request failed");
+      return data;
+    }
+
+    function render() {
+      if (!room || !player) return;
+      const live = room.status === "live";
+      waitingView.classList.toggle("hidden", live);
+      playView.classList.toggle("hidden", !live);
+      letters.innerHTML = "";
+      room.letters.forEach((item) => {
+        const el = document.createElement("div");
+        el.className = "letter";
+        el.textContent = item;
+        letters.appendChild(el);
+      });
+    }
+
+    async function poll() {
+      if (!room) return;
+      try {
+        const data = await api(`/api/live/room?code=${encodeURIComponent(code)}`, null, "GET");
+        room = data.room;
+        render();
+      } finally {
+        timer = setTimeout(poll, 1000);
+      }
+    }
+
+    joinBtn.addEventListener("click", async () => {
+      const data = await api("/api/live/join", { code, teamName: teamName.value });
+      player = data.player;
+      room = data.room;
+      joinView.classList.add("hidden");
+      waitingView.classList.remove("hidden");
+      poll();
+    });
+
+    submitBtn.addEventListener("click", async () => {
+      if (!player || !room) return;
+      await api("/api/live/submit", {
+        code,
+        playerId: player.id,
+        teamName: player.teamName,
+        word: wordInput.value
+      });
+      wordInput.value = "";
+    });
+  </script>
+</body>
+</html>

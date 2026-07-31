@@ -1,0 +1,12 @@
+{
+  "name": "letter-deck-live-room",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Letter Deck classroom game with teacher and student live room views.",
+  "scripts": {
+    "start": "node live-room-server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
