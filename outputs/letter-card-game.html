@@ -30,7 +30,7 @@
 
     body {
       margin: 0;
-      min-height: 100vh;
+      min-height: 100dvh;
       font-family: "Avenir Next Condensed", "Franklin Gothic Medium", "Trebuchet MS", sans-serif;
       color: var(--ink);
       background:
@@ -75,10 +75,12 @@
         padding: 6px 0;
         position: relative;
         z-index: 1;
+        height: 100dvh;
       }
 
     .app-shell {
-        min-height: calc(100vh - 12px);
+        min-height: calc(100dvh - 12px);
+        height: calc(100dvh - 12px);
         display: grid;
         grid-template-rows: auto 1fr;
         gap: 8px;
@@ -184,11 +186,12 @@
         grid-template-columns: minmax(0, 1fr) 300px;
         gap: 10px;
         min-height: 0;
+        height: 100%;
       }
 
     .playfield {
         display: grid;
-        grid-template-rows: 1fr auto auto;
+        grid-template-rows: 1fr;
         gap: 10px;
         min-height: 0;
       }
@@ -214,15 +217,15 @@
 
     .cards {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 22px;
+      grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+      gap: 18px;
       min-height: 0;
       align-content: stretch;
       perspective: 1200px;
     }
 
     .card {
-      min-height: clamp(220px, 38vh, 420px);
+      min-height: clamp(180px, 30dvh, 420px);
       border: 1px solid rgba(56, 31, 18, 0.12);
       border-radius: 38px;
       background:
@@ -913,6 +916,60 @@
 
       .confirm-overlay {
         width: 100%;
+      }
+    }
+
+    @media (max-height: 900px) {
+      .page {
+        width: min(1680px, calc(100% - 10px));
+        padding: 5px 0;
+      }
+
+      .app-shell {
+        min-height: calc(100dvh - 10px);
+        height: calc(100dvh - 10px);
+        gap: 6px;
+      }
+
+      .panel {
+        padding: 12px;
+      }
+
+      .brand,
+      .info-panel {
+        min-height: 78px;
+      }
+
+      .brand-logo {
+        max-height: 76px;
+      }
+
+      .workspace {
+        grid-template-columns: minmax(0, 1fr) 284px;
+        gap: 8px;
+      }
+
+      .cards {
+        grid-template-columns: repeat(auto-fit, minmax(min(205px, 100%), 1fr));
+        gap: 14px;
+      }
+
+      .card {
+        min-height: clamp(156px, 25dvh, 320px);
+        border-radius: 32px;
+      }
+
+      .card::after {
+        inset: 12px;
+        border-radius: 24px;
+      }
+
+      .card-letter {
+        font-size: clamp(5.8rem, 14vw, 10.5rem);
+      }
+
+      .sidebar {
+        gap: 8px;
       }
     }
   </style>
