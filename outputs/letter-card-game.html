@@ -847,6 +847,9 @@
     let soundEnabled = false;
     let musicStep = 0;
     let confirmState = null;
+    let seenLiveSubmissionIds = new Set();
+    let queuedLiveSubmissions = [];
+    let activeLiveSubmission = null;
 
     function drawLetter() {
       return alphabet[Math.floor(Math.random() * alphabet.length)];
@@ -884,6 +887,83 @@
 
     function getActiveTeam() {
       return teams.find((team) => team.id === activeTeamId) || null;
+    }
+
+    function getTeamByLiveEntry(liveTeam) {
+      return teams.find((team) => team.id === liveTeam.id)
+        || teams.find((team) => team.name.toLowerCase() === String(liveTeam.name || "").toLowerCase())
+        || null;
+    }
+
+    function getTeamBySubmission(submission) {
+      return teams.find((team) => submission.teamId && team.id === submission.teamId)
+        || teams.find((team) => team.name.toLowerCase() === String(submission.teamName || "").toLowerCase())
+        || null;
+    }
+
+    function syncLiveTeamsIntoScores() {
+      if (!liveRoom) {
+        return;
+      }
+      liveRoom.teams.forEach((liveTeam) => {
+        const existing = getTeamByLiveEntry(liveTeam);
+        if (existing) {
+          existing.id = liveTeam.id;
+          existing.name = liveTeam.name;
+          existing.members = liveTeam.members;
+          return;
+        }
+        teams.push({
+          id: liveTeam.id,
+          name: liveTeam.name,
+          score: 0,
+          members: liveTeam.members
+        });
+      });
+    }
+
+    function clearLiveSubmissionState() {
+      activeLiveSubmission = null;
+      queuedLiveSubmissions = [];
+      seenLiveSubmissionIds = new Set((liveRoom?.submissions || []).map((item) => item.id));
+    }
+
+    function activateNextLiveSubmission() {
+      if (!liveRoom || liveRoom.status !== "live" || activeLiveSubmission || !queuedLiveSubmissions.length) {
+        return;
+      }
+      activeLiveSubmission = queuedLiveSubmissions.shift();
+      const team = getTeamBySubmission(activeLiveSubmission);
+      if (team) {
+        activeTeamId = team.id;
+      }
+      wordInput.value = activeLiveSubmission.word || "";
+      setMessage(`<strong>${activeLiveSubmission.teamName}</strong> sent <strong>${activeLiveSubmission.word}</strong>.`, "");
+      render();
+      wordInput.focus();
+      wordInput.select();
+    }
+
+    function ingestLiveSubmissions() {
+      if (!liveRoom || !Array.isArray(liveRoom.submissions)) {
+        return;
+      }
+      const nextItems = liveRoom.submissions
+        .slice()
+        .reverse()
+        .filter((item) => !seenLiveSubmissionIds.has(item.id));
+
+      nextItems.forEach((item) => {
+        seenLiveSubmissionIds.add(item.id);
+        queuedLiveSubmissions.push(item);
+      });
+
+      activateNextLiveSubmission();
+    }
+
+    function releaseActiveLiveSubmission() {
+      activeLiveSubmission = null;
+      setTimeout(() => activateNextLiveSubmission(), 0);
     }
 
     async function liveApi(path, body, method = "POST") {
@@ -932,6 +1012,7 @@
         status
       });
       liveRoom = data.room;
+      syncLiveTeamsIntoScores();
       render();
     }
 
@@ -942,6 +1023,8 @@
       try {
         const data = await liveApi(`/api/live/room?code=${encodeURIComponent(liveRoom.code)}`, null, "GET");
         liveRoom = data.room;
+        syncLiveTeamsIntoScores();
+        ingestLiveSubmissions();
         render();
       } catch (_) {
       } finally {
@@ -956,6 +1039,7 @@
       }
       const data = await liveApi("/api/live/create-room");
       liveRoom = data.room;
+      clearLiveSubmissionState();
       await syncLiveRoom("waiting");
       if (livePollTimer) {
         clearTimeout(livePollTimer);
@@ -969,6 +1053,7 @@
       }
       const data = await liveApi("/api/live/start", { code: liveRoom.code });
       liveRoom = data.room;
+      clearLiveSubmissionState();
       await syncLiveRoom("live");
       render();
     }
@@ -1114,6 +1199,7 @@
       celebratingTeamId = "";
       teams = teams.map((team) => ({ ...team, score: 0 }));
       wordInput.value = "";
+      clearLiveSubmissionState();
       clearMessage();
       render();
       syncLiveRoom(liveRoom?.status || "waiting").catch(() => {});
@@ -1133,9 +1219,11 @@
       }
       activeLetters.push(drawLetter());
       activeTeamId = "";
+      activeLiveSubmission = null;
       clearMessage();
       render();
       syncLiveRoom(liveRoom?.status || "waiting").catch(() => {});
+      activateNextLiveSubmission();
     }
 
     function finishRound() {
@@ -1151,6 +1239,7 @@
       wordInput.value = "";
       turnCount += 1;
       activeLetters = [drawLetter(), drawLetter()];
+      clearLiveSubmissionState();
       clearMessage();
       render();
       syncLiveRoom(liveRoom?.status || "waiting").catch(() => {});
@@ -1255,6 +1344,7 @@
       clearMessage();
       render();
       syncLiveRoom(liveRoom?.status || "live").catch(() => {});
+      releaseActiveLiveSubmission();
     }
 
     function checkWord() {
@@ -1263,21 +1353,25 @@
       if (activeLetters.length < 2) {
         setMessage("Need 2 cards on the table first.", "bad");
         playErrorSound();
+        releaseActiveLiveSubmission();
         return;
       }
       if (rawWord.length < 2) {
         setMessage("Type a longer word.", "bad");
         playErrorSound();
+        releaseActiveLiveSubmission();
         return;
       }
       if (!/^[a-z]+$/.test(rawWord)) {
         setMessage("Use only letters A-Z.", "bad");
         playErrorSound();
+        releaseActiveLiveSubmission();
         return;
       }
       if (!dictionary.has(rawWord)) {
         setMessage(`"${rawWord}" is not in the local dictionary.`, "bad");
         playErrorSound();
+        releaseActiveLiveSubmission();
         return;
       }
       const first = word[0];
@@ -1286,6 +1380,7 @@
       if (!valid) {
         setMessage(`"${rawWord}" is real, but it must start and end with <strong>${activeLetters.join(" / ")}</strong>.`, "bad");
         playErrorSound();
+        releaseActiveLiveSubmission();
         return;
       }
       completeValidWord();
@@ -1304,15 +1399,23 @@
         }
 
         liveRoom.teams.forEach((team) => {
+          const localTeam = getTeamByLiveEntry(team) || { id: team.id, name: team.name, score: 0 };
           const card = document.createElement("div");
           card.className = "team-card";
+          if (localTeam.id === activeTeamId) {
+            card.classList.add("active-turn");
+          }
+          if (localTeam.id === celebratingTeamId) {
+            card.classList.add("is-celebrating");
+          }
           card.innerHTML = `
             <div class="team-row">
-              <div class="team-name">${team.name}</div>
-              <button class="ghost team-turn-btn" disabled>${team.members} in</button>
+              <div class="team-name">${localTeam.name}</div>
+              <button class="ghost team-turn-btn ${localTeam.id === activeTeamId ? "active-turn" : ""}">Turn</button>
             </div>
-            <div class="team-points">${team.members} connected</div>
+            <div class="team-points">${localTeam.score} pts · ${team.members} connected</div>
           `;
+          card.querySelector(".team-turn-btn").addEventListener("click", () => assignTurn(localTeam.id));
           teamList.appendChild(card);
         });
         return;
@@ -1391,8 +1494,8 @@
       const activeTeam = getActiveTeam();
       turnOwnerEl.textContent = activeTeam ? `Turn: ${activeTeam.name}` : liveRoom ? `Room: ${liveRoom.code}` : "Turn: None";
       useLettersBtn.disabled = activeLetters.length === 0;
-      scorePlusBtn.disabled = liveEnabled ? true : !activeTeam;
-      scoreMinusBtn.disabled = liveEnabled ? true : !activeTeam;
+      scorePlusBtn.disabled = !activeTeam;
+      scoreMinusBtn.disabled = !activeTeam;
       if (liveEnabled && liveRoom) {
         liveStatusBtn.textContent = liveRoom.status === "live" ? "Live" : "Waiting";
         liveStatusBtn.classList.toggle("live-badge", liveRoom.status === "live");

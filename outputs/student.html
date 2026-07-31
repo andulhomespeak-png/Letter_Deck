@@ -161,6 +161,7 @@
       await api("/api/live/submit", {
         code,
         playerId: player.id,
+        teamId: player.teamId,
         teamName: player.teamName,
         word: wordInput.value
       });

@@ -211,11 +211,12 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && url.pathname === "/api/live/submit") {
-      const { code, playerId, teamName, word } = await body(req);
+      const { code, playerId, teamId, teamName, word } = await body(req);
       const room = getRoom(code);
       room.submissions.unshift({
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         playerId,
+        teamId,
         teamName,
         word: String(word || "").trim(),
         createdAt: Date.now()
