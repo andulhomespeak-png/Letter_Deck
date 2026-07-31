@@ -83,6 +83,48 @@
       display: grid;
       gap: 14px;
     }
+    .score-toast {
+      position: fixed;
+      right: 14px;
+      bottom: 14px;
+      max-width: min(78vw, 320px);
+      padding: 12px 14px;
+      border-radius: 18px;
+      background: rgba(20, 11, 47, 0.82);
+      border: 1px solid rgba(255,255,255,0.16);
+      box-shadow: 0 18px 34px rgba(0,0,0,0.24);
+      backdrop-filter: blur(14px);
+      display: grid;
+      gap: 4px;
+      z-index: 20;
+      opacity: 0;
+      transform: translateY(14px);
+      pointer-events: none;
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+    .score-toast.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .score-toast-label {
+      font-size: 0.74rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #ffd96c;
+      font-weight: 800;
+    }
+    .score-toast-main {
+      font-size: 1rem;
+      line-height: 1.25;
+      color: #fff;
+      font-weight: 800;
+    }
+    .score-toast-word {
+      color: #ffd96c;
+      margin-left: 8px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
     .hidden { display: none !important; }
   </style>
 </head>
@@ -107,6 +149,11 @@
     </section>
   </main>
 
+  <div class="score-toast hidden" id="scoreToast">
+    <div class="score-toast-label">Point scored</div>
+    <div class="score-toast-main" id="scoreToastText"></div>
+  </div>
+
   <script>
     const params = new URLSearchParams(location.search);
     const code = (params.get("code") || "").toUpperCase();
@@ -118,10 +165,14 @@
     const letters = document.getElementById("letters");
     const wordInput = document.getElementById("wordInput");
     const submitBtn = document.getElementById("submitBtn");
+    const scoreToast = document.getElementById("scoreToast");
+    const scoreToastText = document.getElementById("scoreToastText");
 
     let player = null;
     let room = null;
     let timer = null;
+    let lastSeenSuccessId = "";
+    let toastTimer = null;
 
     async function api(path, body, method = "POST") {
       const response = await fetch(path, {
@@ -132,6 +183,22 @@
       const data = await response.json();
       if (!response.ok || data.error) throw new Error(data.error || "Request failed");
       return data;
+    }
+
+    function showScoreToast(entry) {
+      if (!entry?.id || !entry.teamName || !entry.word) return;
+      if (entry.id === lastSeenSuccessId) return;
+      lastSeenSuccessId = entry.id;
+      scoreToastText.innerHTML = `<strong>${entry.teamName}</strong><span class="score-toast-word">${entry.word}</span>`;
+      scoreToast.classList.remove("hidden");
+      requestAnimationFrame(() => scoreToast.classList.add("is-visible"));
+      if (toastTimer) {
+        clearTimeout(toastTimer);
+      }
+      toastTimer = setTimeout(() => {
+        scoreToast.classList.remove("is-visible");
+        setTimeout(() => scoreToast.classList.add("hidden"), 180);
+      }, 2600);
     }
 
     function render() {
@@ -146,6 +213,9 @@
         el.textContent = item;
         letters.appendChild(el);
       });
+      if (live && room.lastSuccess) {
+        showScoreToast(room.lastSuccess);
+      }
     }
 
     async function poll() {

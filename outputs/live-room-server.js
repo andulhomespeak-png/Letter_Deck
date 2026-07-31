@@ -89,6 +89,7 @@ function createRoom() {
     letters: [],
     teams: [],
     submissions: [],
+    lastSuccess: null,
     nextPlayerId: 1,
     updatedAt: Date.now()
   };
@@ -113,6 +114,7 @@ function serialize(room) {
     letters: room.letters,
     teams: room.teams,
     submissions: room.submissions.slice(0, 12),
+    lastSuccess: room.lastSuccess,
     updatedAt: room.updatedAt
   };
 }
@@ -174,10 +176,11 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && url.pathname === "/api/live/sync") {
-      const { code, letters, status } = await body(req);
+      const { code, letters, status, lastSuccess } = await body(req);
       const room = getRoom(code);
       room.letters = Array.isArray(letters) ? letters.slice(0, 8) : room.letters;
       if (status) room.status = status;
+      if (lastSuccess !== undefined) room.lastSuccess = lastSuccess;
       touch(room);
       return json(res, 200, { room: serialize(room) });
     }

@@ -97,8 +97,8 @@
 
     .topbar {
         display: grid;
-        grid-template-columns: auto 1fr auto;
-        gap: 10px;
+        grid-template-columns: auto minmax(0, 1fr) 290px;
+        gap: 8px;
         align-items: center;
         background:
           linear-gradient(135deg, rgba(255, 255, 255, 0.62), rgba(241, 234, 255, 0.9));
@@ -115,16 +115,17 @@
         display: block;
         width: auto;
         height: auto;
-        max-width: min(38vw, 560px);
+        max-width: min(31vw, 460px);
         max-height: 88px;
         filter: drop-shadow(0 10px 18px rgba(20, 12, 55, 0.18));
       }
 
     .button-row {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 10px;
+      width: 290px;
+      justify-self: end;
     }
 
     .info-panel {
@@ -132,8 +133,8 @@
       display: grid;
       grid-template-columns: auto minmax(0, 1fr);
       align-items: center;
-      gap: 14px;
-      padding: 10px 16px;
+      gap: 12px;
+      padding: 8px 14px;
       border-radius: 28px;
       background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(239, 244, 255, 0.9));
       border: 1px solid rgba(255, 255, 255, 0.72);
@@ -147,7 +148,7 @@
     .info-copy {
       min-width: 0;
       display: grid;
-      gap: 6px;
+      gap: 5px;
       align-content: center;
     }
 
@@ -158,14 +159,14 @@
     }
 
     .info-headline {
-      font-size: clamp(1rem, 1.45vw, 1.22rem);
+      font-size: clamp(0.98rem, 1.32vw, 1.15rem);
       font-weight: 900;
       color: var(--ink);
     }
 
     .info-detail {
       min-height: 1.3em;
-      font-size: clamp(0.92rem, 1.15vw, 1rem);
+      font-size: clamp(0.88rem, 1.03vw, 0.96rem);
       color: var(--ink-soft);
     }
 
@@ -692,6 +693,21 @@
       color: var(--ink-soft);
     }
 
+    .definition-inline {
+      display: inline;
+      margin-left: 10px;
+      font-size: 0.92em;
+      font-weight: 600;
+      color: var(--ink-soft);
+    }
+
+    .submission-word {
+      margin-left: 10px;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
     .qr-room {
       margin-top: 10px;
       font-size: 0.92rem;
@@ -741,7 +757,7 @@
     button {
       border: 0;
       border-radius: 999px;
-      padding: 13px 18px;
+      padding: 11px 14px;
       font: inherit;
       font-weight: 700;
       cursor: pointer;
@@ -908,7 +924,7 @@
           <div class="stat info-round" id="turnCount">Round 0</div>
           <div class="info-copy">
             <div class="info-headline" id="infoHeadline">Student answers appear here.</div>
-            <div class="info-detail" id="infoDetail">Waiting for the next word.</div>
+            <div class="info-detail" id="infoDetail"></div>
           </div>
         </div>
         <div class="button-row">
@@ -1120,19 +1136,20 @@
       };
     }
 
-    function renderInfoPanel() {
-      const activeTeam = getActiveTeam();
-      const liveStatus = liveEnabled && liveRoom
-        ? (liveRoom.status === "live" ? "Live answers are on." : "Waiting for teams...")
-        : "Student answers appear here.";
-      const turnStatus = activeTeam
-        ? `${activeTeam.name} is up.`
-        : (liveRoom?.status === "live" ? "Waiting for the next correct word." : liveStatus);
+    function buildSubmissionHeadline(participantName, rawWord, definition = "") {
+      const name = participantName || "Student";
+      const word = String(rawWord || "").trim();
+      const safeDefinition = definition
+        ? `<span class="definition-inline">${definition}</span>`
+        : "";
+      return `<strong>${name}</strong><span class="submission-word">${word}</span>${safeDefinition}`;
+    }
 
+    function renderInfoPanel() {
       turnCountEl.textContent = `Round ${turnCount}`;
-      infoHeadlineEl.innerHTML = liveBannerHtml || turnStatus;
+      infoHeadlineEl.innerHTML = liveBannerHtml || "Student answers appear here.";
       infoDetailEl.className = infoMessageTone ? `info-detail ${infoMessageTone}` : "info-detail";
-      infoDetailEl.innerHTML = infoMessageHtml || turnStatus;
+      infoDetailEl.innerHTML = infoMessageHtml || "";
     }
 
     function setMessage(text, tone = "") {
@@ -1346,12 +1363,21 @@
         activeTeamId = team.id;
       }
       const evaluation = evaluateWord(activeLiveSubmission.word);
-      setLiveAnswerBanner(`<strong>${activeLiveSubmission.teamName}</strong>: ${activeLiveSubmission.word}`);
+      const participantName = activeLiveSubmission.teamName;
+      const spokenWord = String(activeLiveSubmission.word || "").trim();
+      setLiveAnswerBanner(buildSubmissionHeadline(participantName, spokenWord));
       if (evaluation.ok) {
         completeValidWord(evaluation.word, evaluation.rawWord, evaluation.usage);
         return;
       }
-      setMessage(`<strong>${activeLiveSubmission.teamName}</strong>: ${evaluation.message}`, "bad");
+      const definitionRequestId = ++latestDefinitionRequest;
+      setMessage(evaluation.message, "bad");
+      fetchWordDefinition(spokenWord).then((definition) => {
+        if (definitionRequestId !== latestDefinitionRequest) {
+          return;
+        }
+        setLiveAnswerBanner(buildSubmissionHeadline(participantName, spokenWord, definition));
+      });
       playErrorSound();
       render();
       releaseActiveLiveSubmission();
@@ -1415,14 +1441,16 @@
       return `${liveBaseUrl}/student.html?code=${encodeURIComponent(liveRoom.code)}`;
     }
 
-    async function syncLiveRoom(status = liveRoom?.status || "waiting") {
+    async function syncLiveRoom(status = liveRoom?.status || "waiting", options = {}) {
       if (!liveEnabled || !liveRoom) {
         return;
       }
+      const { lastSuccess } = options;
       const data = await liveApi("/api/live/sync", {
         code: liveRoom.code,
         letters: activeLetters,
-        status
+        status,
+        lastSuccess
       });
       liveRoom = data.room;
       syncLiveTeamsIntoScores();
@@ -1760,6 +1788,7 @@
 
     function completeValidWord(word, rawWord, usage) {
       const team = getActiveTeam();
+      const participantName = team?.name || activeLiveSubmission?.teamName || "Student";
       const scoreBreakdown = getWordScore(word, usage.stolenLetters);
       consumeLettersForWord(usage.consumed);
       lastRenderedLettersKey = "";
@@ -1771,17 +1800,18 @@
         playSuccessSound();
       }
 
-      const baseMessage =
-        `<strong>${team ? team.name : "Team"}</strong> scored <strong>+${scoreBreakdown.total}</strong> with <strong>${rawWord}</strong> ` +
-        `(${scoreBreakdown.lettersScore} letters + ${scoreBreakdown.lengthBonus} length + ${scoreBreakdown.stealBonus} steal).`;
-      setMessage(baseMessage, "good");
+      const scoreLine =
+        `<strong>+${scoreBreakdown.total} pts</strong> ` +
+        `(${scoreBreakdown.lettersScore} letters + ${scoreBreakdown.lengthBonus} length + ${scoreBreakdown.stealBonus} steal)`;
+      setLiveAnswerBanner(buildSubmissionHeadline(participantName, rawWord));
+      setMessage(scoreLine, "good");
 
       const definitionRequestId = ++latestDefinitionRequest;
       fetchWordDefinition(rawWord).then((definition) => {
         if (!definition || definitionRequestId !== latestDefinitionRequest) {
           return;
         }
-        setMessage(`${baseMessage}<span class="definition-text">${definition}</span>`, "good");
+        setLiveAnswerBanner(buildSubmissionHeadline(participantName, rawWord, definition));
       });
 
       if (activeLetters.length <= 1) {
@@ -1794,7 +1824,13 @@
       }
 
       render();
-      syncLiveRoom(liveRoom?.status || "live").catch(() => {});
+      syncLiveRoom(liveRoom?.status || "live", {
+        lastSuccess: {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          teamName: participantName,
+          word: rawWord
+        }
+      }).catch(() => {});
       releaseActiveLiveSubmission();
     }
 
