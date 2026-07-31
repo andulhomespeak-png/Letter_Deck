@@ -216,20 +216,13 @@
     .card[data-color="3"] { color: #f3c645; }
     .card[data-color="4"] { color: #ba60dc; }
 
-    .compact-input {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 10px;
-    }
-
-    .compact-input input,
-    .team-name {
+    .team-name,
+    .live-answer-banner {
       width: 100%;
       border: 1px solid rgba(52, 31, 20, 0.1);
       border-radius: 18px;
       padding: 14px 16px;
       font: inherit;
-      font-size: 1rem;
       background: rgba(255, 255, 255, 0.88);
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
     }
@@ -237,6 +230,15 @@
     .team-name {
       padding: 10px 12px;
       font-size: 0.95rem;
+      font-weight: 700;
+    }
+
+    .live-answer-banner {
+      min-height: 52px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      color: var(--ink-soft);
       font-weight: 700;
     }
 
@@ -454,24 +456,22 @@
 
     .team-list {
       display: grid;
-      gap: 10px;
+      gap: 8px;
       align-content: start;
     }
 
     .team-card {
       background: rgba(255, 255, 255, 0.76);
       border: 1px solid rgba(52, 31, 20, 0.08);
-      border-radius: 22px;
-      padding: 12px;
-      display: grid;
-      gap: 8px;
+      border-radius: 18px;
+      padding: 10px 12px;
+      display: block;
       box-shadow: var(--shadow-soft);
       transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
     }
 
     .team-card.waiting-card {
-      padding: 10px 12px;
-      gap: 4px;
+      padding: 9px 12px;
       box-shadow: none;
       background: rgba(255, 255, 255, 0.52);
     }
@@ -502,7 +502,9 @@
     }
 
     .team-row {
-      display: grid;
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
       grid-template-columns: minmax(0, 1fr) auto;
       gap: 8px;
       align-items: center;
@@ -510,12 +512,14 @@
 
     .team-points {
       font-weight: 700;
-      text-align: center;
-      border-radius: 16px;
-      padding: 10px 12px;
+      text-align: right;
+      border-radius: 999px;
+      padding: 6px 10px;
       background: linear-gradient(180deg, rgba(240, 237, 255, 0.98), rgba(222, 231, 255, 0.98));
       color: var(--ink);
       letter-spacing: 0.02em;
+      white-space: nowrap;
+      flex: 0 0 auto;
     }
 
     .team-card.waiting-card .team-name,
@@ -533,7 +537,7 @@
       padding: 0;
       background: transparent;
       color: rgba(74, 63, 122, 0.82);
-      font-size: 0.95rem;
+      font-size: 0.88rem;
       font-weight: 600;
     }
 
@@ -584,12 +588,6 @@
       background: rgba(255, 255, 255, 0.86);
       color: var(--ink);
       border: 1px solid rgba(31, 26, 23, 0.08);
-    }
-
-    .team-turn-btn.active-turn {
-      background: linear-gradient(180deg, #ff63c1, var(--pink));
-      color: white;
-      border-color: transparent;
     }
 
     .scorebar .accent,
@@ -687,10 +685,6 @@
         justify-self: center;
       }
 
-      .compact-input {
-        grid-template-columns: 1fr;
-      }
-
       .cards {
         grid-template-columns: 1fr;
       }
@@ -731,10 +725,7 @@
         <section class="panel playfield">
           <div class="cards" id="activeCards"></div>
 
-          <div class="compact-input">
-            <input id="wordInput" type="text" placeholder="Type a word">
-            <button class="primary" id="checkWordBtn">Check</button>
-          </div>
+          <div class="live-answer-banner" id="liveAnswerBanner">Answers come from student phones.</div>
 
           <div class="message" id="messageBox"></div>
         </section>
@@ -814,13 +805,12 @@
     const turnCountEl = document.getElementById("turnCount");
     const activeCountEl = document.getElementById("activeCount");
     const turnOwnerEl = document.getElementById("turnOwner");
-    const wordInput = document.getElementById("wordInput");
     const addCardBtn = document.getElementById("addCardBtn");
     const useLettersBtn = document.getElementById("useLettersBtn");
     const startLiveBtn = document.getElementById("startLiveBtn");
     const showQrBtn = document.getElementById("showQrBtn");
     const resetBtn = document.getElementById("resetBtn");
-    const checkWordBtn = document.getElementById("checkWordBtn");
+    const liveAnswerBanner = document.getElementById("liveAnswerBanner");
     const liveStatusBtn = document.getElementById("liveStatusBtn");
     const scorePlusBtn = document.getElementById("scorePlusBtn");
     const scoreMinusBtn = document.getElementById("scoreMinusBtn");
@@ -928,6 +918,39 @@
       seenLiveSubmissionIds = new Set((liveRoom?.submissions || []).map((item) => item.id));
     }
 
+    function setLiveAnswerBanner(text = "Answers come from student phones.") {
+      if (liveAnswerBanner) {
+        liveAnswerBanner.innerHTML = text;
+      }
+    }
+
+    function evaluateWord(rawInput) {
+      const rawWord = String(rawInput || "").trim().toLowerCase();
+      const word = rawWord.toUpperCase();
+      if (activeLetters.length < 2) {
+        return { ok: false, message: "Need 2 cards on the table first." };
+      }
+      if (rawWord.length < 2) {
+        return { ok: false, message: "Type a longer word." };
+      }
+      if (!/^[a-z]+$/.test(rawWord)) {
+        return { ok: false, message: "Use only letters A-Z." };
+      }
+      if (!dictionary.has(rawWord)) {
+        return { ok: false, message: `"${rawWord}" is not in the local dictionary.` };
+      }
+      const first = word[0];
+      const last = word[word.length - 1];
+      const valid = activeLetters.includes(first) && activeLetters.includes(last);
+      if (!valid) {
+        return {
+          ok: false,
+          message: `"${rawWord}" is real, but it must start and end with ${activeLetters.join(" / ")}.`
+        };
+      }
+      return { ok: true, rawWord, word };
+    }
+
     function activateNextLiveSubmission() {
       if (!liveRoom || liveRoom.status !== "live" || activeLiveSubmission || !queuedLiveSubmissions.length) {
         return;
@@ -937,11 +960,16 @@
       if (team) {
         activeTeamId = team.id;
       }
-      wordInput.value = activeLiveSubmission.word || "";
-      setMessage(`<strong>${activeLiveSubmission.teamName}</strong> sent <strong>${activeLiveSubmission.word}</strong>.`, "");
+      const evaluation = evaluateWord(activeLiveSubmission.word);
+      setLiveAnswerBanner(`<strong>${activeLiveSubmission.teamName}</strong>: ${activeLiveSubmission.word}`);
+      if (evaluation.ok) {
+        completeValidWord(evaluation.word, evaluation.rawWord);
+        return;
+      }
+      setMessage(`<strong>${activeLiveSubmission.teamName}</strong>: ${evaluation.message}`, "bad");
+      playErrorSound();
       render();
-      wordInput.focus();
-      wordInput.select();
+      releaseActiveLiveSubmission();
     }
 
     function ingestLiveSubmissions() {
@@ -1198,8 +1226,8 @@
       activeTeamId = "";
       celebratingTeamId = "";
       teams = teams.map((team) => ({ ...team, score: 0 }));
-      wordInput.value = "";
       clearLiveSubmissionState();
+      setLiveAnswerBanner();
       clearMessage();
       render();
       syncLiveRoom(liveRoom?.status || "waiting").catch(() => {});
@@ -1220,6 +1248,7 @@
       activeLetters.push(drawLetter());
       activeTeamId = "";
       activeLiveSubmission = null;
+      setLiveAnswerBanner();
       clearMessage();
       render();
       syncLiveRoom(liveRoom?.status || "waiting").catch(() => {});
@@ -1236,10 +1265,10 @@
       lastRenderedLettersKey = "";
       activeTeamId = "";
       celebratingTeamId = "";
-      wordInput.value = "";
       turnCount += 1;
       activeLetters = [drawLetter(), drawLetter()];
       clearLiveSubmissionState();
+      setLiveAnswerBanner();
       clearMessage();
       render();
       syncLiveRoom(liveRoom?.status || "waiting").catch(() => {});
@@ -1322,10 +1351,9 @@
       });
     }
 
-    function completeValidWord() {
+    function completeValidWord(word, rawWord) {
       const team = getActiveTeam();
-      consumeLettersForWord(wordInput.value.trim().toUpperCase());
-      wordInput.value = "";
+      consumeLettersForWord(word);
       lastRenderedLettersKey = "";
 
       if (team) {
@@ -1334,6 +1362,7 @@
         showCelebration(team);
         playSuccessSound();
       }
+      setMessage(`<strong>${team ? team.name : "Team"}</strong> scored with <strong>${rawWord}</strong>.`, "good");
 
       if (activeLetters.length <= 1) {
         ensureMinimumLettersForNextRound();
@@ -1341,49 +1370,9 @@
         activeTeamId = "";
       }
 
-      clearMessage();
       render();
       syncLiveRoom(liveRoom?.status || "live").catch(() => {});
       releaseActiveLiveSubmission();
-    }
-
-    function checkWord() {
-      const rawWord = wordInput.value.trim().toLowerCase();
-      const word = rawWord.toUpperCase();
-      if (activeLetters.length < 2) {
-        setMessage("Need 2 cards on the table first.", "bad");
-        playErrorSound();
-        releaseActiveLiveSubmission();
-        return;
-      }
-      if (rawWord.length < 2) {
-        setMessage("Type a longer word.", "bad");
-        playErrorSound();
-        releaseActiveLiveSubmission();
-        return;
-      }
-      if (!/^[a-z]+$/.test(rawWord)) {
-        setMessage("Use only letters A-Z.", "bad");
-        playErrorSound();
-        releaseActiveLiveSubmission();
-        return;
-      }
-      if (!dictionary.has(rawWord)) {
-        setMessage(`"${rawWord}" is not in the local dictionary.`, "bad");
-        playErrorSound();
-        releaseActiveLiveSubmission();
-        return;
-      }
-      const first = word[0];
-      const last = word[word.length - 1];
-      const valid = activeLetters.includes(first) && activeLetters.includes(last);
-      if (!valid) {
-        setMessage(`"${rawWord}" is real, but it must start and end with <strong>${activeLetters.join(" / ")}</strong>.`, "bad");
-        playErrorSound();
-        releaseActiveLiveSubmission();
-        return;
-      }
-      completeValidWord();
     }
 
     function renderTeams() {
@@ -1398,8 +1387,11 @@
           return;
         }
 
-        liveRoom.teams.forEach((team) => {
-          const localTeam = getTeamByLiveEntry(team) || { id: team.id, name: team.name, score: 0 };
+        const rankedLiveTeams = liveRoom.teams
+          .map((team) => ({ liveTeam: team, localTeam: getTeamByLiveEntry(team) || { id: team.id, name: team.name, score: 0 } }))
+          .sort((a, b) => (b.localTeam.score - a.localTeam.score) || a.localTeam.name.localeCompare(b.localTeam.name));
+
+        rankedLiveTeams.forEach(({ localTeam }) => {
           const card = document.createElement("div");
           card.className = "team-card";
           if (localTeam.id === activeTeamId) {
@@ -1411,17 +1403,18 @@
           card.innerHTML = `
             <div class="team-row">
               <div class="team-name">${localTeam.name}</div>
-              <button class="ghost team-turn-btn ${localTeam.id === activeTeamId ? "active-turn" : ""}">Turn</button>
+              <div class="team-points">${localTeam.score} pts</div>
             </div>
-            <div class="team-points">${localTeam.score} pts · ${team.members} connected</div>
           `;
-          card.querySelector(".team-turn-btn").addEventListener("click", () => assignTurn(localTeam.id));
           teamList.appendChild(card);
         });
         return;
       }
 
-      teams.forEach((team) => {
+      const rankedTeams = [...teams]
+        .sort((a, b) => (b.score - a.score) || a.name.localeCompare(b.name));
+
+      rankedTeams.forEach((team) => {
         const card = document.createElement("div");
         card.className = "team-card";
         if (team.id === activeTeamId) {
@@ -1440,23 +1433,14 @@
         input.addEventListener("change", (event) => renameTeam(team.id, event.target.value));
         input.addEventListener("blur", (event) => renameTeam(team.id, event.target.value));
 
-        const turnBtn = document.createElement("button");
-        turnBtn.className = "ghost team-turn-btn";
-        if (team.id === activeTeamId) {
-          turnBtn.classList.add("active-turn");
-        }
-        turnBtn.textContent = "Turn";
-        turnBtn.addEventListener("click", () => assignTurn(team.id));
-
         row.appendChild(input);
-        row.appendChild(turnBtn);
 
         const score = document.createElement("div");
         score.className = "team-points";
         score.textContent = `${team.score} pts`;
 
+        row.appendChild(score);
         card.appendChild(row);
-        card.appendChild(score);
         teamList.appendChild(card);
       });
     }
@@ -1575,7 +1559,6 @@
         resetGame();
       }
     });
-    checkWordBtn.addEventListener("click", checkWord);
     scorePlusBtn.addEventListener("click", () => changeScore(1));
     scoreMinusBtn.addEventListener("click", () => changeScore(-1));
     scoreResetBtn.addEventListener("click", async () => {
@@ -1588,12 +1571,6 @@
         resetScores();
       }
     });
-    wordInput.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        checkWord();
-      }
-    });
-
     resetGame();
     hydrateLiveBaseUrl()
       .then(() => initLiveRoom())
