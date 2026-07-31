@@ -28,6 +28,33 @@ function html(res, filePath) {
   res.end(fs.readFileSync(filePath, "utf8"));
 }
 
+function contentType(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === ".png") return "image/png";
+  if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
+  if (ext === ".webp") return "image/webp";
+  if (ext === ".svg") return "image/svg+xml";
+  if (ext === ".mp3") return "audio/mpeg";
+  if (ext === ".wav") return "audio/wav";
+  if (ext === ".css") return "text/css; charset=utf-8";
+  if (ext === ".js") return "application/javascript; charset=utf-8";
+  return "application/octet-stream";
+}
+
+function asset(res, filePath) {
+  if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+    res.writeHead(404);
+    res.end("Not found");
+    return;
+  }
+
+  res.writeHead(200, {
+    "Content-Type": contentType(filePath),
+    "Cache-Control": "no-store"
+  });
+  res.end(fs.readFileSync(filePath));
+}
+
 function body(req) {
   return new Promise((resolve, reject) => {
     let data = "";
@@ -119,6 +146,13 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/english-words.js") {
       res.writeHead(200, { "Content-Type": "application/javascript; charset=utf-8", "Cache-Control": "no-store" });
       return res.end(fs.readFileSync(path.join(ROOT, "english-words.js"), "utf8"));
+    }
+    if (req.method === "GET" && !url.pathname.startsWith("/api/")) {
+      const relativePath = decodeURIComponent(url.pathname).replace(/^\/+/, "");
+      const assetPath = path.join(ROOT, relativePath);
+      if (assetPath.startsWith(ROOT) && fs.existsSync(assetPath) && fs.statSync(assetPath).isFile()) {
+        return asset(res, assetPath);
+      }
     }
     if (req.method === "GET" && url.pathname === "/api/live/server-info") {
       const publicOrigin = getPublicOrigin(req);
