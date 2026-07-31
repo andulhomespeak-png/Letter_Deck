@@ -735,7 +735,7 @@
           <div class="stat" id="turnCount">Round 0</div>
           <div class="stat" id="activeCount">Cards 0</div>
           <div class="stat" id="turnOwner">Turn: None</div>
-          <div class="stat" id="timerCount">+1 in 10s</div>
+          <div class="stat" id="timerCount">+1 in 20s</div>
         </div>
         <div class="button-row">
           <button class="primary" id="addCardBtn">+1</button>
@@ -868,8 +868,8 @@
     let queuedLiveSubmissions = [];
     let activeLiveSubmission = null;
     let autoLetterTimer = null;
-    let autoLetterCountdown = 10;
-    const maxActiveLetters = 10;
+    let autoLetterCountdown = 20;
+    const maxActiveLetters = 8;
     const letterPoints = {
       A: 1, E: 1, I: 1, O: 1, N: 1, R: 1, T: 1, L: 1, S: 1, U: 1,
       D: 2, G: 2,
@@ -966,21 +966,21 @@
     function restartAutoLetterTimer() {
       stopAutoLetterTimer();
       if (activeLetters.length >= maxActiveLetters) {
-        autoLetterCountdown = 10;
+        autoLetterCountdown = 20;
         render();
         return;
       }
-      autoLetterCountdown = 10;
+      autoLetterCountdown = 20;
       autoLetterTimer = setInterval(() => {
         if (activeLetters.length >= maxActiveLetters) {
           stopAutoLetterTimer();
-          autoLetterCountdown = 10;
+          autoLetterCountdown = 20;
           render();
           return;
         }
         autoLetterCountdown -= 1;
         if (autoLetterCountdown <= 0) {
-          autoLetterCountdown = 10;
+          autoLetterCountdown = 20;
           addLetterToRound({ automatic: true });
         }
         render();
@@ -1358,7 +1358,7 @@
       celebratingTeamId = "";
       teams = teams.map((team) => ({ ...team, score: 0 }));
       clearLiveSubmissionState();
-      autoLetterCountdown = 10;
+      autoLetterCountdown = 20;
       restartAutoLetterTimer();
       setLiveAnswerBanner();
       clearMessage();
@@ -1380,17 +1380,17 @@
         return;
       }
       if (activeLetters.length >= maxActiveLetters) {
-        autoLetterCountdown = 10;
+        autoLetterCountdown = 20;
         stopAutoLetterTimer();
         render();
         return;
       }
       activeLetters.push(drawLetter());
       if (activeLetters.length >= maxActiveLetters) {
-        autoLetterCountdown = 10;
+        autoLetterCountdown = 20;
         stopAutoLetterTimer();
       } else {
-        autoLetterCountdown = 10;
+        autoLetterCountdown = 20;
         restartAutoLetterTimer();
       }
       if (!automatic) {
@@ -1417,7 +1417,7 @@
       turnCount += 1;
       activeLetters = [drawLetter(), drawLetter()];
       clearLiveSubmissionState();
-      autoLetterCountdown = 10;
+      autoLetterCountdown = 20;
       setLiveAnswerBanner();
       clearMessage();
       render();
@@ -1636,7 +1636,7 @@
       activeCountEl.textContent = `Cards ${activeLetters.length}`;
       const activeTeam = getActiveTeam();
       turnOwnerEl.textContent = activeTeam ? `Turn: ${activeTeam.name}` : liveRoom ? `Room: ${liveRoom.code}` : "Turn: None";
-      timerCountEl.textContent = activeLetters.length >= maxActiveLetters ? "Max 10 cards" : `+1 in ${autoLetterCountdown}s`;
+      timerCountEl.textContent = activeLetters.length >= maxActiveLetters ? "Max 8 cards" : `+1 in ${autoLetterCountdown}s`;
       useLettersBtn.disabled = activeLetters.length === 0;
       scorePlusBtn.disabled = !activeTeam;
       scoreMinusBtn.disabled = !activeTeam;
