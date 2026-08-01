@@ -90,6 +90,7 @@ function createRoom() {
     teams: [],
     submissions: [],
     lastSuccess: null,
+    podium: [],
     nextPlayerId: 1,
     updatedAt: Date.now()
   };
@@ -115,6 +116,7 @@ function serialize(room) {
     teams: room.teams,
     submissions: room.submissions.slice(0, 12),
     lastSuccess: room.lastSuccess,
+    podium: room.podium,
     updatedAt: room.updatedAt
   };
 }
@@ -176,11 +178,12 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && url.pathname === "/api/live/sync") {
-      const { code, letters, status, lastSuccess, teams } = await body(req);
+      const { code, letters, status, lastSuccess, teams, podium } = await body(req);
       const room = getRoom(code);
       room.letters = Array.isArray(letters) ? letters.slice(0, 8) : room.letters;
       if (status) room.status = status;
       if (lastSuccess !== undefined) room.lastSuccess = lastSuccess;
+      if (Array.isArray(podium)) room.podium = podium.slice(0, 3);
       if (Array.isArray(teams)) {
         room.teams = teams.map((team, index) => {
           const existing = room.teams.find((item) => item.id === team.id)
@@ -229,6 +232,9 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/api/live/submit") {
       const { code, playerId, teamId, teamName, word } = await body(req);
       const room = getRoom(code);
+      if (room.status !== "live") {
+        throw new Error("Game is not accepting answers");
+      }
       room.submissions.unshift({
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         playerId,

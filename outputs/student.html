@@ -144,10 +144,14 @@
       letter-spacing: 0.04em;
       text-transform: uppercase;
     }
+    .score-toast-word .used-letter {
+      color: #42f5a1;
+      text-shadow: 0 0 14px rgba(66, 245, 161, 0.34);
+    }
     .rank-badge {
       position: fixed;
       top: 14px;
-      right: 14px;
+      left: 14px;
       padding: 10px 12px;
       border-radius: 16px;
       background: rgba(20, 11, 47, 0.72);
@@ -252,7 +256,7 @@
       if (!entry?.id || !entry.teamName || !entry.word) return;
       if (entry.id === lastSeenSuccessId) return;
       lastSeenSuccessId = entry.id;
-      scoreToastText.innerHTML = `<strong>${entry.teamName}</strong><span class="score-toast-word">${entry.word}</span>`;
+      scoreToastText.innerHTML = `<strong>${entry.teamName}</strong><span class="score-toast-word">${highlightUsedLetters(entry.word, entry.consumedLetters || [])}</span>`;
       scoreToast.classList.remove("hidden");
       requestAnimationFrame(() => scoreToast.classList.add("is-visible"));
       if (toastTimer) {
@@ -275,6 +279,30 @@
       return `${num}th`;
     }
 
+    function escapeHtml(value) {
+      return String(value || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll("\"", "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function highlightUsedLetters(word, consumedLetters) {
+      const counts = {};
+      consumedLetters.forEach((letter) => {
+        const key = String(letter || "").toUpperCase();
+        counts[key] = (counts[key] || 0) + 1;
+      });
+      return String(word || "").toUpperCase().split("").map((letter) => {
+        if (counts[letter] > 0) {
+          counts[letter] -= 1;
+          return `<span class="used-letter">${escapeHtml(letter)}</span>`;
+        }
+        return escapeHtml(letter);
+      }).join("");
+    }
+
     function renderRank() {
       const rankedTeams = Array.isArray(room?.teams)
         ? room.teams
@@ -293,8 +321,18 @@
     function render() {
       if (!room || !player) return;
       const live = room.status === "live";
+      const finished = room.status === "finished";
       waitingView.classList.toggle("hidden", live);
       playView.classList.toggle("hidden", !live);
+      if (finished) {
+        waitingView.classList.remove("hidden");
+        playView.classList.add("hidden");
+        waitingView.querySelector("h1").textContent = "Finished";
+        waitingView.querySelector("p").textContent = "The match is over. Check the final podium on the main screen.";
+      } else {
+        waitingView.querySelector("h1").textContent = "Waiting";
+        waitingView.querySelector("p").textContent = "Stay ready. The teacher will start the game.";
+      }
       letters.innerHTML = "";
       room.letters.forEach((item) => {
         const el = document.createElement("div");

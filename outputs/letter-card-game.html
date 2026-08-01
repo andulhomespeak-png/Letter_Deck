@@ -376,6 +376,173 @@
       letter-spacing: 0.04em;
     }
 
+    .podium-overlay {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background:
+        radial-gradient(circle at top center, rgba(255, 233, 91, 0.22), transparent 26%),
+        linear-gradient(180deg, rgba(12, 8, 34, 0.52), rgba(12, 8, 34, 0.76));
+      z-index: 32;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 180ms ease;
+    }
+
+    .podium-overlay.is-visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .podium-modal {
+      width: min(92vw, 980px);
+      border-radius: 38px;
+      padding: 24px 24px 28px;
+      background: linear-gradient(145deg, rgba(255,255,255,0.99), rgba(248,245,255,0.98));
+      box-shadow: 0 44px 90px rgba(24, 11, 58, 0.34);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      display: grid;
+      gap: 18px;
+      text-align: center;
+    }
+
+    .podium-kicker {
+      margin: 0;
+      font-size: 0.88rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      font-weight: 800;
+      color: var(--pink);
+    }
+
+    .podium-title {
+      margin: 0;
+      font-size: clamp(2.6rem, 6vw, 5rem);
+      line-height: 0.9;
+      letter-spacing: -0.06em;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+
+    .podium-subtitle {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: clamp(1rem, 1.7vw, 1.18rem);
+      font-weight: 700;
+    }
+
+    .podium-stage {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      align-items: end;
+      min-height: 320px;
+      padding-top: 6px;
+    }
+
+    .podium-place {
+      position: relative;
+      display: grid;
+      align-content: end;
+      gap: 10px;
+      min-height: 220px;
+      animation: podiumRise 720ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    .podium-place[data-rank="1"] {
+      animation-delay: 90ms;
+    }
+
+    .podium-place[data-rank="2"] {
+      animation-delay: 0ms;
+    }
+
+    .podium-place[data-rank="3"] {
+      animation-delay: 160ms;
+    }
+
+    .podium-badge {
+      justify-self: center;
+      min-width: 74px;
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-size: 0.92rem;
+      font-weight: 900;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: white;
+      box-shadow: 0 16px 26px rgba(31, 26, 23, 0.16);
+    }
+
+    .podium-place[data-rank="1"] .podium-badge {
+      background: linear-gradient(180deg, #ff7f52, #ff4d2d);
+    }
+
+    .podium-place[data-rank="2"] .podium-badge {
+      background: linear-gradient(180deg, #5c77ff, #2457ff);
+    }
+
+    .podium-place[data-rank="3"] .podium-badge {
+      background: linear-gradient(180deg, #12c977, #00a868);
+    }
+
+    .podium-team {
+      display: grid;
+      gap: 6px;
+      justify-items: center;
+      padding: 0 10px;
+    }
+
+    .podium-team-name {
+      font-size: clamp(1.15rem, 2vw, 1.7rem);
+      line-height: 1;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+
+    .podium-score {
+      font-size: clamp(0.94rem, 1.4vw, 1.08rem);
+      font-weight: 800;
+      color: var(--ink-soft);
+    }
+
+    .podium-block {
+      border-radius: 30px 30px 20px 20px;
+      display: grid;
+      place-items: center;
+      color: white;
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      font-weight: 900;
+      text-shadow: 0 10px 18px rgba(0, 0, 0, 0.16);
+      box-shadow: 0 26px 38px rgba(31, 26, 23, 0.16);
+    }
+
+    .podium-place[data-rank="1"] .podium-block {
+      min-height: 170px;
+      background: linear-gradient(180deg, #ffd85b, #ff9e1a);
+    }
+
+    .podium-place[data-rank="2"] .podium-block {
+      min-height: 130px;
+      background: linear-gradient(180deg, #6f89ff, #3859e8);
+    }
+
+    .podium-place[data-rank="3"] .podium-block {
+      min-height: 102px;
+      background: linear-gradient(180deg, #33db9a, #00a868);
+    }
+
+    .podium-actions {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
     .qr-overlay {
       position: fixed;
       inset: 0;
@@ -886,6 +1053,17 @@
       }
     }
 
+    @keyframes podiumRise {
+      0% {
+        opacity: 0;
+        transform: translateY(40px) scale(0.92);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
     @media (max-width: 980px) {
       .topbar,
       .workspace {
@@ -912,6 +1090,15 @@
 
       .qr-layout {
         grid-template-columns: 1fr;
+      }
+
+      .podium-stage {
+        grid-template-columns: 1fr;
+        min-height: 0;
+      }
+
+      .podium-place {
+        min-height: 0;
       }
 
       .confirm-overlay {
@@ -971,6 +1158,10 @@
       .sidebar {
         gap: 8px;
       }
+
+      .podium-stage {
+        min-height: 280px;
+      }
     }
   </style>
 </head>
@@ -982,7 +1173,7 @@
           <img class="brand-logo" src="./letter-clash-logo.png" alt="Letter Clash">
         </h1>
         <div class="info-panel">
-          <div class="stat info-round" id="turnCount">Round 0</div>
+          <div class="stat info-round" id="goalStat">Race to 1000</div>
           <div class="info-copy">
             <div class="info-headline" id="infoHeadline">Student answers appear here.</div>
             <div class="info-detail" id="infoDetail"></div>
@@ -1051,6 +1242,18 @@
     </div>
   </div>
 
+  <div class="podium-overlay" id="podiumOverlay">
+    <div class="podium-modal">
+      <p class="podium-kicker">Game Over</p>
+      <h2 class="podium-title">Top 3</h2>
+      <p class="podium-subtitle" id="podiumSubtitle">First team to 1000 points wins.</p>
+      <div class="podium-stage" id="podiumStage"></div>
+      <div class="podium-actions">
+        <button class="accent" id="podiumResetBtn">Play Again</button>
+      </div>
+    </div>
+  </div>
+
   <script src="./english-words.js"></script>
   <script>
     const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
@@ -1061,7 +1264,6 @@
     const dictionary = new Set(dictionaryWords);
 
     let activeLetters = [];
-    let turnCount = 0;
     let activeTeamId = "";
     let celebratingTeamId = "";
     let teamIdCounter = 3;
@@ -1076,7 +1278,7 @@
     ];
 
     const activeCards = document.getElementById("activeCards");
-    const turnCountEl = document.getElementById("turnCount");
+    const goalStatEl = document.getElementById("goalStat");
     const infoHeadlineEl = document.getElementById("infoHeadline");
     const infoDetailEl = document.getElementById("infoDetail");
     const useLettersBtn = document.getElementById("useLettersBtn");
@@ -1099,6 +1301,10 @@
     const celebration = document.getElementById("celebration");
     const celebrationName = document.getElementById("celebrationName");
     const celebrationPoints = document.getElementById("celebrationPoints");
+    const podiumOverlay = document.getElementById("podiumOverlay");
+    const podiumStage = document.getElementById("podiumStage");
+    const podiumSubtitle = document.getElementById("podiumSubtitle");
+    const podiumResetBtn = document.getElementById("podiumResetBtn");
     let celebrateTimer = null;
     let overlayTimer = null;
     let audioCtx = null;
@@ -1114,7 +1320,9 @@
     let seenLiveSubmissionIds = new Set();
     let queuedLiveSubmissions = [];
     let activeLiveSubmission = null;
+    let matchFinished = false;
     const maxActiveLetters = 8;
+    const winningScore = 1000;
     const letterPoints = {
       A: 1, E: 1, I: 1, O: 1, N: 1, R: 1, T: 1, L: 1, S: 1, U: 1,
       D: 2, G: 2,
@@ -1193,6 +1401,58 @@
       };
     }
 
+    function getScoreboardTeams() {
+      const source = liveEnabled && liveRoom
+        ? liveRoom.teams.map((team) => getTeamByLiveEntry(team) || { id: team.id, name: team.name, score: 0, members: team.members })
+        : teams.slice();
+
+      return source
+        .slice()
+        .sort((a, b) => (Number(b.score) - Number(a.score)) || String(a.name || "").localeCompare(String(b.name || "")));
+    }
+
+    function isGameFinished() {
+      return matchFinished || (liveRoom?.status || "") === "finished";
+    }
+
+    function renderPodium() {
+      const ranked = getScoreboardTeams().slice(0, 3);
+      podiumStage.innerHTML = "";
+      const visualOrder = [1, 0, 2];
+      visualOrder.forEach((index) => {
+        const team = ranked[index];
+        if (!team) {
+          return;
+        }
+        const place = document.createElement("div");
+        const rank = index + 1;
+        place.className = "podium-place";
+        place.dataset.rank = String(rank);
+        place.innerHTML = `
+          <div class="podium-badge">#${rank}</div>
+          <div class="podium-team">
+            <div class="podium-team-name">${team.name}</div>
+            <div class="podium-score">${team.score} pts</div>
+          </div>
+          <div class="podium-block">${rank}</div>
+        `;
+        podiumStage.appendChild(place);
+      });
+      const winner = ranked[0];
+      podiumSubtitle.textContent = winner
+        ? `${winner.name} reached ${winner.score} points and won the match.`
+        : `First team to ${winningScore} points wins.`;
+    }
+
+    function updatePodiumVisibility() {
+      if (isGameFinished()) {
+        renderPodium();
+        podiumOverlay.classList.add("is-visible");
+        return;
+      }
+      podiumOverlay.classList.remove("is-visible");
+    }
+
     function buildSubmissionHeadline(participantName, rawWord, definition = "") {
       const name = participantName || "Student";
       const word = String(rawWord || "").trim();
@@ -1203,7 +1463,7 @@
     }
 
     function renderInfoPanel() {
-      turnCountEl.textContent = `Round ${turnCount}`;
+      goalStatEl.textContent = `Race to ${winningScore}`;
       infoHeadlineEl.innerHTML = liveBannerHtml || "Student answers appear here.";
       infoDetailEl.className = infoMessageTone ? `info-detail ${infoMessageTone}` : "info-detail";
       infoDetailEl.innerHTML = infoMessageHtml || "";
@@ -1389,7 +1649,7 @@
     }
 
     function activateNextLiveSubmission() {
-      if (!liveRoom || liveRoom.status !== "live" || activeLiveSubmission || !queuedLiveSubmissions.length) {
+      if (!liveRoom || liveRoom.status !== "live" || activeLiveSubmission || !queuedLiveSubmissions.length || isGameFinished()) {
         return;
       }
       activeLiveSubmission = queuedLiveSubmissions.shift();
@@ -1480,7 +1740,7 @@
       if (!liveEnabled || !liveRoom) {
         return;
       }
-      const { lastSuccess } = options;
+      const { lastSuccess, podium } = options;
       const syncedTeams = liveRoom.teams.map((liveTeam) => {
         const localTeam = getTeamByLiveEntry(liveTeam) || { score: 0, name: liveTeam.name, id: liveTeam.id, members: liveTeam.members };
         return {
@@ -1495,9 +1755,11 @@
         letters: activeLetters,
         status,
         lastSuccess,
+        podium,
         teams: syncedTeams
       });
       liveRoom = data.room;
+      matchFinished = liveRoom?.status === "finished";
       syncLiveTeamsIntoScores();
       render();
     }
@@ -1509,6 +1771,7 @@
       try {
         const data = await liveApi(`/api/live/room?code=${encodeURIComponent(liveRoom.code)}`, null, "GET");
         liveRoom = data.room;
+        matchFinished = liveRoom?.status === "finished";
         syncLiveTeamsIntoScores();
         ingestLiveSubmissions();
         render();
@@ -1524,6 +1787,7 @@
       }
       const data = await liveApi("/api/live/create-room");
       liveRoom = data.room;
+      matchFinished = false;
       clearLiveSubmissionState();
       await syncLiveRoom("waiting");
       if (livePollTimer) {
@@ -1533,11 +1797,12 @@
     }
 
     async function startLiveGame() {
-      if (!liveEnabled || !liveRoom) {
+      if (!liveEnabled || !liveRoom || isGameFinished()) {
         return;
       }
       const data = await liveApi("/api/live/start", { code: liveRoom.code });
       liveRoom = data.room;
+      matchFinished = false;
       clearLiveSubmissionState();
       await syncLiveRoom("live");
       render();
@@ -1692,18 +1957,27 @@
       activeLetters = [];
       fillLettersToTarget();
       lastRenderedLettersKey = "";
-      turnCount = 0;
       activeTeamId = "";
       celebratingTeamId = "";
+      matchFinished = false;
       teams = teams.map((team) => ({ ...team, score: 0 }));
       clearLiveSubmissionState();
       setLiveAnswerBanner();
       clearMessage();
+      if (liveRoom) {
+        liveRoom.status = "waiting";
+        liveRoom.lastSuccess = null;
+        liveRoom.podium = [];
+        liveRoom.submissions = [];
+      }
       render();
-      syncLiveRoom(liveRoom?.status || "waiting").catch(() => {});
+      syncLiveRoom("waiting", { lastSuccess: null, podium: [] }).catch(() => {});
     }
 
     function finishRound() {
+      if (isGameFinished()) {
+        return;
+      }
       if (activeLetters.length === 0) {
         setMessage("No active round.", "bad");
         playErrorSound();
@@ -1718,7 +1992,7 @@
       setLiveAnswerBanner();
       clearMessage();
       render();
-      syncLiveRoom(liveRoom?.status || "waiting").catch(() => {});
+      syncLiveRoom(liveRoom?.status || "waiting", { lastSuccess: null }).catch(() => {});
     }
 
     function celebrateTeam(teamId) {
@@ -1794,6 +2068,7 @@
       const team = getActiveTeam();
       const participantName = team?.name || activeLiveSubmission?.teamName || "Student";
       const scoreBreakdown = getWordScore(word, usage.stolenLetters);
+      const consumedLetters = Object.entries(usage.consumed).flatMap(([letter, count]) => Array.from({ length: count }, () => letter));
       consumeLettersForWord(usage.consumed);
       lastRenderedLettersKey = "";
 
@@ -1819,17 +2094,30 @@
       });
 
       fillLettersToTarget();
-      turnCount += 1;
       activeTeamId = "";
 
+      const winner = getScoreboardTeams().find((entry) => Number(entry.score) >= winningScore) || null;
+      const nextStatus = winner ? "finished" : (liveRoom?.status || "live");
+      matchFinished = !!winner;
+      if (liveRoom) {
+        liveRoom.status = nextStatus;
+      }
+
       render();
-      syncLiveRoom(liveRoom?.status || "live", {
+      syncLiveRoom(nextStatus, {
         lastSuccess: {
           id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           teamName: participantName,
-          word: rawWord
-        }
+          word: rawWord,
+          consumedLetters
+        },
+        podium: winner ? getScoreboardTeams().slice(0, 3) : []
       }).catch(() => {});
+      if (winner) {
+        queuedLiveSubmissions = [];
+        activeLiveSubmission = null;
+        setMessage(`<strong>${winner.name}</strong> reached ${winner.score} pts. Final podium locked.`, "good");
+      }
       releaseActiveLiveSubmission();
     }
 
@@ -1866,9 +2154,7 @@
 
     function renderTeams() {
       teamList.innerHTML = "";
-      const rankedTeamsSource = liveEnabled && liveRoom
-        ? liveRoom.teams.map((team) => getTeamByLiveEntry(team) || { id: team.id, name: team.name, score: 0 })
-        : teams.slice();
+      const rankedTeamsSource = getScoreboardTeams();
 
       if (!rankedTeamsSource.length) {
         const empty = document.createElement("div");
@@ -1878,9 +2164,7 @@
         return;
       }
 
-      rankedTeamsSource
-        .sort((a, b) => (b.score - a.score) || a.name.localeCompare(b.name))
-        .forEach((team) => {
+      rankedTeamsSource.forEach((team) => {
           const card = document.createElement("div");
           card.className = "team-card";
           if (team.id === activeTeamId) {
@@ -1988,7 +2272,9 @@
       renderTeams();
       renderQrPeople();
       renderInfoPanel();
-      useLettersBtn.disabled = activeLetters.length === 0;
+      updatePodiumVisibility();
+      useLettersBtn.disabled = activeLetters.length === 0 || isGameFinished();
+      startLiveBtn.disabled = isGameFinished();
       if (liveEnabled && liveRoom) {
         qrRoomText.textContent = `Room ${liveRoom.code}`;
         qrUrlText.textContent = getLiveJoinUrl();
@@ -2002,8 +2288,8 @@
 
     useLettersBtn.addEventListener("click", async () => {
       const confirmed = await openConfirm({
-        title: "Clear Round?",
-        text: "This will remove the current letters and deal a new round.",
+        title: "Refresh Letters?",
+        text: "This will replace the current 8 letters with a fresh set.",
         confirmLabel: "Clear"
       });
       if (confirmed) {
@@ -2060,7 +2346,17 @@
     resetBtn.addEventListener("click", async () => {
       const confirmed = await openConfirm({
         title: "Reset Game?",
-        text: "This will reset letters, scores, turn, and round.",
+        text: "This will reset letters, scores, and the live session state.",
+        confirmLabel: "Reset"
+      });
+      if (confirmed) {
+        resetGame();
+      }
+    });
+    podiumResetBtn.addEventListener("click", async () => {
+      const confirmed = await openConfirm({
+        title: "Start New Match?",
+        text: "This will close the podium and reset all scores and letters.",
         confirmLabel: "Reset"
       });
       if (confirmed) {
