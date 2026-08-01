@@ -62,18 +62,37 @@
     .letters {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
+      gap: 12px;
       margin: 6px 0 2px;
     }
     .letter {
-      min-height: 140px;
-      border-radius: 24px;
+      min-height: 104px;
+      border-radius: 22px;
       background: rgba(255,255,255,0.94);
       color: #20153d;
       display: grid;
       place-items: center;
-      font-size: 4rem;
+      font-size: 3rem;
       font-weight: 900;
+      position: relative;
+      box-shadow: 0 14px 28px rgba(0,0,0,0.16);
+    }
+    .letter-score {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      min-width: 28px;
+      padding: 4px 7px 3px;
+      border-radius: 999px;
+      background: rgba(32, 21, 61, 0.08);
+      color: rgba(32, 21, 61, 0.78);
+      font-size: 0.82rem;
+      line-height: 1;
+      text-align: center;
+      font-weight: 900;
+    }
+    .letter-glyph {
+      line-height: 0.9;
     }
     .play-stack {
       display: grid;
@@ -125,10 +144,43 @@
       letter-spacing: 0.04em;
       text-transform: uppercase;
     }
+    .rank-badge {
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      padding: 10px 12px;
+      border-radius: 16px;
+      background: rgba(20, 11, 47, 0.72);
+      border: 1px solid rgba(255,255,255,0.16);
+      color: #fff;
+      backdrop-filter: blur(14px);
+      box-shadow: 0 14px 26px rgba(0,0,0,0.22);
+      display: grid;
+      gap: 2px;
+      z-index: 18;
+    }
+    .rank-label {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: #d6d4f3;
+      font-weight: 800;
+    }
+    .rank-value {
+      font-size: 1rem;
+      font-weight: 900;
+      color: #ffd96c;
+      line-height: 1;
+    }
     .hidden { display: none !important; }
   </style>
 </head>
 <body>
+  <div class="rank-badge hidden" id="rankBadge">
+    <div class="rank-label">Position</div>
+    <div class="rank-value" id="rankValue">1st</div>
+  </div>
+
   <main class="card">
     <section id="joinView" class="join-stack">
       <h1>Join</h1>
@@ -167,12 +219,23 @@
     const submitBtn = document.getElementById("submitBtn");
     const scoreToast = document.getElementById("scoreToast");
     const scoreToastText = document.getElementById("scoreToastText");
+    const rankBadge = document.getElementById("rankBadge");
+    const rankValue = document.getElementById("rankValue");
 
     let player = null;
     let room = null;
     let timer = null;
     let lastSeenSuccessId = "";
     let toastTimer = null;
+    const letterPoints = {
+      A: 1, E: 1, I: 1, O: 1, N: 1, R: 1, T: 1, L: 1, S: 1, U: 1,
+      D: 2, G: 2,
+      B: 3, C: 3, M: 3, P: 3,
+      F: 4, H: 4, V: 4, W: 4, Y: 4,
+      K: 5,
+      J: 8, X: 8,
+      Q: 10, Z: 10
+    };
 
     async function api(path, body, method = "POST") {
       const response = await fetch(path, {
@@ -201,6 +264,32 @@
       }, 2600);
     }
 
+    function formatOrdinal(value) {
+      const num = Number(value) || 0;
+      const mod100 = num % 100;
+      if (mod100 >= 11 && mod100 <= 13) return `${num}th`;
+      const mod10 = num % 10;
+      if (mod10 === 1) return `${num}st`;
+      if (mod10 === 2) return `${num}nd`;
+      if (mod10 === 3) return `${num}rd`;
+      return `${num}th`;
+    }
+
+    function renderRank() {
+      const rankedTeams = Array.isArray(room?.teams)
+        ? room.teams
+          .slice()
+          .sort((a, b) => (Number(b.score) - Number(a.score)) || String(a.name || "").localeCompare(String(b.name || "")))
+        : [];
+      const teamIndex = rankedTeams.findIndex((team) => team.id === player?.teamId);
+      if (teamIndex === -1) {
+        rankBadge.classList.add("hidden");
+        return;
+      }
+      rankValue.textContent = formatOrdinal(teamIndex + 1);
+      rankBadge.classList.remove("hidden");
+    }
+
     function render() {
       if (!room || !player) return;
       const live = room.status === "live";
@@ -210,12 +299,16 @@
       room.letters.forEach((item) => {
         const el = document.createElement("div");
         el.className = "letter";
-        el.textContent = item;
+        el.innerHTML = `
+          <div class="letter-score">${letterPoints[item] || 0}</div>
+          <div class="letter-glyph">${item}</div>
+        `;
         letters.appendChild(el);
       });
       if (live && room.lastSuccess) {
         showScoreToast(room.lastSuccess);
       }
+      renderRank();
     }
 
     async function poll() {

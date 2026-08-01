@@ -989,7 +989,6 @@
           </div>
         </div>
         <div class="button-row">
-          <button class="primary" id="addCardBtn">+1</button>
           <button class="secondary" id="useLettersBtn">Clear</button>
           <button class="ghost" id="startLiveBtn">Live</button>
           <button class="ghost" id="showQrBtn">QR</button>
@@ -1080,7 +1079,6 @@
     const turnCountEl = document.getElementById("turnCount");
     const infoHeadlineEl = document.getElementById("infoHeadline");
     const infoDetailEl = document.getElementById("infoDetail");
-    const addCardBtn = document.getElementById("addCardBtn");
     const useLettersBtn = document.getElementById("useLettersBtn");
     const startLiveBtn = document.getElementById("startLiveBtn");
     const showQrBtn = document.getElementById("showQrBtn");
@@ -1116,8 +1114,6 @@
     let seenLiveSubmissionIds = new Set();
     let queuedLiveSubmissions = [];
     let activeLiveSubmission = null;
-    let autoLetterTimer = null;
-    let autoLetterCountdown = 20;
     const maxActiveLetters = 8;
     const letterPoints = {
       A: 1, E: 1, I: 1, O: 1, N: 1, R: 1, T: 1, L: 1, S: 1, U: 1,
@@ -1251,35 +1247,10 @@
       }
     }
 
-    function stopAutoLetterTimer() {
-      if (autoLetterTimer) {
-        clearInterval(autoLetterTimer);
-        autoLetterTimer = null;
+    function fillLettersToTarget(target = maxActiveLetters) {
+      while (activeLetters.length < target) {
+        activeLetters.push(drawLetter());
       }
-    }
-
-    function restartAutoLetterTimer() {
-      stopAutoLetterTimer();
-      if (activeLetters.length >= maxActiveLetters) {
-        autoLetterCountdown = 20;
-        render();
-        return;
-      }
-      autoLetterCountdown = 20;
-      autoLetterTimer = setInterval(() => {
-        if (activeLetters.length >= maxActiveLetters) {
-          stopAutoLetterTimer();
-          autoLetterCountdown = 20;
-          render();
-          return;
-        }
-        autoLetterCountdown -= 1;
-        if (autoLetterCountdown <= 0) {
-          autoLetterCountdown = 20;
-          addLetterToRound({ automatic: true });
-        }
-        render();
-      }, 1000);
     }
 
     function closeConfirm(result = false) {
@@ -1367,12 +1338,15 @@
           existing.id = liveTeam.id;
           existing.name = liveTeam.name;
           existing.members = liveTeam.members;
+          if (typeof liveTeam.score === "number") {
+            existing.score = liveTeam.score;
+          }
           return;
         }
         teams.push({
           id: liveTeam.id,
           name: liveTeam.name,
-          score: 0,
+          score: typeof liveTeam.score === "number" ? liveTeam.score : 0,
           members: liveTeam.members
         });
       });
@@ -1507,11 +1481,21 @@
         return;
       }
       const { lastSuccess } = options;
+      const syncedTeams = liveRoom.teams.map((liveTeam) => {
+        const localTeam = getTeamByLiveEntry(liveTeam) || { score: 0, name: liveTeam.name, id: liveTeam.id, members: liveTeam.members };
+        return {
+          id: liveTeam.id,
+          name: liveTeam.name,
+          members: liveTeam.members,
+          score: localTeam.score || 0
+        };
+      });
       const data = await liveApi("/api/live/sync", {
         code: liveRoom.code,
         letters: activeLetters,
         status,
-        lastSuccess
+        lastSuccess,
+        teams: syncedTeams
       });
       liveRoom = data.room;
       syncLiveTeamsIntoScores();
@@ -1705,57 +1689,18 @@
     }
 
     function resetGame() {
-      activeLetters = [drawLetter(), drawLetter()];
+      activeLetters = [];
+      fillLettersToTarget();
       lastRenderedLettersKey = "";
       turnCount = 1;
       activeTeamId = "";
       celebratingTeamId = "";
       teams = teams.map((team) => ({ ...team, score: 0 }));
       clearLiveSubmissionState();
-      autoLetterCountdown = 20;
-      restartAutoLetterTimer();
       setLiveAnswerBanner();
       clearMessage();
       render();
       syncLiveRoom(liveRoom?.status || "waiting").catch(() => {});
-    }
-
-    function ensureMinimumLettersForNextRound() {
-      while (activeLetters.length < 2) {
-        activeLetters.push(drawLetter());
-      }
-    }
-
-    function addLetterToRound(options = {}) {
-      const { automatic = false } = options;
-      if (activeLetters.length < 2) {
-        setMessage("Need 2 cards on the table first.", "bad");
-        playErrorSound();
-        return;
-      }
-      if (activeLetters.length >= maxActiveLetters) {
-        autoLetterCountdown = 20;
-        stopAutoLetterTimer();
-        render();
-        return;
-      }
-      activeLetters.push(drawLetter());
-      if (activeLetters.length >= maxActiveLetters) {
-        autoLetterCountdown = 20;
-        stopAutoLetterTimer();
-      } else {
-        autoLetterCountdown = 20;
-        restartAutoLetterTimer();
-      }
-      if (!automatic) {
-        activeTeamId = "";
-        activeLiveSubmission = null;
-        setLiveAnswerBanner();
-        clearMessage();
-      }
-      render();
-      syncLiveRoom(liveRoom?.status || "waiting").catch(() => {});
-      activateNextLiveSubmission();
     }
 
     function finishRound() {
@@ -1769,9 +1714,8 @@
       activeTeamId = "";
       celebratingTeamId = "";
       turnCount += 1;
-      activeLetters = [drawLetter(), drawLetter()];
+      fillLettersToTarget();
       clearLiveSubmissionState();
-      autoLetterCountdown = 20;
       setLiveAnswerBanner();
       clearMessage();
       render();
@@ -1875,14 +1819,9 @@
         setLiveAnswerBanner(buildSubmissionHeadline(participantName, rawWord, definition));
       });
 
-      if (activeLetters.length <= 1) {
-        ensureMinimumLettersForNextRound();
-        turnCount += 1;
-        activeTeamId = "";
-      }
-      if (activeLetters.length <= maxActiveLetters - 1) {
-        restartAutoLetterTimer();
-      }
+      fillLettersToTarget();
+      turnCount += 1;
+      activeTeamId = "";
 
       render();
       syncLiveRoom(liveRoom?.status || "live", {
@@ -2062,7 +2001,6 @@
       }
     }
 
-    addCardBtn.addEventListener("click", addLetterToRound);
     useLettersBtn.addEventListener("click", async () => {
       const confirmed = await openConfirm({
         title: "Clear Round?",

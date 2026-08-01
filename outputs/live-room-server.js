@@ -176,11 +176,23 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && url.pathname === "/api/live/sync") {
-      const { code, letters, status, lastSuccess } = await body(req);
+      const { code, letters, status, lastSuccess, teams } = await body(req);
       const room = getRoom(code);
       room.letters = Array.isArray(letters) ? letters.slice(0, 8) : room.letters;
       if (status) room.status = status;
       if (lastSuccess !== undefined) room.lastSuccess = lastSuccess;
+      if (Array.isArray(teams)) {
+        room.teams = teams.map((team, index) => {
+          const existing = room.teams.find((item) => item.id === team.id)
+            || room.teams.find((item) => item.name.toLowerCase() === String(team.name || "").toLowerCase());
+          return {
+            id: team.id || existing?.id || `team-${index + 1}`,
+            name: String(team.name || existing?.name || `Team ${index + 1}`),
+            members: existing?.members ?? (Number(team.members) || 0),
+            score: Number(team.score) || 0
+          };
+        });
+      }
       touch(room);
       return json(res, 200, { room: serialize(room) });
     }
@@ -203,7 +215,8 @@ const server = http.createServer(async (req, res) => {
         team = {
           id: `team-${room.teams.length + 1}`,
           name: clean,
-          members: 0
+          members: 0,
+          score: 0
         };
         room.teams.push(team);
       }
