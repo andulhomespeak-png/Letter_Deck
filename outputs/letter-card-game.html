@@ -217,7 +217,7 @@
 
     .cards {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 18px;
       min-height: 0;
       align-content: stretch;
@@ -950,7 +950,7 @@
       }
 
       .cards {
-        grid-template-columns: repeat(auto-fit, minmax(min(205px, 100%), 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 14px;
       }
 
@@ -1692,7 +1692,7 @@
       activeLetters = [];
       fillLettersToTarget();
       lastRenderedLettersKey = "";
-      turnCount = 1;
+      turnCount = 0;
       activeTeamId = "";
       celebratingTeamId = "";
       teams = teams.map((team) => ({ ...team, score: 0 }));
@@ -1713,7 +1713,6 @@
       lastRenderedLettersKey = "";
       activeTeamId = "";
       celebratingTeamId = "";
-      turnCount += 1;
       fillLettersToTarget();
       clearLiveSubmissionState();
       setLiveAnswerBanner();
