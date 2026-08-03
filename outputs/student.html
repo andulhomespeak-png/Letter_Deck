@@ -136,7 +136,7 @@
     }
     .play-info {
       display: grid;
-      grid-template-columns: minmax(116px, 132px) minmax(0, 1fr);
+      grid-template-columns: max-content minmax(0, 1fr);
       gap: 10px;
       align-items: stretch;
     }
@@ -247,15 +247,8 @@
       box-shadow: 0 18px 34px rgba(0,0,0,0.24);
       backdrop-filter: blur(14px);
       display: grid;
-      gap: 4px;
-      opacity: 0;
-      transform: translateY(8px);
-      pointer-events: none;
-      transition: opacity 180ms ease, transform 180ms ease;
-    }
-    .score-toast.is-visible {
-      opacity: 1;
-      transform: translateY(0);
+      gap: 6px;
+      align-content: start;
     }
     .score-toast-label {
       font-size: 0.74rem;
@@ -276,6 +269,18 @@
       color: #fff;
       font-weight: 800;
     }
+    .score-history {
+      display: grid;
+      gap: 6px;
+    }
+    .score-history-item {
+      padding-top: 6px;
+      border-top: 1px solid rgba(255,255,255,0.12);
+      font-size: 0.76rem;
+      line-height: 1.18;
+      color: rgba(255, 255, 255, 0.76);
+      font-weight: 700;
+    }
     .score-breakdown {
       font-size: 0.76rem;
       line-height: 1.2;
@@ -294,6 +299,7 @@
     }
     .rank-badge {
       min-height: 100%;
+      width: max-content;
       padding: 10px 12px;
       border-radius: 16px;
       background: rgba(20, 11, 47, 0.72);
@@ -380,6 +386,7 @@
         <div class="score-toast hidden" id="scoreToast">
           <div class="score-toast-label" id="scoreToastLabel">Point scored</div>
           <div class="score-toast-main" id="scoreToastText"></div>
+          <div class="score-history" id="scoreHistory"></div>
         </div>
       </div>
       <div class="letters" id="letters"></div>
@@ -405,6 +412,7 @@
     const scoreToast = document.getElementById("scoreToast");
     const scoreToastLabel = document.getElementById("scoreToastLabel");
     const scoreToastText = document.getElementById("scoreToastText");
+    const scoreHistory = document.getElementById("scoreHistory");
     const rankBadge = document.getElementById("rankBadge");
     const rankValue = document.getElementById("rankValue");
     const rankScore = document.getElementById("rankScore");
@@ -415,10 +423,10 @@
     let timer = null;
     let lastSeenSuccessId = "";
     let lastSeenFeedbackId = "";
-    let toastTimer = null;
     let flashTimer = null;
     let quickPollUntil = 0;
     let audioCtx = null;
+    let historyEntries = [];
     const letterPoints = {
       A: 1, E: 1, I: 1, O: 1, N: 1, R: 1, T: 1, L: 1, S: 1, U: 1,
       D: 2, G: 2,
@@ -504,20 +512,24 @@
       }, 320);
     }
 
+    function renderHistoryPanel() {
+      if (!historyEntries.length) {
+        scoreHistory.innerHTML = "";
+        return;
+      }
+      scoreHistory.innerHTML = historyEntries
+        .map((item) => `<div class="score-history-item">${item}</div>`)
+        .join("");
+    }
+
     function showToast({ label, html, tone = "good" }) {
       scoreToast.classList.remove("hidden", "good", "bad");
       scoreToast.classList.add(tone);
       scoreToastLabel.textContent = label;
       scoreToastText.innerHTML = html;
-      scoreToast.classList.remove("hidden");
-      requestAnimationFrame(() => scoreToast.classList.add("is-visible"));
-      if (toastTimer) {
-        clearTimeout(toastTimer);
-      }
-      toastTimer = setTimeout(() => {
-        scoreToast.classList.remove("is-visible");
-        setTimeout(() => scoreToast.classList.add("hidden"), 180);
-      }, 2600);
+      historyEntries.unshift(`<strong>${label}</strong> ${html}`);
+      historyEntries = historyEntries.slice(0, 3);
+      renderHistoryPanel();
     }
 
     function showScoreToast(entry) {
