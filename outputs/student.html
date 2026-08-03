@@ -90,6 +90,13 @@
       letter-spacing: -0.06em;
       text-transform: uppercase;
     }
+    .join-logo {
+      display: block;
+      width: min(100%, 320px);
+      height: auto;
+      margin: 0 auto 4px;
+      filter: drop-shadow(0 12px 20px rgba(20, 12, 55, 0.18));
+    }
     section {
       display: grid;
       gap: 14px;
@@ -353,8 +360,8 @@
   <div class="feedback-flash" id="feedbackFlash"></div>
   <main class="card">
     <section id="joinView" class="join-stack">
-      <h1>Join</h1>
-      <p>Enter your team name in English.</p>
+      <img class="join-logo" src="./student-letter-clash-logo.png" alt="Letter Clash">
+      <p>Enter your name or team name.</p>
       <input id="teamName" placeholder="Team name">
       <button id="joinBtn">Join Room</button>
     </section>
@@ -429,7 +436,11 @@
         body: method === "POST" ? JSON.stringify(body || {}) : undefined
       });
       const data = await response.json();
-      if (!response.ok || data.error) throw new Error(data.error || "Request failed");
+      if (!response.ok || data.error) {
+        const error = new Error(data.error || "Request failed");
+        error.data = data;
+        throw error;
+      }
       return data;
     }
 
@@ -637,13 +648,29 @@
       }
     }
 
-    joinBtn.addEventListener("click", async () => {
-      const data = await api("/api/live/join", { code, teamName: teamName.value });
+    async function joinRoom(reconnect = false) {
+      const data = await api("/api/live/join", { code, teamName: teamName.value, reconnect });
       player = data.player;
       room = data.room;
       joinView.classList.add("hidden");
       waitingView.classList.remove("hidden");
       poll();
+    }
+
+    joinBtn.addEventListener("click", async () => {
+      try {
+        await joinRoom(false);
+      } catch (error) {
+        if (error?.data?.reconnectable) {
+          const existingName = error.data.teamName || teamName.value.trim();
+          const shouldReconnect = window.confirm(`A participant named "${existingName}" is already connected. Do you want to reconnect to that session?`);
+          if (shouldReconnect) {
+            await joinRoom(true);
+          }
+          return;
+        }
+        throw error;
+      }
     });
 
     async function submitWord() {

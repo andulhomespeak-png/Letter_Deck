@@ -88,6 +88,7 @@ function createRoom() {
     status: "waiting",
     letters: [],
     teams: [],
+    players: [],
     submissions: [],
     lastSuccess: null,
     lastFeedback: null,
@@ -212,10 +213,18 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && url.pathname === "/api/live/join") {
-      const { code, teamName } = await body(req);
+      const { code, teamName, reconnect } = await body(req);
       const room = getRoom(code);
       const clean = String(teamName || "").trim();
       if (!clean) throw new Error("Team name is required");
+      const existingPlayer = room.players.find((item) => item.teamName.toLowerCase() === clean.toLowerCase());
+      if (existingPlayer && !reconnect) {
+        return json(res, 409, {
+          error: "A participant with this name is already connected.",
+          reconnectable: true,
+          teamName: existingPlayer.teamName
+        });
+      }
       let team = room.teams.find((item) => item.name.toLowerCase() === clean.toLowerCase());
       if (!team) {
         team = {
@@ -226,8 +235,15 @@ const server = http.createServer(async (req, res) => {
         };
         room.teams.push(team);
       }
-      team.members += 1;
-      const player = { id: `player-${room.nextPlayerId++}`, teamId: team.id, teamName: team.name };
+      let player = existingPlayer || null;
+      if (!player) {
+        team.members += 1;
+        player = { id: `player-${room.nextPlayerId++}`, teamId: team.id, teamName: team.name };
+        room.players.push(player);
+      } else {
+        player.teamId = team.id;
+        player.teamName = team.name;
+      }
       touch(room);
       return json(res, 200, { player, room: serialize(room) });
     }
@@ -259,6 +275,7 @@ const server = http.createServer(async (req, res) => {
       if (room.teams.length === before) {
         throw new Error("Team not found");
       }
+      room.players = room.players.filter((player) => player.teamId !== teamId);
       room.submissions = room.submissions.filter((submission) => submission.teamId !== teamId);
       touch(room);
       return json(res, 200, { room: serialize(room) });
