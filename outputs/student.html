@@ -269,18 +269,6 @@
       color: #fff;
       font-weight: 800;
     }
-    .score-history {
-      display: grid;
-      gap: 6px;
-    }
-    .score-history-item {
-      padding-top: 6px;
-      border-top: 1px solid rgba(255,255,255,0.12);
-      font-size: 0.76rem;
-      line-height: 1.18;
-      color: rgba(255, 255, 255, 0.76);
-      font-weight: 700;
-    }
     .score-breakdown {
       font-size: 0.76rem;
       line-height: 1.2;
@@ -386,7 +374,6 @@
         <div class="score-toast hidden" id="scoreToast">
           <div class="score-toast-label" id="scoreToastLabel">Point scored</div>
           <div class="score-toast-main" id="scoreToastText"></div>
-          <div class="score-history" id="scoreHistory"></div>
         </div>
       </div>
       <div class="letters" id="letters"></div>
@@ -412,7 +399,6 @@
     const scoreToast = document.getElementById("scoreToast");
     const scoreToastLabel = document.getElementById("scoreToastLabel");
     const scoreToastText = document.getElementById("scoreToastText");
-    const scoreHistory = document.getElementById("scoreHistory");
     const rankBadge = document.getElementById("rankBadge");
     const rankValue = document.getElementById("rankValue");
     const rankScore = document.getElementById("rankScore");
@@ -426,7 +412,6 @@
     let flashTimer = null;
     let quickPollUntil = 0;
     let audioCtx = null;
-    let historyEntries = [];
     const letterPoints = {
       A: 1, E: 1, I: 1, O: 1, N: 1, R: 1, T: 1, L: 1, S: 1, U: 1,
       D: 2, G: 2,
@@ -512,24 +497,11 @@
       }, 320);
     }
 
-    function renderHistoryPanel() {
-      if (!historyEntries.length) {
-        scoreHistory.innerHTML = "";
-        return;
-      }
-      scoreHistory.innerHTML = historyEntries
-        .map((item) => `<div class="score-history-item">${item}</div>`)
-        .join("");
-    }
-
     function showToast({ label, html, tone = "good" }) {
       scoreToast.classList.remove("hidden", "good", "bad");
       scoreToast.classList.add(tone);
       scoreToastLabel.textContent = label;
       scoreToastText.innerHTML = html;
-      historyEntries.unshift(`<strong>${label}</strong> ${html}`);
-      historyEntries = historyEntries.slice(0, 3);
-      renderHistoryPanel();
     }
 
     function showScoreToast(entry) {

@@ -631,6 +631,12 @@
       gap: 16px;
     }
 
+    .qr-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
     .qr-layout {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(220px, 260px);
@@ -1237,7 +1243,10 @@
           <div class="qr-people-list" id="qrPeopleList"></div>
         </div>
       </div>
-      <button class="primary" id="closeQrBtn">Close</button>
+      <div class="qr-actions">
+        <button class="ghost" id="qrLiveBtn">Live</button>
+        <button class="primary" id="closeQrBtn">Close</button>
+      </div>
     </div>
   </div>
 
@@ -1311,6 +1320,7 @@
     const qrRoomText = document.getElementById("qrRoomText");
     const qrUrlText = document.getElementById("qrUrlText");
     const qrPeopleList = document.getElementById("qrPeopleList");
+    const qrLiveBtn = document.getElementById("qrLiveBtn");
     const closeQrBtn = document.getElementById("closeQrBtn");
     const confirmOverlay = document.getElementById("confirmOverlay");
     const confirmTitle = document.getElementById("confirmTitle");
@@ -2320,6 +2330,7 @@
       updatePodiumVisibility();
       useLettersBtn.disabled = activeLetters.length === 0 || isGameFinished();
       startLiveBtn.disabled = isGameFinished();
+      qrLiveBtn.disabled = isGameFinished() || liveRoom?.status === "live";
       if (liveEnabled && liveRoom) {
         qrRoomText.textContent = `Room ${liveRoom.code}`;
         qrUrlText.textContent = getLiveJoinUrl();
@@ -2342,6 +2353,19 @@
       }
     });
     startLiveBtn.addEventListener("click", async () => {
+      if (liveRoom?.status === "live") {
+        return;
+      }
+      const confirmed = await openConfirm({
+        title: "Start Live Game?",
+        text: "Waiting screens will switch to answer mode for connected students.",
+        confirmLabel: "Start"
+      });
+      if (confirmed) {
+        startLiveGame().catch(() => {});
+      }
+    });
+    qrLiveBtn.addEventListener("click", async () => {
       if (liveRoom?.status === "live") {
         return;
       }
