@@ -124,7 +124,7 @@
     }
     .letters {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 10px;
       margin: 0;
       perspective: 1200px;
@@ -193,6 +193,16 @@
     .play-stack {
       display: grid;
       gap: 14px;
+    }
+    .submit-row {
+      display: grid;
+      grid-template-columns: minmax(0, 4fr) minmax(88px, 1fr);
+      gap: 10px;
+      align-items: stretch;
+    }
+    .submit-row input,
+    .submit-row button {
+      height: 100%;
     }
     .join-stack {
       display: grid;
@@ -278,6 +288,13 @@
       color: #ffd96c;
       line-height: 1;
     }
+    .rank-score {
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1;
+      opacity: 0.88;
+    }
     .feedback-flash {
       position: fixed;
       inset: 0;
@@ -310,6 +327,7 @@
   <div class="rank-badge hidden" id="rankBadge">
     <div class="rank-label">Position</div>
     <div class="rank-value" id="rankValue">1st</div>
+    <div class="rank-score" id="rankScore">0 pts</div>
   </div>
 
   <main class="card">
@@ -327,8 +345,10 @@
 
     <section id="playView" class="hidden play-stack">
       <div class="letters" id="letters"></div>
-      <input id="wordInput" placeholder="Type your word">
-      <button id="submitBtn">Send Word</button>
+      <div class="submit-row">
+        <input id="wordInput" placeholder="Type your word">
+        <button id="submitBtn">Send</button>
+      </div>
     </section>
   </main>
 
@@ -354,6 +374,7 @@
     const scoreToastText = document.getElementById("scoreToastText");
     const rankBadge = document.getElementById("rankBadge");
     const rankValue = document.getElementById("rankValue");
+    const rankScore = document.getElementById("rankScore");
     const feedbackFlash = document.getElementById("feedbackFlash");
 
     let player = null;
@@ -363,6 +384,8 @@
     let lastSeenFeedbackId = "";
     let toastTimer = null;
     let flashTimer = null;
+    let quickPollUntil = 0;
+    let audioCtx = null;
     const letterPoints = {
       A: 1, E: 1, I: 1, O: 1, N: 1, R: 1, T: 1, L: 1, S: 1, U: 1,
       D: 2, G: 2,
@@ -382,6 +405,44 @@
       const data = await response.json();
       if (!response.ok || data.error) throw new Error(data.error || "Request failed");
       return data;
+    }
+
+    function getAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === "suspended") {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    function tone({ frequency, start, duration, type = "sine", gain = 0.08 }) {
+      const ctx = getAudioContext();
+      const osc = ctx.createOscillator();
+      const amp = ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(frequency, start);
+      amp.gain.setValueAtTime(0.0001, start);
+      amp.gain.linearRampToValueAtTime(gain, start + 0.02);
+      amp.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      osc.connect(amp);
+      amp.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + duration + 0.03);
+    }
+
+    function playFeedbackSound(toneName) {
+      const ctx = getAudioContext();
+      const now = ctx.currentTime;
+      if (toneName === "bad") {
+        tone({ frequency: 280, start: now, duration: 0.1, type: "square", gain: 0.085 });
+        tone({ frequency: 220, start: now + 0.08, duration: 0.16, type: "square", gain: 0.075 });
+        return;
+      }
+      tone({ frequency: 523.25, start: now, duration: 0.11, type: "triangle", gain: 0.05 });
+      tone({ frequency: 659.25, start: now + 0.06, duration: 0.12, type: "triangle", gain: 0.07 });
+      tone({ frequency: 1046.5, start: now + 0.13, duration: 0.18, type: "sine", gain: 0.09 });
     }
 
     function flashScreen(tone) {
@@ -419,24 +480,26 @@
       showToast({
         label: "Point scored",
         tone: "good",
-        html: `<strong>${entry.teamName}</strong><span class="score-toast-word">${highlightUsedLetters(entry.word, entry.consumedLetters || [])}</span>`
+        html: `<strong>${entry.teamName}</strong><span class="score-toast-word">${highlightUsedLetters(entry.word, entry.consumedLetters || [])}</span><div>+${Number(entry.points) || 0} pts</div>`
       });
     }
 
     function showFeedbackToast(entry) {
       if (!entry?.id || entry.id === lastSeenFeedbackId) return;
       lastSeenFeedbackId = entry.id;
+      quickPollUntil = 0;
       const tone = entry.tone === "bad" ? "bad" : "good";
       const wordHtml = entry.word
         ? `<span class="score-toast-word">${highlightUsedLetters(entry.word, entry.consumedLetters || [])}</span>`
         : "";
       const detail = entry.message ? `<div>${escapeHtml(entry.message)}</div>` : "";
+      playFeedbackSound(tone);
+      flashScreen(tone);
       showToast({
         label: tone === "bad" ? "Not valid" : "Correct",
         tone,
         html: `<strong>${entry.teamName || "You"}</strong>${wordHtml}${detail}`
       });
-      flashScreen(tone);
     }
 
     function formatOrdinal(value) {
@@ -481,11 +544,13 @@
           .sort((a, b) => (Number(b.score) - Number(a.score)) || String(a.name || "").localeCompare(String(b.name || "")))
         : [];
       const teamIndex = rankedTeams.findIndex((team) => team.id === player?.teamId);
-      if (teamIndex === -1) {
+      const ownTeam = teamIndex === -1 ? null : rankedTeams[teamIndex];
+      if (teamIndex === -1 || room?.status !== "live" || !Array.isArray(room?.letters) || room.letters.length === 0) {
         rankBadge.classList.add("hidden");
         return;
       }
       rankValue.textContent = formatOrdinal(teamIndex + 1);
+      rankScore.textContent = `${Number(ownTeam?.score) || 0} pts`;
       rankBadge.classList.remove("hidden");
     }
 
@@ -519,7 +584,7 @@
       if (live && room.lastFeedback && room.lastFeedback.teamId === player?.teamId) {
         showFeedbackToast(room.lastFeedback);
       }
-      if (live && room.lastSuccess) {
+      if (live && room.lastSuccess && room.lastSuccess.teamId !== player?.teamId) {
         showScoreToast(room.lastSuccess);
       }
       renderRank();
@@ -532,7 +597,8 @@
         room = data.room;
         render();
       } finally {
-        timer = setTimeout(poll, 1000);
+        const interval = Date.now() < quickPollUntil ? 220 : 850;
+        timer = setTimeout(poll, interval);
       }
     }
 
@@ -548,6 +614,8 @@
     submitBtn.addEventListener("click", async () => {
       if (!player || !room) return;
       try {
+        getAudioContext();
+        quickPollUntil = Date.now() + 2500;
         await api("/api/live/submit", {
           code,
           playerId: player.id,
@@ -556,6 +624,10 @@
           word: wordInput.value
         });
         wordInput.value = "";
+        if (timer) {
+          clearTimeout(timer);
+        }
+        poll();
       } catch (error) {
         showFeedbackToast({
           id: `${Date.now()}-submit-error`,

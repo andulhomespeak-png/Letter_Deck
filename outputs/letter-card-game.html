@@ -2137,9 +2137,11 @@
       syncLiveRoom(nextStatus, {
         lastSuccess: {
           id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          teamId: team?.id || activeLiveSubmission?.teamId || "",
           teamName: participantName,
           word: rawWord,
-          consumedLetters
+          consumedLetters,
+          points: scoreBreakdown.total
         },
         lastFeedback: {
           id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
