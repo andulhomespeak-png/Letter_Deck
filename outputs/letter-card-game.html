@@ -2150,7 +2150,11 @@
           word: rawWord,
           consumedLetters,
           tone: "good",
-          message: `+${scoreBreakdown.total} pts`
+          message: `+${scoreBreakdown.total} pts`,
+          points: scoreBreakdown.total,
+          lettersScore: scoreBreakdown.lettersScore,
+          lengthBonus: scoreBreakdown.lengthBonus,
+          stealBonus: scoreBreakdown.stealBonus
         },
         podium: winner ? getScoreboardTeams().slice(0, 3) : []
       }).catch(() => {});

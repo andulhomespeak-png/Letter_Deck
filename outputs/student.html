@@ -112,6 +112,18 @@
       color: white;
       font-weight: 800;
       box-shadow: 0 10px 18px rgba(31, 26, 23, 0.12);
+      transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+      cursor: pointer;
+    }
+    button:hover,
+    button:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 24px rgba(31, 26, 23, 0.18);
+      filter: brightness(1.04);
+    }
+    button:active {
+      transform: translateY(1px) scale(0.98);
+      box-shadow: 0 8px 14px rgba(31, 26, 23, 0.14);
     }
     .join-stack,
     #waitingView,
@@ -121,6 +133,12 @@
       border-radius: 24px;
       padding: 16px;
       box-shadow: inset 0 1px 0 rgba(255,255,255,0.72);
+    }
+    .play-info {
+      display: grid;
+      grid-template-columns: minmax(116px, 132px) minmax(0, 1fr);
+      gap: 10px;
+      align-items: stretch;
     }
     .letters {
       display: grid;
@@ -168,15 +186,15 @@
     .letter[data-color="4"] { color: #ba60dc; }
     .letter-score {
       position: absolute;
-      top: 12px;
-      right: 12px;
-      min-width: 30px;
-      padding: 5px 8px 4px;
+      top: 9px;
+      right: 9px;
+      min-width: 22px;
+      padding: 3px 5px 2px;
       border-radius: 999px;
       background: rgba(22, 15, 46, 0.08);
       border: 1px solid rgba(22, 15, 46, 0.08);
       color: rgba(22, 15, 46, 0.76);
-      font-size: 0.78rem;
+      font-size: 0.62rem;
       line-height: 1;
       text-align: center;
       font-weight: 900;
@@ -204,16 +222,25 @@
     .submit-row button {
       height: 100%;
     }
+    .submit-row button {
+      position: relative;
+      overflow: hidden;
+    }
+    .submit-row button::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.22), rgba(255,255,255,0));
+      pointer-events: none;
+    }
     .join-stack {
       display: grid;
       gap: 14px;
     }
     .score-toast {
-      position: fixed;
-      right: 14px;
-      bottom: 14px;
-      max-width: min(84vw, 360px);
-      padding: 12px 14px;
+      width: 100%;
+      min-height: 100%;
+      padding: 10px 12px;
       border-radius: 18px;
       background: rgba(20, 11, 47, 0.88);
       border: 1px solid rgba(255,255,255,0.18);
@@ -221,9 +248,8 @@
       backdrop-filter: blur(14px);
       display: grid;
       gap: 4px;
-      z-index: 20;
       opacity: 0;
-      transform: translateY(14px);
+      transform: translateY(8px);
       pointer-events: none;
       transition: opacity 180ms ease, transform 180ms ease;
     }
@@ -245,10 +271,16 @@
       color: #ffb39f;
     }
     .score-toast-main {
-      font-size: 1rem;
-      line-height: 1.25;
+      font-size: 0.94rem;
+      line-height: 1.22;
       color: #fff;
       font-weight: 800;
+    }
+    .score-breakdown {
+      font-size: 0.76rem;
+      line-height: 1.2;
+      color: rgba(255, 255, 255, 0.84);
+      font-weight: 700;
     }
     .score-toast-word {
       color: #ffd96c;
@@ -261,9 +293,7 @@
       text-shadow: 0 0 14px rgba(66, 245, 161, 0.34);
     }
     .rank-badge {
-      position: fixed;
-      top: 14px;
-      left: 14px;
+      min-height: 100%;
       padding: 10px 12px;
       border-radius: 16px;
       background: rgba(20, 11, 47, 0.72);
@@ -272,8 +302,8 @@
       backdrop-filter: blur(14px);
       box-shadow: 0 14px 26px rgba(0,0,0,0.22);
       display: grid;
-      gap: 2px;
-      z-index: 18;
+      align-content: center;
+      gap: 3px;
     }
     .rank-label {
       font-size: 0.68rem;
@@ -315,6 +345,9 @@
       .letters {
         gap: 8px;
       }
+      .play-info {
+        gap: 8px;
+      }
       .letter {
         min-height: clamp(78px, 13dvh, 110px);
       }
@@ -324,12 +357,6 @@
 </head>
 <body>
   <div class="feedback-flash" id="feedbackFlash"></div>
-  <div class="rank-badge hidden" id="rankBadge">
-    <div class="rank-label">Position</div>
-    <div class="rank-value" id="rankValue">1st</div>
-    <div class="rank-score" id="rankScore">0 pts</div>
-  </div>
-
   <main class="card">
     <section id="joinView" class="join-stack">
       <h1>Join</h1>
@@ -344,6 +371,17 @@
     </section>
 
     <section id="playView" class="hidden play-stack">
+      <div class="play-info">
+        <div class="rank-badge hidden" id="rankBadge">
+          <div class="rank-label">Position</div>
+          <div class="rank-value" id="rankValue">1st</div>
+          <div class="rank-score" id="rankScore">0 pts</div>
+        </div>
+        <div class="score-toast hidden" id="scoreToast">
+          <div class="score-toast-label" id="scoreToastLabel">Point scored</div>
+          <div class="score-toast-main" id="scoreToastText"></div>
+        </div>
+      </div>
       <div class="letters" id="letters"></div>
       <div class="submit-row">
         <input id="wordInput" placeholder="Type your word">
@@ -351,11 +389,6 @@
       </div>
     </section>
   </main>
-
-  <div class="score-toast hidden" id="scoreToast">
-    <div class="score-toast-label" id="scoreToastLabel">Point scored</div>
-    <div class="score-toast-main" id="scoreToastText"></div>
-  </div>
 
   <script>
     const params = new URLSearchParams(location.search);
@@ -405,6 +438,20 @@
       const data = await response.json();
       if (!response.ok || data.error) throw new Error(data.error || "Request failed");
       return data;
+    }
+
+    function keepInputReady() {
+      if (!wordInput || !playView || playView.classList.contains("hidden")) {
+        return;
+      }
+      if (document.activeElement === wordInput) {
+        return;
+      }
+      requestAnimationFrame(() => {
+        wordInput.focus({ preventScroll: true });
+        const end = wordInput.value.length;
+        wordInput.setSelectionRange(end, end);
+      });
     }
 
     function getAudioContext() {
@@ -493,12 +540,15 @@
         ? `<span class="score-toast-word">${highlightUsedLetters(entry.word, entry.consumedLetters || [])}</span>`
         : "";
       const detail = entry.message ? `<div>${escapeHtml(entry.message)}</div>` : "";
+      const breakdown = tone === "good"
+        ? `<div class="score-breakdown">${Number(entry.lettersScore) || 0} letters + ${Number(entry.lengthBonus) || 0} length + ${Number(entry.stealBonus) || 0} steal</div>`
+        : "";
       playFeedbackSound(tone);
       flashScreen(tone);
       showToast({
         label: tone === "bad" ? "Not valid" : "Correct",
         tone,
-        html: `<strong>${entry.teamName || "You"}</strong>${wordHtml}${detail}`
+        html: `<strong>${entry.teamName || "You"}</strong>${wordHtml}${detail}${breakdown}`
       });
     }
 
@@ -588,6 +638,7 @@
         showScoreToast(room.lastSuccess);
       }
       renderRank();
+      keepInputReady();
     }
 
     async function poll() {
@@ -611,8 +662,13 @@
       poll();
     });
 
-    submitBtn.addEventListener("click", async () => {
+    async function submitWord() {
       if (!player || !room) return;
+      const nextWord = wordInput.value.trim();
+      if (!nextWord) {
+        keepInputReady();
+        return;
+      }
       try {
         getAudioContext();
         quickPollUntil = Date.now() + 2500;
@@ -621,22 +677,46 @@
           playerId: player.id,
           teamId: player.teamId,
           teamName: player.teamName,
-          word: wordInput.value
+          word: nextWord
         });
         wordInput.value = "";
         if (timer) {
           clearTimeout(timer);
         }
         poll();
+        keepInputReady();
       } catch (error) {
         showFeedbackToast({
           id: `${Date.now()}-submit-error`,
           teamId: player.teamId,
           teamName: player.teamName,
-          word: wordInput.value,
+          word: nextWord,
           tone: "bad",
           message: error.message || "Request failed"
         });
+        keepInputReady();
+      }
+    }
+
+    submitBtn.addEventListener("click", async () => {
+      submitWord();
+    });
+
+    wordInput.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") {
+        return;
+      }
+      event.preventDefault();
+      submitWord();
+    });
+
+    wordInput.addEventListener("blur", () => {
+      setTimeout(() => keepInputReady(), 0);
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) {
+        keepInputReady();
       }
     });
   </script>
