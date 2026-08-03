@@ -90,6 +90,7 @@ function createRoom() {
     teams: [],
     submissions: [],
     lastSuccess: null,
+    lastFeedback: null,
     podium: [],
     nextPlayerId: 1,
     updatedAt: Date.now()
@@ -116,6 +117,7 @@ function serialize(room) {
     teams: room.teams,
     submissions: room.submissions.slice(0, 12),
     lastSuccess: room.lastSuccess,
+    lastFeedback: room.lastFeedback,
     podium: room.podium,
     updatedAt: room.updatedAt
   };
@@ -178,11 +180,12 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && url.pathname === "/api/live/sync") {
-      const { code, letters, status, lastSuccess, teams, podium } = await body(req);
+      const { code, letters, status, lastSuccess, lastFeedback, teams, podium } = await body(req);
       const room = getRoom(code);
       room.letters = Array.isArray(letters) ? letters.slice(0, 8) : room.letters;
       if (status) room.status = status;
       if (lastSuccess !== undefined) room.lastSuccess = lastSuccess;
+      if (lastFeedback !== undefined) room.lastFeedback = lastFeedback;
       if (Array.isArray(podium)) room.podium = podium.slice(0, 3);
       if (Array.isArray(teams)) {
         room.teams = teams.map((team, index) => {

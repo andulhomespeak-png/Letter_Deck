@@ -134,7 +134,7 @@
     .info-panel {
       min-height: 88px;
       display: grid;
-      grid-template-columns: auto minmax(0, 1fr);
+      grid-template-columns: minmax(0, 1fr);
       align-items: center;
       gap: 10px;
       padding: 8px 12px;
@@ -142,10 +142,6 @@
       background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(239, 244, 255, 0.9));
       border: 1px solid rgba(255, 255, 255, 0.72);
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
-    }
-
-    .info-round {
-      align-self: center;
     }
 
     .info-copy {
@@ -624,6 +620,8 @@
 
     .qr-modal {
       width: min(92vw, 720px);
+      max-height: calc(100dvh - 48px);
+      overflow: auto;
       border-radius: 36px;
       padding: 24px;
       background: linear-gradient(145deg, rgba(255,255,255,0.99), rgba(251,243,255,0.99));
@@ -1076,6 +1074,10 @@
         justify-self: center;
       }
 
+      .info-panel {
+        width: 100%;
+      }
+
       .cards {
         grid-template-columns: 1fr;
       }
@@ -1127,6 +1129,25 @@
         min-height: 78px;
       }
 
+      .qr-overlay {
+        padding: 12px;
+      }
+
+      .qr-modal {
+        width: min(94vw, 720px);
+        max-height: calc(100dvh - 24px);
+        padding: 18px;
+        gap: 12px;
+      }
+
+      .qr-box {
+        width: min(100%, 340px);
+      }
+
+      .qr-people-list {
+        max-height: 260px;
+      }
+
       .brand-logo {
         max-height: 76px;
       }
@@ -1173,7 +1194,6 @@
           <img class="brand-logo" src="./letter-clash-logo.png" alt="Letter Clash">
         </h1>
         <div class="info-panel">
-          <div class="stat info-round" id="goalStat">Race to 1000</div>
           <div class="info-copy">
             <div class="info-headline" id="infoHeadline">Student answers appear here.</div>
             <div class="info-detail" id="infoDetail"></div>
@@ -1278,7 +1298,6 @@
     ];
 
     const activeCards = document.getElementById("activeCards");
-    const goalStatEl = document.getElementById("goalStat");
     const infoHeadlineEl = document.getElementById("infoHeadline");
     const infoDetailEl = document.getElementById("infoDetail");
     const useLettersBtn = document.getElementById("useLettersBtn");
@@ -1463,7 +1482,6 @@
     }
 
     function renderInfoPanel() {
-      goalStatEl.textContent = `Race to ${winningScore}`;
       infoHeadlineEl.innerHTML = liveBannerHtml || "Student answers appear here.";
       infoDetailEl.className = infoMessageTone ? `info-detail ${infoMessageTone}` : "info-detail";
       infoDetailEl.innerHTML = infoMessageHtml || "";
@@ -1675,6 +1693,16 @@
       });
       playErrorSound();
       render();
+      syncLiveRoom(liveRoom?.status || "live", {
+        lastFeedback: {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          teamId: activeLiveSubmission?.teamId || team?.id || "",
+          teamName: participantName,
+          word: spokenWord,
+          tone: "bad",
+          message: evaluation.message
+        }
+      }).catch(() => {});
       releaseActiveLiveSubmission();
     }
 
@@ -1740,7 +1768,7 @@
       if (!liveEnabled || !liveRoom) {
         return;
       }
-      const { lastSuccess, podium } = options;
+      const { lastSuccess, lastFeedback, podium } = options;
       const syncedTeams = liveRoom.teams.map((liveTeam) => {
         const localTeam = getTeamByLiveEntry(liveTeam) || { score: 0, name: liveTeam.name, id: liveTeam.id, members: liveTeam.members };
         return {
@@ -1755,6 +1783,7 @@
         letters: activeLetters,
         status,
         lastSuccess,
+        lastFeedback,
         podium,
         teams: syncedTeams
       });
@@ -1967,11 +1996,12 @@
       if (liveRoom) {
         liveRoom.status = "waiting";
         liveRoom.lastSuccess = null;
+        liveRoom.lastFeedback = null;
         liveRoom.podium = [];
         liveRoom.submissions = [];
       }
       render();
-      syncLiveRoom("waiting", { lastSuccess: null, podium: [] }).catch(() => {});
+      syncLiveRoom("waiting", { lastSuccess: null, lastFeedback: null, podium: [] }).catch(() => {});
     }
 
     function finishRound() {
@@ -1992,7 +2022,7 @@
       setLiveAnswerBanner();
       clearMessage();
       render();
-      syncLiveRoom(liveRoom?.status || "waiting", { lastSuccess: null }).catch(() => {});
+      syncLiveRoom(liveRoom?.status || "waiting", { lastSuccess: null, lastFeedback: null }).catch(() => {});
     }
 
     function celebrateTeam(teamId) {
@@ -2110,6 +2140,15 @@
           teamName: participantName,
           word: rawWord,
           consumedLetters
+        },
+        lastFeedback: {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          teamId: team?.id || activeLiveSubmission?.teamId || "",
+          teamName: participantName,
+          word: rawWord,
+          consumedLetters,
+          tone: "good",
+          message: `+${scoreBreakdown.total} pts`
         },
         podium: winner ? getScoreboardTeams().slice(0, 3) : []
       }).catch(() => {});
