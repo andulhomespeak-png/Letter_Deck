@@ -823,23 +823,17 @@
       font-size: 1rem;
       font-weight: 900;
       line-height: 1;
-      opacity: 0;
-      visibility: hidden;
-      transform: none;
-      pointer-events: none;
-      transition: opacity 120ms ease, visibility 120ms ease, box-shadow 120ms ease, background 120ms ease;
-    }
-
-    .team-card:hover .delete-btn,
-    .qr-person:hover .delete-btn {
-      opacity: 1;
+      opacity: 0.82;
       visibility: visible;
+      transform: none;
       pointer-events: auto;
+      transition: opacity 120ms ease, box-shadow 120ms ease, background 120ms ease, filter 120ms ease;
     }
 
     .delete-btn:hover {
       transform: none;
       box-shadow: 0 12px 20px rgba(31, 26, 23, 0.14);
+      filter: brightness(1.04);
     }
 
     .qr-person {
@@ -1350,6 +1344,8 @@
     let queuedLiveSubmissions = [];
     let activeLiveSubmission = null;
     let matchFinished = false;
+    let lastPodiumKey = "";
+    let podiumSoundPlayed = false;
     const maxActiveLetters = 8;
     const winningScore = 1000;
     const letterPoints = {
@@ -1446,6 +1442,11 @@
 
     function renderPodium() {
       const ranked = getScoreboardTeams().slice(0, 3);
+      const podiumKey = ranked.map((team) => `${team.id}:${team.score}`).join("|");
+      if (podiumKey && podiumKey === lastPodiumKey) {
+        return;
+      }
+      lastPodiumKey = podiumKey;
       podiumStage.innerHTML = "";
       const visualOrder = [1, 0, 2];
       visualOrder.forEach((index) => {
@@ -1477,8 +1478,14 @@
       if (isGameFinished()) {
         renderPodium();
         podiumOverlay.classList.add("is-visible");
+        if (!podiumSoundPlayed) {
+          playPodiumSound();
+          podiumSoundPlayed = true;
+        }
         return;
       }
+      podiumSoundPlayed = false;
+      lastPodiumKey = "";
       podiumOverlay.classList.remove("is-visible");
     }
 
@@ -1895,6 +1902,19 @@
       const now = ctx.currentTime;
       tone({ frequency: 280, start: now, duration: 0.12, type: "square", gain: 0.095 });
       tone({ frequency: 220, start: now + 0.1, duration: 0.18, type: "square", gain: 0.085 });
+    }
+
+    function playPodiumSound() {
+      if (!soundEnabled) {
+        return;
+      }
+      const ctx = getAudioContext();
+      const now = ctx.currentTime;
+      tone({ frequency: 523.25, start: now, duration: 0.16, type: "triangle", gain: 0.08 });
+      tone({ frequency: 659.25, start: now + 0.09, duration: 0.18, type: "triangle", gain: 0.095 });
+      tone({ frequency: 783.99, start: now + 0.18, duration: 0.2, type: "triangle", gain: 0.1 });
+      tone({ frequency: 1046.5, start: now + 0.28, duration: 0.34, type: "sine", gain: 0.13 });
+      tone({ frequency: 1318.51, start: now + 0.38, duration: 0.42, type: "sine", gain: 0.12 });
     }
 
     function stopMusic() {
@@ -2362,7 +2382,9 @@
         confirmLabel: "Start"
       });
       if (confirmed) {
-        startLiveGame().catch(() => {});
+        startLiveGame().then(() => {
+          qrOverlay.classList.add("hidden");
+        }).catch(() => {});
       }
     });
     qrLiveBtn.addEventListener("click", async () => {
