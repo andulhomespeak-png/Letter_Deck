@@ -1292,6 +1292,8 @@
     let teamIdCounter = 3;
     let liveRoom = null;
     let livePollTimer = null;
+    let liveSocket = null;
+    let liveSocketActive = false;
     let liveEnabled = window.location.protocol.startsWith("http");
     let liveBaseUrl = window.location.origin;
     let lastRenderedLettersKey = "";
@@ -1343,6 +1345,7 @@
     let seenLiveSubmissionIds = new Set();
     let queuedLiveSubmissions = [];
     let activeLiveSubmission = null;
+    let lastHandledLiveFeedbackId = "";
     let matchFinished = false;
     let lastPodiumKey = "";
     let podiumSoundPlayed = false;
@@ -1653,6 +1656,56 @@
       seenLiveSubmissionIds = new Set((liveRoom?.submissions || []).map((item) => item.id));
     }
 
+    function syncActiveLettersFromRoom() {
+      if (!liveRoom || !Array.isArray(liveRoom.letters)) {
+        return;
+      }
+      const nextLetters = liveRoom.letters.slice(0, maxActiveLetters);
+      if (nextLetters.join("|") === activeLetters.join("|")) {
+        return;
+      }
+      activeLetters = nextLetters;
+      lastRenderedLettersKey = "";
+    }
+
+    function applyLiveRoomFeedback() {
+      const feedback = liveRoom?.lastFeedback;
+      if (!feedback?.id || feedback.id === lastHandledLiveFeedbackId) {
+        return;
+      }
+      lastHandledLiveFeedbackId = feedback.id;
+      const team = teams.find((item) => feedback.teamId && item.id === feedback.teamId)
+        || teams.find((item) => item.name.toLowerCase() === String(feedback.teamName || "").toLowerCase())
+        || null;
+      const participantName = feedback.teamName || team?.name || "Student";
+      const spokenWord = String(feedback.word || "").trim();
+
+      setLiveAnswerBanner(buildSubmissionHeadline(participantName, spokenWord));
+
+      if (feedback.tone === "good") {
+        if (team) {
+          celebrateTeam(team.id);
+          showCelebration(team, Number(feedback.points) || 0);
+        }
+        playSuccessSound();
+        const scoreLine =
+          `<strong>+${Number(feedback.points) || 0} pts</strong> ` +
+          `(${Number(feedback.lettersScore) || 0} letters + ${Number(feedback.lengthBonus) || 0} length + ${Number(feedback.stealBonus) || 0} steal)`;
+        setMessage(scoreLine, "good");
+      } else {
+        playErrorSound();
+        setMessage(feedback.message || "Not valid.", "bad");
+      }
+
+      const definitionRequestId = ++latestDefinitionRequest;
+      fetchWordDefinition(spokenWord).then((definition) => {
+        if (definitionRequestId !== latestDefinitionRequest) {
+          return;
+        }
+        setLiveAnswerBanner(buildSubmissionHeadline(participantName, spokenWord, definition));
+      });
+    }
+
     function setLiveAnswerBanner(text = "Student answers appear here.") {
       liveBannerHtml = text;
       renderInfoPanel();
@@ -1724,25 +1777,24 @@
     }
 
     function ingestLiveSubmissions() {
-      if (!liveRoom || !Array.isArray(liveRoom.submissions)) {
-        return;
-      }
-      const nextItems = liveRoom.submissions
-        .slice()
-        .reverse()
-        .filter((item) => !seenLiveSubmissionIds.has(item.id));
-
-      nextItems.forEach((item) => {
-        seenLiveSubmissionIds.add(item.id);
-        queuedLiveSubmissions.push(item);
-      });
-
-      activateNextLiveSubmission();
+      return;
     }
 
     function releaseActiveLiveSubmission() {
       activeLiveSubmission = null;
       setTimeout(() => activateNextLiveSubmission(), 0);
+    }
+
+    function closeLiveSocket() {
+      if (!liveSocket) {
+        return;
+      }
+      try {
+        liveSocket.close();
+      } catch (_) {
+      }
+      liveSocket = null;
+      liveSocketActive = false;
     }
 
     async function liveApi(path, body, method = "POST") {
@@ -1781,11 +1833,19 @@
       return `${liveBaseUrl}/student.html?code=${encodeURIComponent(liveRoom.code)}`;
     }
 
+    function getLiveSocketUrl() {
+      if (!liveRoom) {
+        return "";
+      }
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      return `${protocol}//${window.location.host}/ws/live?code=${encodeURIComponent(liveRoom.code)}`;
+    }
+
     async function syncLiveRoom(status = liveRoom?.status || "waiting", options = {}) {
       if (!liveEnabled || !liveRoom) {
         return;
       }
-      const { lastSuccess, lastFeedback, podium } = options;
+      const { lastSuccess, lastFeedback, podium, clearSubmissions } = options;
       const syncedTeams = liveRoom.teams.map((liveTeam) => {
         const localTeam = getTeamByLiveEntry(liveTeam) || { score: 0, name: liveTeam.name, id: liveTeam.id, members: liveTeam.members };
         return {
@@ -1802,16 +1862,68 @@
         lastSuccess,
         lastFeedback,
         podium,
+        clearSubmissions,
         teams: syncedTeams
       });
       liveRoom = data.room;
       matchFinished = liveRoom?.status === "finished";
       syncLiveTeamsIntoScores();
+      syncActiveLettersFromRoom();
+      applyLiveRoomFeedback();
+      if (clearSubmissions) {
+        clearLiveSubmissionState();
+      }
       render();
     }
 
-    async function pollLiveRoom() {
+    function connectLiveSocket() {
       if (!liveEnabled || !liveRoom) {
+        return;
+      }
+      closeLiveSocket();
+      try {
+        liveSocket = new WebSocket(getLiveSocketUrl());
+      } catch (_) {
+        liveSocket = null;
+        liveSocketActive = false;
+        return;
+      }
+      liveSocket.addEventListener("open", () => {
+        liveSocketActive = true;
+        if (livePollTimer) {
+          clearTimeout(livePollTimer);
+          livePollTimer = null;
+        }
+      });
+      liveSocket.addEventListener("message", (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload?.type !== "room" || !payload.room) {
+            return;
+          }
+          liveRoom = payload.room;
+          matchFinished = liveRoom?.status === "finished";
+          syncLiveTeamsIntoScores();
+          syncActiveLettersFromRoom();
+          applyLiveRoomFeedback();
+          render();
+        } catch (_) {
+        }
+      });
+      liveSocket.addEventListener("close", () => {
+        liveSocketActive = false;
+        liveSocket = null;
+        if (liveRoom && !livePollTimer) {
+          pollLiveRoom();
+        }
+      });
+      liveSocket.addEventListener("error", () => {
+        liveSocketActive = false;
+      });
+    }
+
+    async function pollLiveRoom() {
+      if (!liveEnabled || !liveRoom || liveSocketActive) {
         return;
       }
       try {
@@ -1819,7 +1931,8 @@
         liveRoom = data.room;
         matchFinished = liveRoom?.status === "finished";
         syncLiveTeamsIntoScores();
-        ingestLiveSubmissions();
+        syncActiveLettersFromRoom();
+        applyLiveRoomFeedback();
         render();
       } catch (_) {
       } finally {
@@ -1836,10 +1949,13 @@
       matchFinished = false;
       clearLiveSubmissionState();
       await syncLiveRoom("waiting");
+      connectLiveSocket();
       if (livePollTimer) {
         clearTimeout(livePollTimer);
       }
-      pollLiveRoom();
+      if (!liveSocketActive) {
+        pollLiveRoom();
+      }
     }
 
     async function startLiveGame() {
@@ -2021,6 +2137,7 @@
       matchFinished = false;
       teams = teams.map((team) => ({ ...team, score: 0 }));
       clearLiveSubmissionState();
+      lastHandledLiveFeedbackId = "";
       setLiveAnswerBanner();
       clearMessage();
       if (liveRoom) {
@@ -2049,6 +2166,7 @@
       celebratingTeamId = "";
       fillLettersToTarget();
       clearLiveSubmissionState();
+      lastHandledLiveFeedbackId = "";
       setLiveAnswerBanner();
       clearMessage();
       render();
@@ -2155,6 +2273,8 @@
 
       fillLettersToTarget();
       activeTeamId = "";
+      queuedLiveSubmissions = [];
+      activeLiveSubmission = null;
 
       const winner = getScoreboardTeams().find((entry) => Number(entry.score) >= winningScore) || null;
       const nextStatus = winner ? "finished" : (liveRoom?.status || "live");
@@ -2186,7 +2306,8 @@
           lengthBonus: scoreBreakdown.lengthBonus,
           stealBonus: scoreBreakdown.stealBonus
         },
-        podium: winner ? getScoreboardTeams().slice(0, 3) : []
+        podium: winner ? getScoreboardTeams().slice(0, 3) : [],
+        clearSubmissions: true
       }).catch(() => {});
       if (winner) {
         queuedLiveSubmissions = [];
@@ -2397,7 +2518,9 @@
         confirmLabel: "Start"
       });
       if (confirmed) {
-        startLiveGame().catch(() => {});
+        startLiveGame().then(() => {
+          qrOverlay.classList.add("hidden");
+        }).catch(() => {});
       }
     });
     showQrBtn.addEventListener("click", () => {

@@ -505,6 +505,8 @@
     let player = null;
     let room = null;
     let timer = null;
+    let roomSocket = null;
+    let roomSocketActive = false;
     let lastSeenSuccessId = "";
     let lastSeenFeedbackId = "";
     let flashTimer = null;
@@ -535,6 +537,23 @@
         throw error;
       }
       return data;
+    }
+
+    function getRoomSocketUrl() {
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      return `${protocol}//${window.location.host}/ws/live?code=${encodeURIComponent(code)}`;
+    }
+
+    function closeRoomSocket() {
+      if (!roomSocket) {
+        return;
+      }
+      try {
+        roomSocket.close();
+      } catch (_) {
+      }
+      roomSocket = null;
+      roomSocketActive = false;
     }
 
     function keepInputReady() {
@@ -767,7 +786,7 @@
     }
 
     async function poll() {
-      if (!room) return;
+      if (!room || roomSocketActive) return;
       try {
         const data = await api(`/api/live/room?code=${encodeURIComponent(code)}`, null, "GET");
         room = data.room;
@@ -778,13 +797,55 @@
       }
     }
 
+    function connectRoomSocket() {
+      closeRoomSocket();
+      try {
+        roomSocket = new WebSocket(getRoomSocketUrl());
+      } catch (_) {
+        roomSocket = null;
+        roomSocketActive = false;
+        return;
+      }
+      roomSocket.addEventListener("open", () => {
+        roomSocketActive = true;
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
+      });
+      roomSocket.addEventListener("message", (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload?.type !== "room" || !payload.room) {
+            return;
+          }
+          room = payload.room;
+          render();
+        } catch (_) {
+        }
+      });
+      roomSocket.addEventListener("close", () => {
+        roomSocketActive = false;
+        roomSocket = null;
+        if (room && !timer) {
+          poll();
+        }
+      });
+      roomSocket.addEventListener("error", () => {
+        roomSocketActive = false;
+      });
+    }
+
     async function joinRoom(reconnect = false) {
       const data = await api("/api/live/join", { code, teamName: teamName.value, reconnect });
       player = data.player;
       room = data.room;
       joinView.classList.add("hidden");
       waitingView.classList.remove("hidden");
-      poll();
+      connectRoomSocket();
+      if (!roomSocketActive) {
+        poll();
+      }
     }
 
     joinBtn.addEventListener("click", async () => {
@@ -818,13 +879,16 @@
           playerId: player.id,
           teamId: player.teamId,
           teamName: player.teamName,
-          word: nextWord
+          word: nextWord,
+          roundId: room.roundId
         });
         wordInput.value = "";
         if (timer) {
           clearTimeout(timer);
         }
-        poll();
+        if (!roomSocketActive) {
+          poll();
+        }
         keepInputReady();
       } catch (error) {
         showFeedbackToast({
