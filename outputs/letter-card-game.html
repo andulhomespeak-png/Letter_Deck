@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Letter Deck</title>
+  <title>Letter Clash</title>
+  <link rel="icon" type="image/png" href="./letter-clash-favicon.png">
   <style>
     :root {
       --bg: #fff36b;
@@ -742,11 +743,6 @@
       padding: 10px 4px;
     }
 
-    .live-badge {
-      background: linear-gradient(180deg, #ff63c1, var(--pink));
-      color: white;
-    }
-
     .side-title {
       margin: 0;
       font-size: 0.9rem;
@@ -1292,7 +1288,6 @@
     let activeLetters = [];
     let activeTeamId = "";
     let celebratingTeamId = "";
-    let teamIdCounter = 3;
     let liveRoom = null;
     let livePollTimer = null;
     let liveSocket = null;
@@ -1341,20 +1336,14 @@
     let celebrateTimer = null;
     let overlayTimer = null;
     let audioCtx = null;
-    let musicGain = null;
-    let musicTimer = null;
     let musicEnabled = true;
     let sfxEnabled = true;
-    let musicStep = 0;
     let confirmState = null;
     let audioPrimed = false;
     let latestDefinitionRequest = 0;
     let infoMessageHtml = "";
     let infoMessageTone = "";
     let liveBannerHtml = "Student answers appear here.";
-    let seenLiveSubmissionIds = new Set();
-    let queuedLiveSubmissions = [];
-    let activeLiveSubmission = null;
     let lastHandledLiveFeedbackId = "";
     let matchFinished = false;
     let lastPodiumKey = "";
@@ -1381,68 +1370,6 @@
 
     function drawLetter() {
       return alphabet[Math.floor(Math.random() * alphabet.length)];
-    }
-
-    function getLengthBonus(length) {
-      if (length >= 8) return 15;
-      if (length === 7) return 10;
-      if (length === 6) return 6;
-      if (length === 5) return 3;
-      if (length === 4) return 1;
-      return 0;
-    }
-
-    function getLetterCounts(items) {
-      return items.reduce((counts, item) => {
-        counts[item] = (counts[item] || 0) + 1;
-        return counts;
-      }, {});
-    }
-
-    function getWordTableUsage(word) {
-      const available = getLetterCounts(activeLetters);
-      const consumed = {};
-      const first = word[0];
-      const last = word[word.length - 1];
-
-      if (!available[first]) {
-        return null;
-      }
-      available[first] -= 1;
-      consumed[first] = (consumed[first] || 0) + 1;
-
-      if (!available[last]) {
-        return null;
-      }
-      available[last] -= 1;
-      consumed[last] = (consumed[last] || 0) + 1;
-
-      let stolenLetters = 0;
-      for (let index = 1; index < word.length - 1; index += 1) {
-        const letter = word[index];
-        if (available[letter] > 0) {
-          available[letter] -= 1;
-          consumed[letter] = (consumed[letter] || 0) + 1;
-          stolenLetters += 1;
-        }
-      }
-
-      return { consumed, stolenLetters };
-    }
-
-    function getWordScore(word, stolenLetters = 0) {
-      const lettersScore = word
-        .split("")
-        .reduce((total, letter) => total + (letterPoints[letter] || 0), 0);
-      const lengthBonus = getLengthBonus(word.length);
-      const stealBonus = stolenLetters * stealBonusPerLetter;
-      return {
-        lettersScore,
-        lengthBonus,
-        stealBonus,
-        stolenLetters,
-        total: lettersScore + lengthBonus + stealBonus
-      };
     }
 
     function getScoreboardTeams() {
@@ -1590,10 +1517,6 @@
       });
     }
 
-    function getActiveTeam() {
-      return teams.find((team) => team.id === activeTeamId) || null;
-    }
-
     async function removeLocalTeam(teamId, teamName) {
       const confirmed = await openConfirm({
         title: "Delete Team?",
@@ -1638,12 +1561,6 @@
         || null;
     }
 
-    function getTeamBySubmission(submission) {
-      return teams.find((team) => submission.teamId && team.id === submission.teamId)
-        || teams.find((team) => team.name.toLowerCase() === String(submission.teamName || "").toLowerCase())
-        || null;
-    }
-
     function syncLiveTeamsIntoScores() {
       if (!liveRoom) {
         return;
@@ -1668,11 +1585,7 @@
       });
     }
 
-    function clearLiveSubmissionState() {
-      activeLiveSubmission = null;
-      queuedLiveSubmissions = [];
-      seenLiveSubmissionIds = new Set((liveRoom?.submissions || []).map((item) => item.id));
-    }
+    function clearLiveSubmissionState() {}
 
     function syncActiveLettersFromRoom() {
       if (!liveRoom || !Array.isArray(liveRoom.letters)) {
@@ -1727,80 +1640,6 @@
     function setLiveAnswerBanner(text = "Student answers appear here.") {
       liveBannerHtml = text;
       renderInfoPanel();
-    }
-
-    function evaluateWord(rawInput) {
-      const rawWord = String(rawInput || "").trim().toLowerCase();
-      const word = rawWord.toUpperCase();
-      if (activeLetters.length < 2) {
-        return { ok: false, message: "Need 2 cards on the table first." };
-      }
-      if (rawWord.length < 2) {
-        return { ok: false, message: "Type a longer word." };
-      }
-      if (!/^[a-z]+$/.test(rawWord)) {
-        return { ok: false, message: "Use only letters A-Z." };
-      }
-      if (!dictionary.has(rawWord)) {
-        return { ok: false, message: `"${rawWord}" is not in the local dictionary.` };
-      }
-      const usage = getWordTableUsage(word);
-      if (!usage) {
-        return {
-          ok: false,
-          message: `"${rawWord}" is real, but it must start and end with ${activeLetters.join(" / ")}.`
-        };
-      }
-      return { ok: true, rawWord, word, usage };
-    }
-
-    function activateNextLiveSubmission() {
-      if (!liveRoom || liveRoom.status !== "live" || activeLiveSubmission || !queuedLiveSubmissions.length || isGameFinished()) {
-        return;
-      }
-      activeLiveSubmission = queuedLiveSubmissions.shift();
-      const team = getTeamBySubmission(activeLiveSubmission);
-      if (team) {
-        activeTeamId = team.id;
-      }
-      const evaluation = evaluateWord(activeLiveSubmission.word);
-      const participantName = activeLiveSubmission.teamName;
-      const spokenWord = String(activeLiveSubmission.word || "").trim();
-      setLiveAnswerBanner(buildSubmissionHeadline(participantName, spokenWord));
-      if (evaluation.ok) {
-        completeValidWord(evaluation.word, evaluation.rawWord, evaluation.usage);
-        return;
-      }
-      const definitionRequestId = ++latestDefinitionRequest;
-      setMessage(evaluation.message, "bad");
-      fetchWordDefinition(spokenWord).then((definition) => {
-        if (definitionRequestId !== latestDefinitionRequest) {
-          return;
-        }
-        setLiveAnswerBanner(buildSubmissionHeadline(participantName, spokenWord, definition));
-      });
-      playErrorSound();
-      render();
-      syncLiveRoom(liveRoom?.status || "live", {
-        lastFeedback: {
-          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          teamId: activeLiveSubmission?.teamId || team?.id || "",
-          teamName: participantName,
-          word: spokenWord,
-          tone: "bad",
-          message: evaluation.message
-        }
-      }).catch(() => {});
-      releaseActiveLiveSubmission();
-    }
-
-    function ingestLiveSubmissions() {
-      return;
-    }
-
-    function releaseActiveLiveSubmission() {
-      activeLiveSubmission = null;
-      setTimeout(() => activateNextLiveSubmission(), 0);
     }
 
     function closeLiveSocket() {
@@ -2137,75 +1976,7 @@
     }
 
     function stopMusic() {
-      if (musicTimer) {
-        clearTimeout(musicTimer);
-        musicTimer = null;
-      }
       stopBackgroundLoop(true);
-      if (musicGain && audioCtx) {
-        musicGain.gain.cancelScheduledValues(audioCtx.currentTime);
-        musicGain.gain.linearRampToValueAtTime(0.0001, audioCtx.currentTime + 0.2);
-      }
-    }
-
-    function scheduleMusicLoop() {
-      if (!musicEnabled) {
-        return;
-      }
-      const ctx = getAudioContext();
-      if (!musicGain) {
-        musicGain = ctx.createGain();
-        musicGain.gain.value = 0.095;
-        musicGain.connect(ctx.destination);
-      }
-
-      const motif = [523.25, 659.25, 783.99, 659.25, 587.33, 659.25, 698.46, 783.99];
-      const harmony = [392, 440, 523.25, 440, 392, 440, 493.88, 523.25];
-      const bass = [130.81, 130.81, 174.61, 174.61, 146.83, 146.83, 196, 196];
-      const baseTime = ctx.currentTime + 0.04;
-
-      for (let i = 0; i < motif.length; i += 1) {
-        const start = baseTime + i * 0.24;
-
-        const lead = ctx.createOscillator();
-        const leadGain = ctx.createGain();
-        lead.type = i % 2 === 0 ? "triangle" : "square";
-        lead.frequency.setValueAtTime(motif[(musicStep + i) % motif.length], start);
-        leadGain.gain.setValueAtTime(0.0001, start);
-        leadGain.gain.linearRampToValueAtTime(0.082, start + 0.018);
-        leadGain.gain.exponentialRampToValueAtTime(0.0001, start + 0.19);
-        lead.connect(leadGain);
-        leadGain.connect(musicGain);
-        lead.start(start);
-        lead.stop(start + 0.21);
-
-        const pad = ctx.createOscillator();
-        const padGain = ctx.createGain();
-        pad.type = "sine";
-        pad.frequency.setValueAtTime(harmony[(musicStep + i) % harmony.length], start);
-        padGain.gain.setValueAtTime(0.0001, start);
-        padGain.gain.linearRampToValueAtTime(0.026, start + 0.03);
-        padGain.gain.exponentialRampToValueAtTime(0.0001, start + 0.21);
-        pad.connect(padGain);
-        padGain.connect(musicGain);
-        pad.start(start);
-        pad.stop(start + 0.23);
-
-        const low = ctx.createOscillator();
-        const lowGain = ctx.createGain();
-        low.type = "sine";
-        low.frequency.setValueAtTime(bass[(musicStep + i) % bass.length], start);
-        lowGain.gain.setValueAtTime(0.0001, start);
-        lowGain.gain.linearRampToValueAtTime(0.055, start + 0.018);
-        lowGain.gain.exponentialRampToValueAtTime(0.0001, start + 0.22);
-        low.connect(lowGain);
-        lowGain.connect(musicGain);
-        low.start(start);
-        low.stop(start + 0.24);
-      }
-
-      musicStep = (musicStep + 1) % motif.length;
-      musicTimer = setTimeout(scheduleMusicLoop, 1650);
     }
 
     function toggleMusic() {
@@ -2312,35 +2083,6 @@
       }, 760);
     }
 
-    function assignTurn(teamId) {
-      if (activeLetters.length < 2) {
-        setMessage("Need 2 cards on the table first.", "bad");
-        playErrorSound();
-        return;
-      }
-      activeTeamId = teamId;
-      clearMessage();
-      render();
-    }
-
-    function changeScore(amount) {
-      const team = getActiveTeam();
-      if (!team) {
-        setMessage("Assign a team turn first.", "bad");
-        playErrorSound();
-        return;
-      }
-      team.score = Math.max(0, team.score + amount);
-      render();
-    }
-
-    function addTeam() {
-      const nextId = `team-${teamIdCounter}`;
-      teams.push({ id: nextId, name: `Team ${teamIdCounter}`, score: 0 });
-      teamIdCounter += 1;
-      render();
-    }
-
     function renameTeam(teamId, nextName) {
       const cleanName = nextName.trim();
       const team = teams.find((item) => item.id === teamId);
@@ -2349,100 +2091,6 @@
       }
       team.name = cleanName || team.name;
       render();
-    }
-
-    function resetScores() {
-      teams.forEach((team) => {
-        team.score = 0;
-      });
-      clearMessage();
-      render();
-    }
-
-    function consumeLettersForWord(consumedLetters) {
-      const remaining = { ...consumedLetters };
-      activeLetters = activeLetters.filter((letter) => {
-        if (remaining[letter] > 0) {
-          remaining[letter] -= 1;
-          return false;
-        }
-        return true;
-      });
-    }
-
-    function completeValidWord(word, rawWord, usage) {
-      const team = getActiveTeam();
-      const participantName = team?.name || activeLiveSubmission?.teamName || "Student";
-      const scoreBreakdown = getWordScore(word, usage.stolenLetters);
-      const consumedLetters = Object.entries(usage.consumed).flatMap(([letter, count]) => Array.from({ length: count }, () => letter));
-      consumeLettersForWord(usage.consumed);
-      lastRenderedLettersKey = "";
-
-      if (team) {
-        team.score += scoreBreakdown.total;
-        celebrateTeam(team.id);
-        showCelebration(team, scoreBreakdown.total);
-        playSuccessSound();
-      }
-
-      const scoreLine =
-        `<strong>+${scoreBreakdown.total} pts</strong> ` +
-        `(${scoreBreakdown.lettersScore} letters + ${scoreBreakdown.lengthBonus} length + ${scoreBreakdown.stealBonus} steal)`;
-      setLiveAnswerBanner(buildSubmissionHeadline(participantName, rawWord));
-      setMessage(scoreLine, "good");
-
-      const definitionRequestId = ++latestDefinitionRequest;
-      fetchWordDefinition(rawWord).then((definition) => {
-        if (!definition || definitionRequestId !== latestDefinitionRequest) {
-          return;
-        }
-        setLiveAnswerBanner(buildSubmissionHeadline(participantName, rawWord, definition));
-      });
-
-      fillLettersToTarget();
-      activeTeamId = "";
-      queuedLiveSubmissions = [];
-      activeLiveSubmission = null;
-
-      const winner = getScoreboardTeams().find((entry) => Number(entry.score) >= winningScore) || null;
-      const nextStatus = winner ? "finished" : (liveRoom?.status || "live");
-      matchFinished = !!winner;
-      if (liveRoom) {
-        liveRoom.status = nextStatus;
-      }
-
-      render();
-      syncLiveRoom(nextStatus, {
-        lastSuccess: {
-          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          teamId: team?.id || activeLiveSubmission?.teamId || "",
-          teamName: participantName,
-          word: rawWord,
-          consumedLetters,
-          points: scoreBreakdown.total
-        },
-        lastFeedback: {
-          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          teamId: team?.id || activeLiveSubmission?.teamId || "",
-          teamName: participantName,
-          word: rawWord,
-          consumedLetters,
-          tone: "good",
-          message: `+${scoreBreakdown.total} pts`,
-          points: scoreBreakdown.total,
-          lettersScore: scoreBreakdown.lettersScore,
-          lengthBonus: scoreBreakdown.lengthBonus,
-          stealBonus: scoreBreakdown.stealBonus
-        },
-        podium: winner ? getScoreboardTeams().slice(0, 3) : [],
-        clearSubmissions: true
-      }).catch(() => {});
-      if (winner) {
-        queuedLiveSubmissions = [];
-        activeLiveSubmission = null;
-        setMessage(`<strong>${winner.name}</strong> reached ${winner.score} pts. Final podium locked.`, "good");
-      }
-      releaseActiveLiveSubmission();
     }
 
     function renderCards() {
