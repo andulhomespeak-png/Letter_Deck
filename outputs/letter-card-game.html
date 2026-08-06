@@ -555,17 +555,13 @@
 
     .confirm-overlay {
       position: fixed;
-      top: 0;
-      right: 0;
-      bottom: 0;
-      width: min(100vw, 390px);
+      inset: 0;
       display: grid;
-      align-items: start;
-      justify-items: stretch;
-      background: linear-gradient(270deg, rgba(14, 10, 37, 0.18), rgba(14, 10, 37, 0));
+      place-items: center;
+      background: rgba(14, 10, 37, 0.58);
       z-index: 42;
-      padding: 12px;
-      pointer-events: none;
+      padding: 24px;
+      pointer-events: auto;
     }
 
     .confirm-overlay.hidden {
@@ -573,17 +569,18 @@
     }
 
     .confirm-modal {
-      width: 100%;
-      min-height: calc(100vh - 24px);
-      border-radius: 28px;
-      padding: 18px;
+      width: min(92vw, 560px);
+      max-height: calc(100dvh - 48px);
+      overflow: auto;
+      border-radius: 32px;
+      padding: 24px;
       background: linear-gradient(145deg, rgba(255,255,255,0.99), rgba(251,243,255,0.99));
       box-shadow: 0 36px 80px rgba(24, 11, 58, 0.3);
       display: grid;
-      gap: 14px;
+      gap: 16px;
       text-align: center;
       border: 1px solid rgba(255, 255, 255, 0.9);
-      align-content: start;
+      align-content: center;
       pointer-events: auto;
     }
 
@@ -1107,8 +1104,9 @@
         min-height: 0;
       }
 
-      .confirm-overlay {
-        width: 100%;
+      .confirm-modal {
+        width: min(94vw, 560px);
+        max-height: calc(100dvh - 24px);
       }
     }
 
