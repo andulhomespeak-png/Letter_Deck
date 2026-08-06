@@ -563,7 +563,7 @@
       align-items: start;
       justify-items: stretch;
       background: linear-gradient(270deg, rgba(14, 10, 37, 0.18), rgba(14, 10, 37, 0));
-      z-index: 26;
+      z-index: 42;
       padding: 12px;
       pointer-events: none;
     }
@@ -1269,7 +1269,7 @@
     <div class="podium-modal">
       <p class="podium-kicker">Game Over</p>
       <h2 class="podium-title">Top 3</h2>
-      <p class="podium-subtitle" id="podiumSubtitle">First team to 1000 points wins.</p>
+      <p class="podium-subtitle" id="podiumSubtitle">First team to 750 points wins.</p>
       <div class="podium-stage" id="podiumStage"></div>
       <div class="podium-actions">
         <button class="accent" id="podiumResetBtn">Play Again</button>
@@ -1331,6 +1331,7 @@
     const podiumSubtitle = document.getElementById("podiumSubtitle");
     const podiumResetBtn = document.getElementById("podiumResetBtn");
     const podiumFanfare = new Audio("superhero-fanfare.wav");
+    const backgroundLoop = new Audio("background-techno-loop131bpm.wav");
     let celebrateTimer = null;
     let overlayTimer = null;
     let audioCtx = null;
@@ -1351,7 +1352,7 @@
     let lastPodiumKey = "";
     let podiumSoundPlayed = false;
     const maxActiveLetters = 8;
-    const winningScore = 500;
+    const winningScore = 750;
     const letterPoints = {
       A: 1, E: 1, I: 1, O: 1, N: 1, R: 1, T: 1, L: 1, S: 1, U: 1,
       D: 2, G: 2,
@@ -1365,6 +1366,9 @@
     const definitionCache = new Map();
     podiumFanfare.preload = "auto";
     podiumFanfare.volume = 0.92;
+    backgroundLoop.preload = "auto";
+    backgroundLoop.loop = true;
+    backgroundLoop.volume = 0.16;
 
     function drawLetter() {
       return alphabet[Math.floor(Math.random() * alphabet.length)];
@@ -1482,6 +1486,7 @@
 
     function updatePodiumVisibility() {
       if (isGameFinished()) {
+        stopBackgroundLoop();
         renderPodium();
         podiumOverlay.classList.add("is-visible");
         if (!podiumSoundPlayed) {
@@ -1493,6 +1498,7 @@
       podiumSoundPlayed = false;
       lastPodiumKey = "";
       podiumOverlay.classList.remove("is-visible");
+      startBackgroundLoop();
     }
 
     function buildSubmissionHeadline(participantName, rawWord, definition = "") {
@@ -2028,9 +2034,32 @@
         return;
       }
       try {
+        stopBackgroundLoop();
         podiumFanfare.pause();
         podiumFanfare.currentTime = 0;
         podiumFanfare.play().catch(() => {});
+      } catch (_) {
+      }
+    }
+
+    function startBackgroundLoop() {
+      if (!soundEnabled || isGameFinished()) {
+        return;
+      }
+      try {
+        if (backgroundLoop.paused) {
+          backgroundLoop.play().catch(() => {});
+        }
+      } catch (_) {
+      }
+    }
+
+    function stopBackgroundLoop(reset = false) {
+      try {
+        backgroundLoop.pause();
+        if (reset) {
+          backgroundLoop.currentTime = 0;
+        }
       } catch (_) {
       }
     }
@@ -2039,6 +2068,12 @@
       if (musicTimer) {
         clearTimeout(musicTimer);
         musicTimer = null;
+      }
+      stopBackgroundLoop(true);
+      try {
+        podiumFanfare.pause();
+        podiumFanfare.currentTime = 0;
+      } catch (_) {
       }
       if (musicGain && audioCtx) {
         musicGain.gain.cancelScheduledValues(audioCtx.currentTime);
@@ -2113,6 +2148,7 @@
       if (soundEnabled) {
         getAudioContext();
         playSuccessSound();
+        startBackgroundLoop();
       } else {
         stopMusic();
       }
@@ -2134,6 +2170,12 @@
       podiumOverlay.classList.remove("is-visible");
       podiumSoundPlayed = false;
       lastPodiumKey = "";
+      try {
+        podiumFanfare.pause();
+        podiumFanfare.currentTime = 0;
+      } catch (_) {
+      }
+      stopBackgroundLoop(true);
       activeLetters = [];
       fillLettersToTarget();
       lastRenderedLettersKey = "";
@@ -2153,6 +2195,7 @@
         liveRoom.submissions = [];
       }
       render();
+      startBackgroundLoop();
       syncLiveRoom("waiting", { lastSuccess: null, lastFeedback: null, podium: [] }).catch(() => {});
     }
 
