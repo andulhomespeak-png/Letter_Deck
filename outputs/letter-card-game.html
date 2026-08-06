@@ -1219,7 +1219,7 @@
         </section>
 
         <aside class="panel sidebar">
-          <h2 class="side-title">Teams</h2>
+          <h2 class="side-title">Players</h2>
           <div class="team-list" id="teamList"></div>
         </aside>
       </section>
@@ -1302,10 +1302,12 @@
     let liveEnabled = window.location.protocol.startsWith("http");
     let liveBaseUrl = window.location.origin;
     let lastRenderedLettersKey = "";
-    let teams = [
-      { id: "team-1", name: "Team 1", score: 0 },
-      { id: "team-2", name: "Team 2", score: 0 }
-    ];
+    let teams = liveEnabled
+      ? []
+      : [
+        { id: "team-1", name: "Team 1", score: 0 },
+        { id: "team-2", name: "Team 2", score: 0 }
+      ];
 
     const activeCards = document.getElementById("activeCards");
     const infoHeadlineEl = document.getElementById("infoHeadline");
@@ -1347,6 +1349,7 @@
     let sfxEnabled = true;
     let musicStep = 0;
     let confirmState = null;
+    let audioPrimed = false;
     let latestDefinitionRequest = 0;
     let infoMessageHtml = "";
     let infoMessageTone = "";
@@ -1978,6 +1981,12 @@
       if (!liveEnabled || !liveRoom || isGameFinished()) {
         return;
       }
+      if (!liveRoom.teams?.length) {
+        setMessage("Connect at least 1 player before going live.", "bad");
+        playErrorSound();
+        render();
+        return;
+      }
       const data = await liveApi("/api/live/start", { code: liveRoom.code });
       liveRoom = data.room;
       matchFinished = false;
@@ -1994,6 +2003,19 @@
         audioCtx.resume();
       }
       return audioCtx;
+    }
+
+    function primeAudio() {
+      if (audioPrimed) {
+        return;
+      }
+      audioPrimed = true;
+      if (sfxEnabled) {
+        getAudioContext();
+      }
+      if (musicEnabled) {
+        startBackgroundLoop();
+      }
     }
 
     function tone({ frequency, start, duration, type = "sine", gain = 0.11 }) {
@@ -2535,9 +2557,10 @@
       sfxBtn.classList.toggle("is-on", sfxEnabled);
       startLiveBtn.classList.toggle("is-on", liveRoom?.status === "live");
       qrLiveBtn.classList.toggle("is-on", liveRoom?.status === "live");
+      const hasConnectedPlayers = Number(liveRoom?.teams?.length || 0) > 0;
       useLettersBtn.disabled = activeLetters.length === 0 || isGameFinished();
-      startLiveBtn.disabled = isGameFinished();
-      qrLiveBtn.disabled = isGameFinished() || liveRoom?.status === "live";
+      startLiveBtn.disabled = isGameFinished() || !hasConnectedPlayers;
+      qrLiveBtn.disabled = isGameFinished() || liveRoom?.status === "live" || !hasConnectedPlayers;
       if (liveEnabled && liveRoom) {
         qrRoomText.textContent = `Room ${liveRoom.code}`;
         qrUrlText.textContent = getLiveJoinUrl();
@@ -2612,6 +2635,7 @@
       }
     });
     document.addEventListener("keydown", (event) => {
+      primeAudio();
       if (confirmOverlay.classList.contains("hidden")) {
         return;
       }
@@ -2624,6 +2648,8 @@
     });
     soundBtn.addEventListener("click", toggleMusic);
     sfxBtn.addEventListener("click", toggleSfx);
+    document.addEventListener("pointerdown", primeAudio, { once: true });
+    document.addEventListener("touchstart", primeAudio, { once: true });
     resetBtn.addEventListener("click", async () => {
       const confirmed = await openConfirm({
         title: "Reset Game?",
