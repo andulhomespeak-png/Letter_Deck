@@ -12,6 +12,7 @@ const ROOT = path.join(__dirname);
 const TEACHER_HTML = path.join(ROOT, "letter-card-game.html");
 const STUDENT_HTML = path.join(ROOT, "student.html");
 const WORDS_JS = path.join(ROOT, "english-words.js");
+const ROOM_TTL_MS = 60 * 60 * 1000;
 
 const rooms = new Map();
 const roomSockets = new Map();
@@ -35,7 +36,7 @@ const letterPoints = {
   J: 8, X: 8,
   Q: 10, Z: 10
 };
-const winningScore = 500;
+const winningScore = 750;
 const stealBonusPerLetter = 2;
 
 function json(res, status, payload) {
@@ -125,6 +126,21 @@ function createRoom() {
   };
   rooms.set(room.code, room);
   return room;
+}
+
+function cleanupRooms() {
+  const now = Date.now();
+  rooms.forEach((room, code) => {
+    const hasSockets = !!roomSockets.get(code)?.size;
+    if (hasSockets) {
+      return;
+    }
+    if (now - Number(room.updatedAt || 0) < ROOM_TTL_MS) {
+      return;
+    }
+    rooms.delete(code);
+    roomSockets.delete(code);
+  });
 }
 
 function getRoom(code) {
@@ -622,3 +638,5 @@ server.listen(PORT, HOST, () => {
   console.log(`Teacher view: http://localhost:${PORT}`);
   console.log(`Phone join:   http://${host}:${PORT}`);
 });
+
+setInterval(cleanupRooms, 5 * 60 * 1000).unref();

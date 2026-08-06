@@ -1359,6 +1359,7 @@
     let matchFinished = false;
     let lastPodiumKey = "";
     let podiumSoundPlayed = false;
+    const liveRoomStorageKey = "letter-clash-live-room-code";
     const maxActiveLetters = 8;
     const winningScore = 750;
     const letterPoints = {
@@ -1850,6 +1851,31 @@
       return `${liveBaseUrl}/student.html?code=${encodeURIComponent(liveRoom.code)}`;
     }
 
+    function persistLiveRoomCode() {
+      if (!liveEnabled) {
+        return;
+      }
+      try {
+        if (liveRoom?.code) {
+          window.localStorage.setItem(liveRoomStorageKey, liveRoom.code);
+          return;
+        }
+        window.localStorage.removeItem(liveRoomStorageKey);
+      } catch (_) {
+      }
+    }
+
+    function getPersistedLiveRoomCode() {
+      if (!liveEnabled) {
+        return "";
+      }
+      try {
+        return String(window.localStorage.getItem(liveRoomStorageKey) || "").trim().toUpperCase();
+      } catch (_) {
+        return "";
+      }
+    }
+
     function getLiveSocketUrl() {
       if (!liveRoom) {
         return "";
@@ -1883,6 +1909,7 @@
         teams: syncedTeams
       });
       liveRoom = data.room;
+      persistLiveRoomCode();
       matchFinished = liveRoom?.status === "finished";
       syncLiveTeamsIntoScores();
       syncActiveLettersFromRoom();
@@ -1919,6 +1946,7 @@
             return;
           }
           liveRoom = payload.room;
+          persistLiveRoomCode();
           matchFinished = liveRoom?.status === "finished";
           syncLiveTeamsIntoScores();
           syncActiveLettersFromRoom();
@@ -1946,6 +1974,7 @@
       try {
         const data = await liveApi(`/api/live/room?code=${encodeURIComponent(liveRoom.code)}`, null, "GET");
         liveRoom = data.room;
+        persistLiveRoomCode();
         matchFinished = liveRoom?.status === "finished";
         syncLiveTeamsIntoScores();
         syncActiveLettersFromRoom();
@@ -1961,8 +1990,23 @@
       if (!liveEnabled) {
         return;
       }
-      const data = await liveApi("/api/live/create-room");
-      liveRoom = data.room;
+      const persistedCode = getPersistedLiveRoomCode();
+      if (persistedCode) {
+        try {
+          const existing = await liveApi(`/api/live/room?code=${encodeURIComponent(persistedCode)}`, null, "GET");
+          liveRoom = existing.room;
+        } catch (_) {
+          try {
+            window.localStorage.removeItem(liveRoomStorageKey);
+          } catch (_) {
+          }
+        }
+      }
+      if (!liveRoom) {
+        const data = await liveApi("/api/live/create-room");
+        liveRoom = data.room;
+      }
+      persistLiveRoomCode();
       matchFinished = false;
       clearLiveSubmissionState();
       await syncLiveRoom("waiting");
@@ -1987,6 +2031,7 @@
       }
       const data = await liveApi("/api/live/start", { code: liveRoom.code });
       liveRoom = data.room;
+      persistLiveRoomCode();
       matchFinished = false;
       clearLiveSubmissionState();
       await syncLiveRoom("live");
@@ -2228,6 +2273,7 @@
         liveRoom.podium = [];
         liveRoom.submissions = [];
       }
+      persistLiveRoomCode();
       render();
       startBackgroundLoop();
       syncLiveRoom("waiting", { lastSuccess: null, lastFeedback: null, podium: [] }).catch(() => {});
@@ -2648,6 +2694,16 @@
     sfxBtn.addEventListener("click", toggleSfx);
     document.addEventListener("pointerdown", primeAudio, { once: true });
     document.addEventListener("touchstart", primeAudio, { once: true });
+    window.addEventListener("beforeunload", (event) => {
+      const hasLiveRoom = !!liveRoom?.code;
+      const hasConnectedPlayers = Number(liveRoom?.teams?.length || 0) > 0;
+      const hasActiveMatch = (liveRoom?.status === "live") || (liveRoom?.status === "finished");
+      if (!hasLiveRoom || (!hasConnectedPlayers && !hasActiveMatch)) {
+        return;
+      }
+      event.preventDefault();
+      event.returnValue = "";
+    });
     resetBtn.addEventListener("click", async () => {
       const confirmed = await openConfirm({
         title: "Reset Game?",
