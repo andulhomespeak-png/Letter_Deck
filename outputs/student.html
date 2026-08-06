@@ -501,6 +501,7 @@
     const feedbackFlash = document.getElementById("feedbackFlash");
     const mobilePodium = document.getElementById("mobilePodium");
     const mobilePodiumStage = document.getElementById("mobilePodiumStage");
+    const podiumFanfare = new Audio("superhero-fanfare.wav");
 
     let player = null;
     let room = null;
@@ -609,12 +610,12 @@
     }
 
     function playPodiumSound() {
-      const ctx = getAudioContext();
-      const now = ctx.currentTime;
-      tone({ frequency: 523.25, start: now, duration: 0.16, type: "triangle", gain: 0.08 });
-      tone({ frequency: 659.25, start: now + 0.09, duration: 0.18, type: "triangle", gain: 0.095 });
-      tone({ frequency: 783.99, start: now + 0.18, duration: 0.2, type: "triangle", gain: 0.1 });
-      tone({ frequency: 1046.5, start: now + 0.28, duration: 0.34, type: "sine", gain: 0.13 });
+      try {
+        podiumFanfare.pause();
+        podiumFanfare.currentTime = 0;
+        podiumFanfare.play().catch(() => {});
+      } catch (_) {
+      }
     }
 
     function flashScreen(tone) {
@@ -927,3 +928,5 @@
   </script>
 </body>
 </html>
+    podiumFanfare.preload = "auto";
+    podiumFanfare.volume = 0.92;

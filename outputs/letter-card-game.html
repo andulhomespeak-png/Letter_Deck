@@ -1330,6 +1330,7 @@
     const podiumStage = document.getElementById("podiumStage");
     const podiumSubtitle = document.getElementById("podiumSubtitle");
     const podiumResetBtn = document.getElementById("podiumResetBtn");
+    const podiumFanfare = new Audio("superhero-fanfare.wav");
     let celebrateTimer = null;
     let overlayTimer = null;
     let audioCtx = null;
@@ -1350,7 +1351,7 @@
     let lastPodiumKey = "";
     let podiumSoundPlayed = false;
     const maxActiveLetters = 8;
-    const winningScore = 1000;
+    const winningScore = 500;
     const letterPoints = {
       A: 1, E: 1, I: 1, O: 1, N: 1, R: 1, T: 1, L: 1, S: 1, U: 1,
       D: 2, G: 2,
@@ -1362,6 +1363,8 @@
     };
     const stealBonusPerLetter = 2;
     const definitionCache = new Map();
+    podiumFanfare.preload = "auto";
+    podiumFanfare.volume = 0.92;
 
     function drawLetter() {
       return alphabet[Math.floor(Math.random() * alphabet.length)];
@@ -2024,13 +2027,12 @@
       if (!soundEnabled) {
         return;
       }
-      const ctx = getAudioContext();
-      const now = ctx.currentTime;
-      tone({ frequency: 523.25, start: now, duration: 0.16, type: "triangle", gain: 0.08 });
-      tone({ frequency: 659.25, start: now + 0.09, duration: 0.18, type: "triangle", gain: 0.095 });
-      tone({ frequency: 783.99, start: now + 0.18, duration: 0.2, type: "triangle", gain: 0.1 });
-      tone({ frequency: 1046.5, start: now + 0.28, duration: 0.34, type: "sine", gain: 0.13 });
-      tone({ frequency: 1318.51, start: now + 0.38, duration: 0.42, type: "sine", gain: 0.12 });
+      try {
+        podiumFanfare.pause();
+        podiumFanfare.currentTime = 0;
+        podiumFanfare.play().catch(() => {});
+      } catch (_) {
+      }
     }
 
     function stopMusic() {
@@ -2129,6 +2131,9 @@
     }
 
     function resetGame() {
+      podiumOverlay.classList.remove("is-visible");
+      podiumSoundPlayed = false;
+      lastPodiumKey = "";
       activeLetters = [];
       fillLettersToTarget();
       lastRenderedLettersKey = "";
@@ -2574,6 +2579,7 @@
         confirmLabel: "Reset"
       });
       if (confirmed) {
+        podiumOverlay.classList.remove("is-visible");
         resetGame();
       }
     });

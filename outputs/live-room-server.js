@@ -35,7 +35,7 @@ const letterPoints = {
   J: 8, X: 8,
   Q: 10, Z: 10
 };
-const winningScore = 1000;
+const winningScore = 500;
 const stealBonusPerLetter = 2;
 
 function json(res, status, payload) {
