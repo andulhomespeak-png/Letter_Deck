@@ -378,10 +378,8 @@
       display: grid;
       place-items: center;
       overflow: hidden;
-      opacity: 0;
-      transform: translateY(44px) scale(0.72) rotate(var(--tilt, 0deg));
-      animation: claimCardIn 760ms cubic-bezier(0.22, 1, 0.36, 1) both;
-      animation-delay: var(--delay, 0ms);
+      opacity: 1;
+      transform: rotate(var(--tilt, 0deg));
     }
 
     .claim-letter-card::before {
@@ -413,7 +411,8 @@
       box-shadow:
         0 24px 38px rgba(255, 214, 82, 0.26),
         inset 0 1px 0 rgba(255,255,255,0.92);
-      animation-name: claimCardClaimed;
+      animation: claimCardClaimed 760ms cubic-bezier(0.22, 1, 0.36, 1) both;
+      animation-delay: var(--delay, 0ms);
     }
 
     .claim-letter-score {
