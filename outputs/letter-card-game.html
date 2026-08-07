@@ -355,92 +355,14 @@
       color: var(--ink-soft);
     }
 
-    .celebration-claimed {
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin: 4px 0 2px;
-    }
-
-    .celebration-cardlet {
-      width: clamp(62px, 7vw, 88px);
-      aspect-ratio: 0.78;
-      border-radius: 22px;
-      border: 1px solid rgba(56, 31, 18, 0.12);
-      background: linear-gradient(145deg, rgba(255,255,255,1), rgba(242,247,255,1));
-      box-shadow:
-        0 16px 26px rgba(31, 26, 23, 0.16),
-        inset 0 1px 0 rgba(255,255,255,0.9);
-      position: relative;
-      display: grid;
-      place-items: center;
-      transform: translateY(24px) scale(0.84) rotate(var(--tilt, 0deg));
-      opacity: 0;
-      animation: claimCardPop 760ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-      animation-delay: var(--delay, 0ms);
-      overflow: hidden;
-    }
-
-    .celebration-cardlet::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background:
-        linear-gradient(130deg, rgba(255,255,255,0.96), rgba(255,255,255,0) 38%),
-        linear-gradient(180deg, rgba(255,255,255,0.24), rgba(255,255,255,0));
-      pointer-events: none;
-    }
-
-    .celebration-cardlet::after {
-      content: "";
-      position: absolute;
-      inset: 8px;
-      border-radius: 16px;
-      border: 1px dashed rgba(52, 31, 20, 0.08);
-      pointer-events: none;
-    }
-
-    .celebration-cardlet[data-color="0"] { color: #ff3b30; }
-    .celebration-cardlet[data-color="1"] { color: #5b2be0; }
-    .celebration-cardlet[data-color="2"] { color: #10bf67; }
-    .celebration-cardlet[data-color="3"] { color: #f3c645; }
-    .celebration-cardlet[data-color="4"] { color: #ba60dc; }
-
-    .celebration-cardlet-score {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      min-width: 24px;
-      padding: 4px 5px 3px;
-      border-radius: 999px;
-      background: rgba(22, 15, 46, 0.08);
-      border: 1px solid rgba(22, 15, 46, 0.08);
-      color: rgba(22, 15, 46, 0.76);
-      font-size: 0.72rem;
-      font-weight: 900;
-      line-height: 1;
-      text-align: center;
-      z-index: 1;
-    }
-
-    .celebration-cardlet-letter {
-      position: relative;
-      z-index: 1;
-      font-size: clamp(2.3rem, 4vw, 3.5rem);
-      font-weight: 900;
-      line-height: 0.9;
-      letter-spacing: -0.08em;
-    }
-
     .celebration-name {
       margin: 0;
-      font-size: clamp(2.8rem, 7vw, 5.8rem);
-      line-height: 0.92;
-      letter-spacing: -0.06em;
+      font-size: clamp(1.5rem, 3vw, 2.35rem);
+      line-height: 1;
+      letter-spacing: -0.03em;
       text-transform: uppercase;
       color: var(--ink);
-      text-shadow: 0 6px 20px rgba(255, 79, 163, 0.16);
+      text-shadow: 0 6px 20px rgba(255, 79, 163, 0.12);
     }
 
     .celebration-word {
@@ -452,6 +374,17 @@
       text-transform: uppercase;
       color: #2412b8;
       text-shadow: 0 10px 24px rgba(36, 18, 184, 0.14);
+    }
+
+    .celebration-word .used-letter {
+      display: inline-block;
+      color: #ff5a36;
+      text-shadow:
+        0 0 18px rgba(255, 90, 54, 0.34),
+        0 8px 20px rgba(255, 90, 54, 0.16);
+      animation: usedLetterBurst 760ms cubic-bezier(0.22, 1, 0.36, 1) both;
+      animation-delay: var(--delay, 0ms);
+      transform-origin: 50% 70%;
     }
 
     .celebration-meta {
@@ -1145,14 +1078,14 @@
       }
     }
 
-    @keyframes claimCardPop {
+    @keyframes usedLetterBurst {
       0% {
         opacity: 0;
-        transform: translateY(56px) scale(0.72) rotate(var(--tilt, 0deg));
+        transform: translateY(42px) scale(0.72) rotate(-12deg);
       }
       38% {
         opacity: 1;
-        transform: translateY(-14px) scale(1.08) rotate(calc(var(--tilt, 0deg) * 0.45));
+        transform: translateY(-14px) scale(1.2) rotate(8deg);
       }
       100% {
         opacity: 1;
@@ -1371,7 +1304,6 @@
     <div class="celebration-burst"></div>
     <div class="celebration-card">
       <p class="celebration-label" id="celebrationLabel">Letter Claim</p>
-      <div class="celebration-claimed" id="celebrationClaimed"></div>
       <h2 class="celebration-name" id="celebrationName">Team 1</h2>
       <p class="celebration-word" id="celebrationWord">CLIP</p>
       <p class="celebration-meta" id="celebrationMeta">claimed these cards first</p>
@@ -1441,7 +1373,6 @@
     const confirmAcceptBtn = document.getElementById("confirmAcceptBtn");
     const celebration = document.getElementById("celebration");
     const celebrationLabel = document.getElementById("celebrationLabel");
-    const celebrationClaimed = document.getElementById("celebrationClaimed");
     const celebrationName = document.getElementById("celebrationName");
     const celebrationWord = document.getElementById("celebrationWord");
     const celebrationMeta = document.getElementById("celebrationMeta");
@@ -2133,31 +2064,11 @@
       const consumedLetters = Array.isArray(payload.consumedLetters) ? payload.consumedLetters : [];
       celebrationLabel.textContent = consumedLetters.length ? "Letter Claim" : "Correct Answer";
       celebrationName.textContent = team.name;
-      celebrationWord.textContent = word || "WORD";
+      celebrationWord.innerHTML = highlightCelebrationWord(word || "WORD", consumedLetters);
       celebrationMeta.textContent = consumedLetters.length
-        ? `claimed ${consumedLetters.join(" • ")} with ${word || "this word"}`
+        ? `claimed these letters with ${word || "this word"}`
         : "scored first with this word";
       celebrationPoints.textContent = `+${points} pts`;
-      celebrationClaimed.innerHTML = "";
-      consumedLetters.forEach((letter, index) => {
-        const cardlet = document.createElement("div");
-        cardlet.className = "celebration-cardlet";
-        cardlet.dataset.color = String(colors[index % colors.length]);
-        cardlet.style.setProperty("--delay", `${index * 60}ms`);
-        cardlet.style.setProperty("--tilt", `${index % 2 === 0 ? -8 : 8}deg`);
-
-        const score = document.createElement("div");
-        score.className = "celebration-cardlet-score";
-        score.textContent = String(letterPoints[letter] || 0);
-
-        const glyph = document.createElement("div");
-        glyph.className = "celebration-cardlet-letter";
-        glyph.textContent = letter;
-
-        cardlet.appendChild(score);
-        cardlet.appendChild(glyph);
-        celebrationClaimed.appendChild(cardlet);
-      });
       celebration.classList.add("is-visible");
       if (overlayTimer) {
         clearTimeout(overlayTimer);
@@ -2165,6 +2076,24 @@
       overlayTimer = setTimeout(() => {
         celebration.classList.remove("is-visible");
       }, 1700);
+    }
+
+    function highlightCelebrationWord(word, consumedLetters) {
+      const counts = {};
+      consumedLetters.forEach((letter) => {
+        const key = String(letter || "").toUpperCase();
+        counts[key] = (counts[key] || 0) + 1;
+      });
+      let usedIndex = 0;
+      return String(word || "").toUpperCase().split("").map((letter) => {
+        if (counts[letter] > 0) {
+          counts[letter] -= 1;
+          const html = `<span class="used-letter" style="--delay:${usedIndex * 70}ms">${letter}</span>`;
+          usedIndex += 1;
+          return html;
+        }
+        return letter;
+      }).join("");
     }
 
     function resetGame() {
