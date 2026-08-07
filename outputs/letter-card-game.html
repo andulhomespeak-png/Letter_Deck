@@ -380,7 +380,7 @@
       overflow: hidden;
       opacity: 0;
       transform: translateY(44px) scale(0.72) rotate(var(--tilt, 0deg));
-      animation: usedLetterBurst 760ms cubic-bezier(0.22, 1, 0.36, 1) both;
+      animation: claimCardIn 760ms cubic-bezier(0.22, 1, 0.36, 1) both;
       animation-delay: var(--delay, 0ms);
     }
 
@@ -410,13 +410,10 @@
     .claim-letter-card[data-color="4"] { color: #ba60dc; }
 
     .claim-letter-card.used-letter {
-      color: #10bf67;
       box-shadow:
-        0 22px 34px rgba(16, 191, 103, 0.28),
+        0 24px 38px rgba(255, 214, 82, 0.26),
         inset 0 1px 0 rgba(255,255,255,0.92);
-      background:
-        radial-gradient(circle at top center, rgba(255, 233, 91, 0.42), transparent 55%),
-        linear-gradient(145deg, rgba(255,255,255,1), rgba(227,255,240,1));
+      animation-name: claimCardClaimed;
     }
 
     .claim-letter-score {
@@ -1120,7 +1117,7 @@
       }
     }
 
-    @keyframes usedLetterBurst {
+    @keyframes claimCardIn {
       0% {
         opacity: 0;
         transform: translateY(42px) scale(0.72) rotate(-12deg);
@@ -1128,6 +1125,24 @@
       38% {
         opacity: 1;
         transform: translateY(-14px) scale(1.2) rotate(8deg);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1) rotate(0deg);
+      }
+    }
+
+    @keyframes claimCardClaimed {
+      0% {
+        opacity: 0;
+        transform: translateY(72px) scale(0.62) rotate(-16deg);
+      }
+      32% {
+        opacity: 1;
+        transform: translateY(-26px) scale(1.24) rotate(10deg);
+      }
+      58% {
+        transform: translateY(6px) scale(0.96) rotate(-4deg);
       }
       100% {
         opacity: 1;
