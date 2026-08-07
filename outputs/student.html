@@ -276,22 +276,85 @@
       line-height: 1.22;
       color: #fff;
       font-weight: 800;
+      display: grid;
+      gap: 8px;
     }
-    .score-breakdown {
-      font-size: 0.76rem;
-      line-height: 1.2;
-      color: rgba(255, 255, 255, 0.84);
-      font-weight: 700;
-    }
-    .score-toast-word {
-      color: #ffd96c;
-      margin-left: 8px;
-      letter-spacing: 0.04em;
+    .score-toast-player {
+      font-size: 0.96rem;
+      line-height: 1.1;
+      font-weight: 900;
+      color: #fff;
       text-transform: uppercase;
     }
-    .score-toast-word .used-letter {
-      color: #42f5a1;
-      text-shadow: 0 0 14px rgba(66, 245, 161, 0.34);
+    .score-toast-word {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .score-word-card {
+      width: clamp(42px, 11vw, 56px);
+      aspect-ratio: 0.78;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: linear-gradient(145deg, rgba(255,255,255,1), rgba(242,247,255,1));
+      box-shadow:
+        0 12px 20px rgba(0,0,0,0.16),
+        inset 0 1px 0 rgba(255,255,255,0.9);
+      position: relative;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      color: #2412b8;
+    }
+    .score-word-card.used-letter {
+      color: #10bf67;
+      background:
+        radial-gradient(circle at top center, rgba(255,233,91,0.38), transparent 55%),
+        linear-gradient(145deg, rgba(255,255,255,1), rgba(227,255,240,1));
+      box-shadow:
+        0 14px 24px rgba(16, 191, 103, 0.24),
+        inset 0 1px 0 rgba(255,255,255,0.92);
+    }
+    .score-word-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(130deg, rgba(255,255,255,0.96), rgba(255,255,255,0) 38%),
+        linear-gradient(180deg, rgba(255,255,255,0.22), rgba(255,255,255,0));
+      pointer-events: none;
+    }
+    .score-word-card::after {
+      content: "";
+      position: absolute;
+      inset: 6px;
+      border-radius: 12px;
+      border: 1px dashed rgba(52, 31, 20, 0.08);
+      pointer-events: none;
+    }
+    .score-word-score {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      min-width: 18px;
+      padding: 2px 4px;
+      border-radius: 999px;
+      background: rgba(22, 15, 46, 0.08);
+      border: 1px solid rgba(22, 15, 46, 0.08);
+      color: rgba(22, 15, 46, 0.76);
+      font-size: 0.52rem;
+      line-height: 1;
+      text-align: center;
+      font-weight: 900;
+      z-index: 1;
+    }
+    .score-word-glyph {
+      position: relative;
+      z-index: 1;
+      font-size: clamp(1.35rem, 5vw, 2rem);
+      font-weight: 900;
+      letter-spacing: -0.08em;
+      line-height: 0.9;
     }
     .rank-badge {
       min-height: 100%;
@@ -733,9 +796,9 @@
       if (entry.id === lastSeenSuccessId) return;
       lastSeenSuccessId = entry.id;
       showToast({
-        label: "Point scored",
+        label: "",
         tone: "good",
-        html: `<strong>${entry.teamName}</strong><span class="score-toast-word">${highlightUsedLetters(entry.word, entry.consumedLetters || [])}</span><div>+${Number(entry.points) || 0} pts</div>`
+        html: `<div class="score-toast-player">${entry.teamName}</div><div class="score-toast-word">${buildToastWordMarkup(entry.word, entry.consumedLetters || [])}</div>`
       });
     }
 
@@ -744,19 +807,12 @@
       lastSeenFeedbackId = entry.id;
       quickPollUntil = 0;
       const tone = entry.tone === "bad" ? "bad" : "good";
-      const wordHtml = entry.word
-        ? `<span class="score-toast-word">${highlightUsedLetters(entry.word, entry.consumedLetters || [])}</span>`
-        : "";
-      const detail = entry.message ? `<div>${escapeHtml(entry.message)}</div>` : "";
-      const breakdown = tone === "good"
-        ? `<div class="score-breakdown">${Number(entry.lettersScore) || 0} letters + ${Number(entry.lengthBonus) || 0} length + ${Number(entry.stealBonus) || 0} steal</div>`
-        : "";
       playFeedbackSound(tone);
       flashScreen(tone);
       showToast({
-        label: tone === "bad" ? "Not valid" : "Correct",
+        label: "",
         tone,
-        html: `<strong>${entry.teamName || "You"}</strong>${wordHtml}${detail}${breakdown}`
+        html: `<div class="score-toast-player">${entry.teamName || "You"}</div>${entry.word ? `<div class="score-toast-word">${buildToastWordMarkup(entry.word, entry.consumedLetters || [])}</div>` : ""}`
       });
     }
 
@@ -780,18 +836,23 @@
         .replaceAll("'", "&#39;");
     }
 
-    function highlightUsedLetters(word, consumedLetters) {
+    function buildToastWordMarkup(word, consumedLetters) {
       const counts = {};
       consumedLetters.forEach((letter) => {
         const key = String(letter || "").toUpperCase();
         counts[key] = (counts[key] || 0) + 1;
       });
-      return String(word || "").toUpperCase().split("").map((letter) => {
-        if (counts[letter] > 0) {
+      return String(word || "").toUpperCase().split("").map((letter, index) => {
+        const isUsed = counts[letter] > 0;
+        if (isUsed) {
           counts[letter] -= 1;
-          return `<span class="used-letter">${escapeHtml(letter)}</span>`;
         }
-        return escapeHtml(letter);
+        return `
+          <div class="score-word-card ${isUsed ? "used-letter" : ""}" data-color="${colors[index % colors.length]}">
+            <div class="score-word-score">${letterPoints[letter] || 0}</div>
+            <div class="score-word-glyph">${escapeHtml(letter)}</div>
+          </div>
+        `;
       }).join("");
     }
 

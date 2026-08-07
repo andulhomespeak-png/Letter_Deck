@@ -347,16 +347,8 @@
       animation: celebratePop 900ms cubic-bezier(0.22, 1, 0.36, 1);
     }
 
-    .celebration-label {
-      margin: 0 0 10px;
-      font-size: 0.9rem;
-      letter-spacing: 0.22em;
-      text-transform: uppercase;
-      color: var(--ink-soft);
-    }
-
     .celebration-name {
-      margin: 0;
+      margin: 0 0 10px;
       font-size: clamp(1.5rem, 3vw, 2.35rem);
       line-height: 1;
       letter-spacing: -0.03em;
@@ -366,41 +358,91 @@
     }
 
     .celebration-word {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
       margin: 0;
-      font-size: clamp(2.4rem, 6vw, 4.8rem);
-      line-height: 0.94;
-      letter-spacing: -0.06em;
-      font-weight: 900;
-      text-transform: uppercase;
-      color: #2412b8;
-      text-shadow: 0 10px 24px rgba(36, 18, 184, 0.14);
     }
 
-    .celebration-word .used-letter {
-      display: inline-block;
-      color: #ff5a36;
-      text-shadow:
-        0 0 18px rgba(255, 90, 54, 0.34),
-        0 8px 20px rgba(255, 90, 54, 0.16);
+    .claim-letter-card {
+      width: clamp(68px, 7vw, 98px);
+      aspect-ratio: 0.78;
+      border-radius: 24px;
+      border: 1px solid rgba(56, 31, 18, 0.12);
+      background: linear-gradient(145deg, rgba(255,255,255,1), rgba(242,247,255,1));
+      box-shadow:
+        0 18px 28px rgba(31, 26, 23, 0.14),
+        inset 0 1px 0 rgba(255,255,255,0.92);
+      position: relative;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(44px) scale(0.72) rotate(var(--tilt, 0deg));
       animation: usedLetterBurst 760ms cubic-bezier(0.22, 1, 0.36, 1) both;
       animation-delay: var(--delay, 0ms);
-      transform-origin: 50% 70%;
     }
 
-    .celebration-meta {
-      margin: 0;
-      font-size: clamp(0.96rem, 1.7vw, 1.18rem);
-      line-height: 1.35;
-      color: var(--ink-soft);
-      font-weight: 700;
+    .claim-letter-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(130deg, rgba(255,255,255,0.96), rgba(255,255,255,0) 38%),
+        linear-gradient(180deg, rgba(255,255,255,0.24), rgba(255,255,255,0));
+      pointer-events: none;
     }
 
-    .celebration-points {
-      margin-top: 10px;
-      font-size: clamp(1.1rem, 2vw, 1.5rem);
-      font-weight: 800;
-      color: #0f8f69;
-      letter-spacing: 0.04em;
+    .claim-letter-card::after {
+      content: "";
+      position: absolute;
+      inset: 8px;
+      border-radius: 18px;
+      border: 1px dashed rgba(52, 31, 20, 0.08);
+      pointer-events: none;
+    }
+
+    .claim-letter-card[data-color="0"] { color: #ff3b30; }
+    .claim-letter-card[data-color="1"] { color: #5b2be0; }
+    .claim-letter-card[data-color="2"] { color: #10bf67; }
+    .claim-letter-card[data-color="3"] { color: #f3c645; }
+    .claim-letter-card[data-color="4"] { color: #ba60dc; }
+
+    .claim-letter-card.used-letter {
+      color: #10bf67;
+      box-shadow:
+        0 22px 34px rgba(16, 191, 103, 0.28),
+        inset 0 1px 0 rgba(255,255,255,0.92);
+      background:
+        radial-gradient(circle at top center, rgba(255, 233, 91, 0.42), transparent 55%),
+        linear-gradient(145deg, rgba(255,255,255,1), rgba(227,255,240,1));
+    }
+
+    .claim-letter-score {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      min-width: 24px;
+      padding: 4px 5px 3px;
+      border-radius: 999px;
+      background: rgba(22, 15, 46, 0.08);
+      border: 1px solid rgba(22, 15, 46, 0.08);
+      color: rgba(22, 15, 46, 0.76);
+      font-size: 0.72rem;
+      font-weight: 900;
+      line-height: 1;
+      text-align: center;
+      z-index: 1;
+    }
+
+    .claim-letter-glyph {
+      position: relative;
+      z-index: 1;
+      font-size: clamp(2.4rem, 4vw, 3.7rem);
+      font-weight: 900;
+      line-height: 0.9;
+      letter-spacing: -0.08em;
     }
 
     .podium-overlay {
@@ -1303,11 +1345,8 @@
   <div class="celebration" id="celebration">
     <div class="celebration-burst"></div>
     <div class="celebration-card">
-      <p class="celebration-label" id="celebrationLabel">Letter Claim</p>
       <h2 class="celebration-name" id="celebrationName">Team 1</h2>
-      <p class="celebration-word" id="celebrationWord">CLIP</p>
-      <p class="celebration-meta" id="celebrationMeta">claimed these cards first</p>
-      <div class="celebration-points" id="celebrationPoints">+1 point</div>
+      <div class="celebration-word" id="celebrationWord"></div>
     </div>
   </div>
 
@@ -1372,11 +1411,8 @@
     const confirmCancelBtn = document.getElementById("confirmCancelBtn");
     const confirmAcceptBtn = document.getElementById("confirmAcceptBtn");
     const celebration = document.getElementById("celebration");
-    const celebrationLabel = document.getElementById("celebrationLabel");
     const celebrationName = document.getElementById("celebrationName");
     const celebrationWord = document.getElementById("celebrationWord");
-    const celebrationMeta = document.getElementById("celebrationMeta");
-    const celebrationPoints = document.getElementById("celebrationPoints");
     const podiumOverlay = document.getElementById("podiumOverlay");
     const podiumStage = document.getElementById("podiumStage");
     const podiumSubtitle = document.getElementById("podiumSubtitle");
@@ -2059,16 +2095,10 @@
     }
 
     function showCelebration(team, payload = {}) {
-      const points = Number(payload.points) || 0;
       const word = String(payload.word || "").trim().toUpperCase();
       const consumedLetters = Array.isArray(payload.consumedLetters) ? payload.consumedLetters : [];
-      celebrationLabel.textContent = consumedLetters.length ? "Letter Claim" : "Correct Answer";
       celebrationName.textContent = team.name;
-      celebrationWord.innerHTML = highlightCelebrationWord(word || "WORD", consumedLetters);
-      celebrationMeta.textContent = consumedLetters.length
-        ? `claimed these letters with ${word || "this word"}`
-        : "scored first with this word";
-      celebrationPoints.textContent = `+${points} pts`;
+      celebrationWord.innerHTML = buildClaimWordMarkup(word || "WORD", consumedLetters);
       celebration.classList.add("is-visible");
       if (overlayTimer) {
         clearTimeout(overlayTimer);
@@ -2078,21 +2108,28 @@
       }, 1700);
     }
 
-    function highlightCelebrationWord(word, consumedLetters) {
+    function buildClaimWordMarkup(word, consumedLetters) {
       const counts = {};
       consumedLetters.forEach((letter) => {
         const key = String(letter || "").toUpperCase();
         counts[key] = (counts[key] || 0) + 1;
       });
       let usedIndex = 0;
-      return String(word || "").toUpperCase().split("").map((letter) => {
+      return String(word || "").toUpperCase().split("").map((letter, index) => {
+        const isUsed = counts[letter] > 0;
         if (counts[letter] > 0) {
           counts[letter] -= 1;
-          const html = `<span class="used-letter" style="--delay:${usedIndex * 70}ms">${letter}</span>`;
-          usedIndex += 1;
-          return html;
         }
-        return letter;
+        const delay = isUsed ? usedIndex * 70 : 120 + index * 30;
+        if (isUsed) {
+          usedIndex += 1;
+        }
+        return `
+          <div class="claim-letter-card ${isUsed ? "used-letter" : ""}" data-color="${colors[index % colors.length]}" style="--delay:${delay}ms; --tilt:${index % 2 === 0 ? -8 : 8}deg">
+            <div class="claim-letter-score">${letterPoints[letter] || 0}</div>
+            <div class="claim-letter-glyph">${letter}</div>
+          </div>
+        `;
       }).join("");
     }
 
