@@ -380,6 +380,9 @@
       margin: 0;
       max-width: 100%;
     }
+    .claim-word.hide-scores .claim-letter-score {
+      display: none;
+    }
     .claim-letter-card {
       width: clamp(24px, calc((min(100vw - 72px, 512px) - ((var(--word-length) - 1) * var(--claim-gap))) / var(--word-length)), 66px);
       flex: 0 0 auto;
@@ -421,10 +424,11 @@
     .claim-letter-card[data-color="4"] { color: #ba60dc; }
     .claim-letter-card.used-letter {
       box-shadow:
-        0 0 0 2px rgba(255, 215, 92, 0.5),
-        0 0 20px rgba(0, 208, 132, 0.32),
-        0 0 30px rgba(255, 214, 82, 0.34),
-        0 22px 34px rgba(255, 214, 82, 0.24),
+        0 0 0 3px rgba(255, 244, 148, 0.92),
+        0 0 18px rgba(255, 255, 210, 0.96),
+        0 0 36px rgba(0, 255, 170, 0.54),
+        0 0 52px rgba(255, 214, 82, 0.72),
+        0 24px 36px rgba(255, 214, 82, 0.34),
         inset 0 1px 0 rgba(255,255,255,0.92);
       animation: claimCardClaimed 760ms cubic-bezier(0.22, 1, 0.36, 1) both;
       animation-delay: var(--delay, 0ms);
@@ -971,7 +975,7 @@
         }
         const delay = 70 + (index * 60);
         return `
-          <div class="claim-letter-card ${isUsed ? "used-letter" : ""}" data-color="${colors[index % colors.length]}" style="--delay:${delay}ms; --tilt:${index % 2 === 0 ? -8 : 8}deg">
+          <div class="claim-letter-card ${isUsed ? "used-letter" : ""}" data-color="${colors[index % colors.length]}" style="--delay:${delay}ms; --tilt:0deg">
             <span class="claim-letter-score">${getLetterPoints(letter)}</span>
             <span class="claim-letter-glyph">${escapeHtml(letter)}</span>
           </div>
@@ -991,7 +995,9 @@
         clearTimeout(claimTimer);
       }
       claimPlayer.textContent = entry.teamName;
-      claimWord.style.setProperty("--word-length", String(Math.max(String(entry.word || "").length, 1)));
+      const wordLength = Math.max(String(entry.word || "").length, 1);
+      claimWord.style.setProperty("--word-length", String(wordLength));
+      claimWord.classList.toggle("hide-scores", wordLength >= 7);
       claimWord.innerHTML = buildClaimWordMarkup(entry.word, entry.consumedLetters || []);
       claimOverlay.classList.remove("hidden");
       void claimOverlay.offsetWidth;
