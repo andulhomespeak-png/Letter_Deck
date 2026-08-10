@@ -358,11 +358,13 @@
     }
 
     .celebration-word {
+      --word-length: 4;
       display: flex;
       justify-content: center;
       gap: 12px;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       margin: 0;
+      max-width: 100%;
     }
 
     .claim-letter-card {
@@ -409,6 +411,9 @@
 
     .claim-letter-card.used-letter {
       box-shadow:
+        0 0 0 2px rgba(255, 215, 92, 0.55),
+        0 0 22px rgba(0, 208, 132, 0.34),
+        0 0 34px rgba(255, 214, 82, 0.38),
         0 24px 38px rgba(255, 214, 82, 0.26),
         inset 0 1px 0 rgba(255,255,255,0.92);
       animation: claimCardClaimed 760ms cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -2112,6 +2117,7 @@
       const word = String(payload.word || "").trim().toUpperCase();
       const consumedLetters = Array.isArray(payload.consumedLetters) ? payload.consumedLetters : [];
       celebrationName.textContent = team.name;
+      celebrationWord.style.setProperty("--word-length", String(Math.max(word.length || 0, 1)));
       celebrationWord.innerHTML = buildClaimWordMarkup(word || "WORD", consumedLetters);
       celebration.classList.add("is-visible");
       if (overlayTimer) {
