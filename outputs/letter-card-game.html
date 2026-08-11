@@ -1788,22 +1788,41 @@
           key.endsWith("ly") && key.length > 4 ? key.slice(0, -2) : ""
         ].filter(Boolean)));
 
+        const parseDictionaryApiDev = (data) => data?.[0]?.meanings?.flatMap((meaning) => meaning.definitions || [])
+          ?.map((entry) => entry.definition)
+          ?.find(Boolean) || "";
+
+        const parseEnglishDictionaryApi = (data) => data?.partsOfSpeech?.flatMap((part) => part?.senses || [])
+          ?.map((sense) => sense?.definition)
+          ?.find(Boolean) || "";
+
         for (const candidate of candidates) {
-          try {
-            const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(candidate)}`);
-            if (!response.ok) {
-              continue;
+          const sources = [
+            {
+              url: `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(candidate)}`,
+              parse: parseDictionaryApiDev
+            },
+            {
+              url: `https://englishdictionaryapi.com/api/v1/words/${encodeURIComponent(candidate)}`,
+              parse: parseEnglishDictionaryApi
             }
-            const data = await response.json();
-            const definition = data?.[0]?.meanings?.flatMap((meaning) => meaning.definitions || [])
-              ?.map((entry) => entry.definition)
-              ?.find(Boolean) || "";
-            if (definition) {
-              definitionCache.set(key, definition);
-              definitionCache.set(candidate, definition);
-              return definition;
+          ];
+
+          for (const source of sources) {
+            try {
+              const response = await fetch(source.url);
+              if (!response.ok) {
+                continue;
+              }
+              const data = await response.json();
+              const definition = source.parse(data);
+              if (definition) {
+                definitionCache.set(key, definition);
+                definitionCache.set(candidate, definition);
+                return definition;
+              }
+            } catch (_) {
             }
-          } catch (_) {
           }
         }
         return "";
