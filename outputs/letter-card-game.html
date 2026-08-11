@@ -1775,6 +1775,21 @@
         return definitionPromiseCache.get(key);
       }
       const request = (async () => {
+        if (window.location.protocol.startsWith("http")) {
+          try {
+            const response = await fetch(`/api/definition?word=${encodeURIComponent(key)}`, { cache: "no-store" });
+            if (response.ok) {
+              const data = await response.json();
+              const definition = String(data?.definition || "").trim();
+              if (definition) {
+                definitionCache.set(key, definition);
+                return definition;
+              }
+            }
+          } catch (_) {
+          }
+        }
+
         const candidates = Array.from(new Set([
           key,
           key.endsWith("ing") && key.length > 5 ? key.slice(0, -3) : "",

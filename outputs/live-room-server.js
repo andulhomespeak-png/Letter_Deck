@@ -38,6 +38,77 @@ const letterPoints = {
 };
 const winningScore = 750;
 const stealBonusPerLetter = 2;
+const definitionCache = new Map();
+
+function getDefinitionCandidates(rawWord) {
+  const key = String(rawWord || "").trim().toLowerCase();
+  return Array.from(new Set([
+    key,
+    key.endsWith("ing") && key.length > 5 ? key.slice(0, -3) : "",
+    key.endsWith("ing") && key.length > 5 ? `${key.slice(0, -3)}e` : "",
+    key.endsWith("ied") && key.length > 4 ? `${key.slice(0, -3)}y` : "",
+    key.endsWith("ed") && key.length > 4 ? key.slice(0, -2) : "",
+    key.endsWith("ed") && key.length > 4 ? `${key.slice(0, -2)}e` : "",
+    key.endsWith("ies") && key.length > 4 ? `${key.slice(0, -3)}y` : "",
+    key.endsWith("es") && key.length > 4 ? key.slice(0, -2) : "",
+    key.endsWith("s") && key.length > 3 ? key.slice(0, -1) : "",
+    key.endsWith("ly") && key.length > 4 ? key.slice(0, -2) : ""
+  ].filter(Boolean)));
+}
+
+function parseDictionaryApiDev(data) {
+  return data?.[0]?.meanings?.flatMap((meaning) => meaning.definitions || [])
+    ?.map((entry) => entry.definition)
+    ?.find(Boolean) || "";
+}
+
+function parseEnglishDictionaryApi(data) {
+  return data?.partsOfSpeech?.flatMap((part) => part?.senses || [])
+    ?.map((sense) => sense?.definition)
+    ?.find(Boolean) || "";
+}
+
+async function lookupDefinition(rawWord) {
+  const key = String(rawWord || "").trim().toLowerCase();
+  if (!key) {
+    return "";
+  }
+  if (definitionCache.has(key)) {
+    return definitionCache.get(key);
+  }
+
+  for (const candidate of getDefinitionCandidates(key)) {
+    const sources = [
+      {
+        url: `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(candidate)}`,
+        parse: parseDictionaryApiDev
+      },
+      {
+        url: `https://englishdictionaryapi.com/api/v1/words/${encodeURIComponent(candidate)}`,
+        parse: parseEnglishDictionaryApi
+      }
+    ];
+
+    for (const source of sources) {
+      try {
+        const response = await fetch(source.url);
+        if (!response.ok) {
+          continue;
+        }
+        const data = await response.json();
+        const definition = source.parse(data);
+        if (definition) {
+          definitionCache.set(key, definition);
+          definitionCache.set(candidate, definition);
+          return definition;
+        }
+      } catch (_) {
+      }
+    }
+  }
+
+  return "";
+}
 
 function json(res, status, payload) {
   res.writeHead(status, {
@@ -373,6 +444,14 @@ const server = http.createServer(async (req, res) => {
         localOrigin: `http://${getLocalIp()}:${PORT}`,
         publicOrigin,
         teacherUrl: `${publicOrigin}/`
+      });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/definition") {
+      const word = String(url.searchParams.get("word") || "").trim();
+      return json(res, 200, {
+        word,
+        definition: await lookupDefinition(word)
       });
     }
 
