@@ -616,6 +616,146 @@
       flex-wrap: wrap;
     }
 
+    .report-overlay {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: rgba(14, 10, 37, 0.7);
+      z-index: 38;
+      padding: 24px;
+    }
+
+    .report-overlay.hidden {
+      display: none !important;
+    }
+
+    .report-modal {
+      width: min(92vw, 1100px);
+      max-height: calc(100dvh - 48px);
+      overflow: hidden;
+      border-radius: 32px;
+      padding: 22px;
+      background: linear-gradient(145deg, rgba(255,255,255,0.99), rgba(251,243,255,0.99));
+      box-shadow: 0 36px 80px rgba(24, 11, 58, 0.3);
+      display: grid;
+      gap: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.9);
+    }
+
+    .report-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .report-copy {
+      display: grid;
+      gap: 6px;
+    }
+
+    .report-kicker {
+      margin: 0;
+      font-size: 0.82rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--pink);
+      font-weight: 800;
+    }
+
+    .report-title {
+      margin: 0;
+      font-size: clamp(1.8rem, 4vw, 3rem);
+      line-height: 0.94;
+      letter-spacing: -0.05em;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+
+    .report-subtitle {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 0.98rem;
+      font-weight: 700;
+    }
+
+    .report-close {
+      min-width: 96px;
+    }
+
+    .report-list {
+      overflow: auto;
+      display: grid;
+      gap: 10px;
+      padding-right: 4px;
+    }
+
+    .report-row {
+      display: grid;
+      grid-template-columns: minmax(0, 180px) minmax(0, 150px) minmax(88px, 110px) minmax(0, 1fr);
+      gap: 12px;
+      align-items: start;
+      padding: 14px 16px;
+      border-radius: 22px;
+      background: rgba(20, 11, 47, 0.05);
+      border: 1px solid rgba(22, 15, 46, 0.08);
+    }
+
+    .report-row.is-pending {
+      opacity: 0.78;
+    }
+
+    .report-team,
+    .report-word,
+    .report-points,
+    .report-definition {
+      min-width: 0;
+    }
+
+    .report-team {
+      font-weight: 900;
+      color: var(--ink);
+      text-transform: uppercase;
+      line-height: 1.1;
+    }
+
+    .report-word {
+      font-weight: 900;
+      color: var(--blue);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      line-height: 1.1;
+    }
+
+    .report-points {
+      font-weight: 900;
+      color: #0e6d52;
+      white-space: nowrap;
+      line-height: 1.1;
+    }
+
+    .report-definition {
+      color: var(--ink-soft);
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    .report-definition.is-missing {
+      color: #8a668e;
+      font-style: italic;
+    }
+
+    .report-empty {
+      padding: 22px;
+      border-radius: 22px;
+      background: rgba(20, 11, 47, 0.05);
+      border: 1px solid rgba(22, 15, 46, 0.08);
+      text-align: center;
+      color: var(--ink-soft);
+      font-weight: 700;
+    }
+
     .qr-overlay {
       position: fixed;
       inset: 0;
@@ -1379,8 +1519,23 @@
       <p class="podium-subtitle" id="podiumSubtitle">First team to 750 points wins.</p>
       <div class="podium-stage" id="podiumStage"></div>
       <div class="podium-actions">
+        <button class="secondary" id="podiumReportBtn">Report</button>
         <button class="accent" id="podiumResetBtn">Play Again</button>
       </div>
+    </div>
+  </div>
+
+  <div class="report-overlay hidden" id="reportOverlay">
+    <div class="report-modal" role="dialog" aria-modal="true" aria-labelledby="reportTitle">
+      <div class="report-head">
+        <div class="report-copy">
+          <p class="report-kicker">Vocabulary Report</p>
+          <h2 class="report-title" id="reportTitle">Accepted Words</h2>
+          <p class="report-subtitle" id="reportSubtitle">Definitions load as they become available.</p>
+        </div>
+        <button class="secondary report-close" id="closeReportBtn" type="button">Close</button>
+      </div>
+      <div class="report-list" id="reportList"></div>
     </div>
   </div>
 
@@ -1438,7 +1593,12 @@
     const podiumOverlay = document.getElementById("podiumOverlay");
     const podiumStage = document.getElementById("podiumStage");
     const podiumSubtitle = document.getElementById("podiumSubtitle");
+    const podiumReportBtn = document.getElementById("podiumReportBtn");
     const podiumResetBtn = document.getElementById("podiumResetBtn");
+    const reportOverlay = document.getElementById("reportOverlay");
+    const reportSubtitle = document.getElementById("reportSubtitle");
+    const reportList = document.getElementById("reportList");
+    const closeReportBtn = document.getElementById("closeReportBtn");
     const podiumFanfare = new Audio("superhero-fanfare.wav");
     const backgroundLoop = new Audio("background-techno-loop131bpm.wav");
     let celebrateTimer = null;
@@ -1457,6 +1617,7 @@
     let lastPodiumKey = "";
     let podiumSoundPlayed = false;
     let wakeLockSentinel = null;
+    let successHistory = [];
     const liveRoomStorageKey = "letter-clash-live-room-code";
     const maxActiveLetters = 8;
     const winningScore = 750;
@@ -1609,22 +1770,112 @@
       if (definitionCache.has(key)) {
         return definitionCache.get(key);
       }
-      try {
-        const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(key)}`);
-        if (!response.ok) {
-          definitionCache.set(key, "");
-          return "";
+      const candidates = Array.from(new Set([
+        key,
+        key.endsWith("ing") && key.length > 5 ? key.slice(0, -3) : "",
+        key.endsWith("ing") && key.length > 5 ? `${key.slice(0, -3)}e` : "",
+        key.endsWith("ied") && key.length > 4 ? `${key.slice(0, -3)}y` : "",
+        key.endsWith("ed") && key.length > 4 ? key.slice(0, -2) : "",
+        key.endsWith("ed") && key.length > 4 ? `${key.slice(0, -2)}e` : "",
+        key.endsWith("ies") && key.length > 4 ? `${key.slice(0, -3)}y` : "",
+        key.endsWith("es") && key.length > 4 ? key.slice(0, -2) : "",
+        key.endsWith("s") && key.length > 3 ? key.slice(0, -1) : "",
+        key.endsWith("ly") && key.length > 4 ? key.slice(0, -2) : ""
+      ].filter(Boolean)));
+
+      for (const candidate of candidates) {
+        try {
+          const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(candidate)}`);
+          if (!response.ok) {
+            continue;
+          }
+          const data = await response.json();
+          const definition = data?.[0]?.meanings?.flatMap((meaning) => meaning.definitions || [])
+            ?.map((entry) => entry.definition)
+            ?.find(Boolean) || "";
+          if (definition) {
+            definitionCache.set(key, definition);
+            if (candidate !== key) {
+              definitionCache.set(candidate, definition);
+            }
+            return definition;
+          }
+        } catch (_) {
         }
-        const data = await response.json();
-        const definition = data?.[0]?.meanings?.flatMap((meaning) => meaning.definitions || [])
-          ?.map((entry) => entry.definition)
-          ?.find(Boolean) || "";
-        definitionCache.set(key, definition);
-        return definition;
-      } catch (_) {
-        definitionCache.set(key, "");
-        return "";
       }
+      definitionCache.set(key, "");
+      return "";
+    }
+
+    function renderReport() {
+      if (!successHistory.length) {
+        reportSubtitle.textContent = "No accepted words yet.";
+        reportList.innerHTML = `<div class="report-empty">Accepted words will appear here with their meanings.</div>`;
+        return;
+      }
+      const loadedCount = successHistory.filter((entry) => entry.definitionState === "ready").length;
+      reportSubtitle.textContent = `${successHistory.length} accepted words. ${loadedCount} definition${loadedCount === 1 ? "" : "s"} loaded.`;
+      reportList.innerHTML = successHistory.map((entry) => {
+        const definitionClass = entry.definitionState === "missing" ? "report-definition is-missing" : "report-definition";
+        const rowClass = entry.definitionState === "pending" ? "report-row is-pending" : "report-row";
+        const definitionText = entry.definitionState === "ready"
+          ? entry.definition
+          : entry.definitionState === "missing"
+            ? "Definition unavailable for this word form."
+            : "Loading definition...";
+        return `
+          <div class="${rowClass}">
+            <div class="report-team">${escapeHtml(entry.teamName)}</div>
+            <div class="report-word">${escapeHtml(entry.word)}</div>
+            <div class="report-points">+${Number(entry.points) || 0} pts</div>
+            <div class="${definitionClass}">${escapeHtml(definitionText)}</div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function openReport() {
+      renderReport();
+      reportOverlay.classList.remove("hidden");
+      closeReportBtn.focus();
+    }
+
+    function closeReport() {
+      reportOverlay.classList.add("hidden");
+    }
+
+    function trackSuccessfulWord({ id, teamName, word, points }) {
+      const cleanWord = String(word || "").trim();
+      if (!id || !teamName || !cleanWord) {
+        return;
+      }
+      const existing = successHistory.find((entry) => entry.id === id);
+      if (existing) {
+        return;
+      }
+      const cachedDefinition = definitionCache.get(cleanWord.toLowerCase());
+      const historyEntry = {
+        id,
+        teamName,
+        word: cleanWord,
+        points: Number(points) || 0,
+        definition: cachedDefinition || "",
+        definitionState: cachedDefinition ? "ready" : "pending"
+      };
+      successHistory.unshift(historyEntry);
+      renderReport();
+      if (cachedDefinition) {
+        return;
+      }
+      fetchWordDefinition(cleanWord).then((definition) => {
+        const entry = successHistory.find((item) => item.id === id);
+        if (!entry) {
+          return;
+        }
+        entry.definition = definition || "";
+        entry.definitionState = definition ? "ready" : "missing";
+        renderReport();
+      });
     }
 
     function fillLettersToTarget(target = maxActiveLetters) {
@@ -1764,6 +2015,12 @@
           `<strong>+${Number(feedback.points) || 0} pts</strong> ` +
           `(${Number(feedback.lettersScore) || 0} letters + ${Number(feedback.lengthBonus) || 0} length + ${Number(feedback.stealBonus) || 0} steal)`;
         setMessage(scoreLine, "good");
+        trackSuccessfulWord({
+          id: feedback.id,
+          teamName: participantName,
+          word: spokenWord,
+          points: Number(feedback.points) || 0
+        });
       } else {
         playErrorSound();
         setMessage(feedback.message || "Not valid.", "bad");
@@ -2190,6 +2447,7 @@
 
     function resetGame() {
       podiumOverlay.classList.remove("is-visible");
+      closeReport();
       podiumSoundPlayed = false;
       lastPodiumKey = "";
       try {
@@ -2204,6 +2462,8 @@
       activeTeamId = "";
       celebratingTeamId = "";
       matchFinished = false;
+      successHistory = [];
+      renderReport();
       teams = teams.map((team) => ({ ...team, score: 0 }));
       clearLiveSubmissionState();
       lastHandledLiveFeedbackId = "";
@@ -2510,16 +2770,27 @@
         closeConfirm(false);
       }
     });
+    closeReportBtn.addEventListener("click", closeReport);
+    podiumReportBtn.addEventListener("click", openReport);
+    reportOverlay.addEventListener("click", (event) => {
+      if (event.target === reportOverlay) {
+        closeReport();
+      }
+    });
     document.addEventListener("keydown", (event) => {
       primeAudio();
-      if (confirmOverlay.classList.contains("hidden")) {
+      if (!confirmOverlay.classList.contains("hidden")) {
+        if (event.key === "Escape") {
+          closeConfirm(false);
+        }
+        if (event.key === "Enter") {
+          closeConfirm(true);
+        }
         return;
       }
-      if (event.key === "Escape") {
-        closeConfirm(false);
-      }
-      if (event.key === "Enter") {
-        closeConfirm(true);
+      if (!reportOverlay.classList.contains("hidden") && event.key === "Escape") {
+        closeReport();
+        return;
       }
     });
     soundBtn.addEventListener("click", toggleMusic);
