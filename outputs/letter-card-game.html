@@ -1742,6 +1742,15 @@
       startBackgroundLoop();
     }
 
+    function escapeHtml(value) {
+      return String(value || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
     function buildSubmissionHeadline(participantName, rawWord, definition = "") {
       const name = escapeHtml(participantName || "Student");
       const word = escapeHtml(String(rawWord || "").trim());
@@ -1905,6 +1914,7 @@
     }
 
     function openReport() {
+      syncSuccessHistoryFromRoom();
       renderReport();
       reportOverlay.classList.remove("hidden");
       reportOverlay.classList.add("is-visible");
@@ -2275,7 +2285,6 @@
       syncLiveTeamsIntoScores();
       syncActiveLettersFromRoom();
       applyLiveRoomFeedback();
-      syncSuccessHistoryFromRoom();
       if (clearSubmissions) {
         clearLiveSubmissionState();
       }
@@ -2313,7 +2322,6 @@
           syncLiveTeamsIntoScores();
           syncActiveLettersFromRoom();
           applyLiveRoomFeedback();
-          syncSuccessHistoryFromRoom();
           render();
         } catch (_) {
         }
@@ -2342,7 +2350,6 @@
         syncLiveTeamsIntoScores();
         syncActiveLettersFromRoom();
         applyLiveRoomFeedback();
-        syncSuccessHistoryFromRoom();
         render();
       } catch (_) {
       } finally {
