@@ -1632,6 +1632,7 @@
     };
     const stealBonusPerLetter = 2;
     const definitionCache = new Map();
+    const definitionPromiseCache = new Map();
     podiumFanfare.preload = "auto";
     podiumFanfare.volume = 0.92;
     backgroundLoop.preload = "auto";
@@ -1770,41 +1771,49 @@
       if (definitionCache.has(key)) {
         return definitionCache.get(key);
       }
-      const candidates = Array.from(new Set([
-        key,
-        key.endsWith("ing") && key.length > 5 ? key.slice(0, -3) : "",
-        key.endsWith("ing") && key.length > 5 ? `${key.slice(0, -3)}e` : "",
-        key.endsWith("ied") && key.length > 4 ? `${key.slice(0, -3)}y` : "",
-        key.endsWith("ed") && key.length > 4 ? key.slice(0, -2) : "",
-        key.endsWith("ed") && key.length > 4 ? `${key.slice(0, -2)}e` : "",
-        key.endsWith("ies") && key.length > 4 ? `${key.slice(0, -3)}y` : "",
-        key.endsWith("es") && key.length > 4 ? key.slice(0, -2) : "",
-        key.endsWith("s") && key.length > 3 ? key.slice(0, -1) : "",
-        key.endsWith("ly") && key.length > 4 ? key.slice(0, -2) : ""
-      ].filter(Boolean)));
-
-      for (const candidate of candidates) {
-        try {
-          const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(candidate)}`);
-          if (!response.ok) {
-            continue;
-          }
-          const data = await response.json();
-          const definition = data?.[0]?.meanings?.flatMap((meaning) => meaning.definitions || [])
-            ?.map((entry) => entry.definition)
-            ?.find(Boolean) || "";
-          if (definition) {
-            definitionCache.set(key, definition);
-            if (candidate !== key) {
-              definitionCache.set(candidate, definition);
-            }
-            return definition;
-          }
-        } catch (_) {
-        }
+      if (definitionPromiseCache.has(key)) {
+        return definitionPromiseCache.get(key);
       }
-      definitionCache.set(key, "");
-      return "";
+      const request = (async () => {
+        const candidates = Array.from(new Set([
+          key,
+          key.endsWith("ing") && key.length > 5 ? key.slice(0, -3) : "",
+          key.endsWith("ing") && key.length > 5 ? `${key.slice(0, -3)}e` : "",
+          key.endsWith("ied") && key.length > 4 ? `${key.slice(0, -3)}y` : "",
+          key.endsWith("ed") && key.length > 4 ? key.slice(0, -2) : "",
+          key.endsWith("ed") && key.length > 4 ? `${key.slice(0, -2)}e` : "",
+          key.endsWith("ies") && key.length > 4 ? `${key.slice(0, -3)}y` : "",
+          key.endsWith("es") && key.length > 4 ? key.slice(0, -2) : "",
+          key.endsWith("s") && key.length > 3 ? key.slice(0, -1) : "",
+          key.endsWith("ly") && key.length > 4 ? key.slice(0, -2) : ""
+        ].filter(Boolean)));
+
+        for (const candidate of candidates) {
+          try {
+            const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(candidate)}`);
+            if (!response.ok) {
+              continue;
+            }
+            const data = await response.json();
+            const definition = data?.[0]?.meanings?.flatMap((meaning) => meaning.definitions || [])
+              ?.map((entry) => entry.definition)
+              ?.find(Boolean) || "";
+            if (definition) {
+              definitionCache.set(key, definition);
+              definitionCache.set(candidate, definition);
+              return definition;
+            }
+          } catch (_) {
+          }
+        }
+        return "";
+      })();
+      definitionPromiseCache.set(key, request);
+      try {
+        return await request;
+      } finally {
+        definitionPromiseCache.delete(key);
+      }
     }
 
     function renderReport() {
