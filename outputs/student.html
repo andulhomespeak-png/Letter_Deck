@@ -970,12 +970,19 @@
         const key = String(letter || "").toUpperCase();
         counts[key] = (counts[key] || 0) + 1;
       });
-      return String(word || "").toUpperCase().split("").map((letter, index) => {
+      let usedIndex = 0;
+      const letters = String(word || "").toUpperCase().split("");
+      const usedStep = letters.length >= 7 ? 34 : letters.length >= 5 ? 46 : 62;
+      const usedCap = letters.length >= 7 ? 110 : 180;
+      return letters.map((letter, index) => {
         const isUsed = counts[letter] > 0;
         if (isUsed) {
           counts[letter] -= 1;
         }
-        const delay = 70 + (index * 60);
+        const delay = isUsed ? Math.min(usedIndex * usedStep, usedCap) : 0;
+        if (isUsed) {
+          usedIndex += 1;
+        }
         return `
           <div class="claim-letter-card ${isUsed ? "used-letter" : ""}" data-color="${colors[index % colors.length]}" style="--delay:${delay}ms; --tilt:0deg">
             <span class="claim-letter-score">${getLetterPoints(letter)}</span>

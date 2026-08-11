@@ -1456,6 +1456,7 @@
     let matchFinished = false;
     let lastPodiumKey = "";
     let podiumSoundPlayed = false;
+    let wakeLockSentinel = null;
     const liveRoomStorageKey = "letter-clash-live-room-code";
     const maxActiveLetters = 8;
     const winningScore = 750;
@@ -1475,6 +1476,34 @@
     backgroundLoop.preload = "auto";
     backgroundLoop.loop = true;
     backgroundLoop.volume = 0.16;
+
+    async function requestWakeLock() {
+      if (!("wakeLock" in navigator) || document.visibilityState !== "visible") {
+        return;
+      }
+      try {
+        if (wakeLockSentinel) {
+          return;
+        }
+        wakeLockSentinel = await navigator.wakeLock.request("screen");
+        wakeLockSentinel.addEventListener("release", () => {
+          wakeLockSentinel = null;
+        }, { once: true });
+      } catch (_) {
+        wakeLockSentinel = null;
+      }
+    }
+
+    async function releaseWakeLock() {
+      if (!wakeLockSentinel) {
+        return;
+      }
+      try {
+        await wakeLockSentinel.release();
+      } catch (_) {
+      }
+      wakeLockSentinel = null;
+    }
 
     function drawLetter() {
       return alphabet[Math.floor(Math.random() * alphabet.length)];
@@ -2138,12 +2167,15 @@
         counts[key] = (counts[key] || 0) + 1;
       });
       let usedIndex = 0;
-      return String(word || "").toUpperCase().split("").map((letter, index) => {
+      const letters = String(word || "").toUpperCase().split("");
+      const usedStep = letters.length >= 7 ? 34 : letters.length >= 5 ? 46 : 62;
+      const usedCap = letters.length >= 7 ? 110 : 180;
+      return letters.map((letter, index) => {
         const isUsed = counts[letter] > 0;
         if (counts[letter] > 0) {
           counts[letter] -= 1;
         }
-        const delay = isUsed ? usedIndex * 70 : 120 + index * 30;
+        const delay = isUsed ? Math.min(usedIndex * usedStep, usedCap) : 0;
         if (isUsed) {
           usedIndex += 1;
         }
@@ -2232,6 +2264,18 @@
       team.name = cleanName || team.name;
       render();
     }
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        requestWakeLock();
+        return;
+      }
+      releaseWakeLock();
+    });
+
+    window.addEventListener("focus", requestWakeLock);
+    window.addEventListener("pointerdown", requestWakeLock, { passive: true });
+    window.addEventListener("keydown", requestWakeLock);
 
     function renderCards() {
       const lettersKey = activeLetters.join("|");
@@ -2483,6 +2527,7 @@
     document.addEventListener("pointerdown", primeAudio, { once: true });
     document.addEventListener("touchstart", primeAudio, { once: true });
     window.addEventListener("beforeunload", (event) => {
+      releaseWakeLock();
       const hasLiveRoom = !!liveRoom?.code;
       const hasConnectedPlayers = Number(liveRoom?.teams?.length || 0) > 0;
       const hasActiveMatch = (liveRoom?.status === "live") || (liveRoom?.status === "finished");
@@ -2514,6 +2559,7 @@
       }
     });
     resetGame();
+    requestWakeLock().catch(() => {});
     hydrateLiveBaseUrl()
       .then(() => initLiveRoom())
       .catch(() => {});
