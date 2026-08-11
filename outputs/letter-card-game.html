@@ -1875,6 +1875,9 @@
     }
 
     function renderReport() {
+      if (!reportSubtitle || !reportList) {
+        return;
+      }
       if (!successHistory.length) {
         reportSubtitle.textContent = "No accepted words yet.";
         reportList.innerHTML = `<div class="report-empty">Accepted words will appear here with their meanings.</div>`;
@@ -1916,22 +1919,26 @@
     }
 
     function syncSuccessHistoryFromRoom() {
-      if (!Array.isArray(liveRoom?.acceptedWords)) {
-        return;
+      try {
+        if (!Array.isArray(liveRoom?.acceptedWords)) {
+          return;
+        }
+        successHistory = liveRoom.acceptedWords.filter(Boolean).map((entry) => ({
+          id: entry.id,
+          teamName: entry.teamName || "Student",
+          word: String(entry.word || "").trim(),
+          points: Number(entry.points) || 0,
+          definition: String(entry.definition || "").trim(),
+          definitionState: entry.definitionState === "ready"
+            ? "ready"
+            : entry.definitionState === "missing"
+              ? "missing"
+              : "pending"
+        }));
+        renderReport();
+      } catch (error) {
+        console.error("Unable to update vocabulary report", error);
       }
-      successHistory = liveRoom.acceptedWords.map((entry) => ({
-        id: entry.id,
-        teamName: entry.teamName || "Student",
-        word: String(entry.word || "").trim(),
-        points: Number(entry.points) || 0,
-        definition: String(entry.definition || "").trim(),
-        definitionState: entry.definitionState === "ready"
-          ? "ready"
-          : entry.definitionState === "missing"
-            ? "missing"
-            : "pending"
-      }));
-      renderReport();
     }
 
     function trackSuccessfulWord({ id, teamName, word, points }) {
@@ -2267,8 +2274,8 @@
       matchFinished = liveRoom?.status === "finished";
       syncLiveTeamsIntoScores();
       syncActiveLettersFromRoom();
-      syncSuccessHistoryFromRoom();
       applyLiveRoomFeedback();
+      syncSuccessHistoryFromRoom();
       if (clearSubmissions) {
         clearLiveSubmissionState();
       }
@@ -2305,8 +2312,8 @@
           matchFinished = liveRoom?.status === "finished";
           syncLiveTeamsIntoScores();
           syncActiveLettersFromRoom();
-          syncSuccessHistoryFromRoom();
           applyLiveRoomFeedback();
+          syncSuccessHistoryFromRoom();
           render();
         } catch (_) {
         }
@@ -2334,8 +2341,8 @@
         matchFinished = liveRoom?.status === "finished";
         syncLiveTeamsIntoScores();
         syncActiveLettersFromRoom();
-        syncSuccessHistoryFromRoom();
         applyLiveRoomFeedback();
+        syncSuccessHistoryFromRoom();
         render();
       } catch (_) {
       } finally {
