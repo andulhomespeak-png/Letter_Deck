@@ -2053,6 +2053,7 @@
       } else {
         playErrorSound();
         setMessage(feedback.message || "Not valid.", "bad");
+        return;
       }
 
       const bannerFeedbackId = feedback.id;
