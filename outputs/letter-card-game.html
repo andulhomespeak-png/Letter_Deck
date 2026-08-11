@@ -1608,7 +1608,7 @@
     let sfxEnabled = true;
     let confirmState = null;
     let audioPrimed = false;
-    let latestDefinitionRequest = 0;
+    let liveBannerFeedbackId = "";
     let infoMessageHtml = "";
     let infoMessageTone = "";
     let liveBannerHtml = "Student answers appear here.";
@@ -2026,6 +2026,7 @@
         || null;
       const participantName = feedback.teamName || team?.name || "Student";
       const spokenWord = String(feedback.word || "").trim();
+      liveBannerFeedbackId = feedback.id;
 
       setLiveAnswerBanner(buildSubmissionHeadline(participantName, spokenWord));
 
@@ -2052,12 +2053,11 @@
       } else {
         playErrorSound();
         setMessage(feedback.message || "Not valid.", "bad");
-        return;
       }
 
-      const definitionRequestId = ++latestDefinitionRequest;
+      const bannerFeedbackId = feedback.id;
       fetchWordDefinition(spokenWord).then((definition) => {
-        if (definitionRequestId !== latestDefinitionRequest) {
+        if (liveBannerFeedbackId !== bannerFeedbackId) {
           return;
         }
         setLiveAnswerBanner(buildSubmissionHeadline(participantName, spokenWord, definition));
@@ -2065,6 +2065,9 @@
     }
 
     function setLiveAnswerBanner(text = "Student answers appear here.") {
+      if (text === "Student answers appear here.") {
+        liveBannerFeedbackId = "";
+      }
       liveBannerHtml = text;
       renderInfoPanel();
     }
