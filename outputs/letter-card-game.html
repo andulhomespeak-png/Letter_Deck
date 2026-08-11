@@ -630,6 +630,12 @@
       display: none !important;
     }
 
+    .report-overlay.is-visible {
+      display: grid !important;
+      opacity: 1;
+      pointer-events: auto;
+    }
+
     .report-modal {
       width: min(92vw, 1100px);
       max-height: calc(100dvh - 48px);
@@ -1519,13 +1525,13 @@
       <p class="podium-subtitle" id="podiumSubtitle">First team to 750 points wins.</p>
       <div class="podium-stage" id="podiumStage"></div>
       <div class="podium-actions">
-        <button class="secondary" id="podiumReportBtn">Report</button>
-        <button class="accent" id="podiumResetBtn">Play Again</button>
+        <button class="secondary" id="podiumReportBtn" type="button">Report</button>
+        <button class="accent" id="podiumResetBtn" type="button">Play Again</button>
       </div>
     </div>
   </div>
 
-  <div class="report-overlay hidden" id="reportOverlay">
+  <div class="report-overlay hidden" id="reportOverlay" aria-hidden="true">
     <div class="report-modal" role="dialog" aria-modal="true" aria-labelledby="reportTitle">
       <div class="report-head">
         <div class="report-copy">
@@ -1737,10 +1743,10 @@
     }
 
     function buildSubmissionHeadline(participantName, rawWord, definition = "") {
-      const name = participantName || "Student";
-      const word = String(rawWord || "").trim();
+      const name = escapeHtml(participantName || "Student");
+      const word = escapeHtml(String(rawWord || "").trim());
       const safeDefinition = definition
-        ? `<span class="definition-inline">${definition}</span>`
+        ? `<span class="definition-inline">${escapeHtml(definition)}</span>`
         : "";
       return `<strong>${name}</strong><span class="submission-word">${word}</span>${safeDefinition}`;
     }
@@ -1775,16 +1781,23 @@
         return definitionPromiseCache.get(key);
       }
       const request = (async () => {
+        const fetchJsonWithTimeout = async (url, timeoutMs = 4500) => {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), timeoutMs);
+          try {
+            const response = await fetch(url, { cache: "no-store", signal: controller.signal });
+            return response.ok ? await response.json() : null;
+          } finally {
+            clearTimeout(timeout);
+          }
+        };
         if (window.location.protocol.startsWith("http")) {
           try {
-            const response = await fetch(`/api/definition?word=${encodeURIComponent(key)}`, { cache: "no-store" });
-            if (response.ok) {
-              const data = await response.json();
-              const definition = String(data?.definition || "").trim();
-              if (definition) {
-                definitionCache.set(key, definition);
-                return definition;
-              }
+            const data = await fetchJsonWithTimeout(`/api/definition?word=${encodeURIComponent(key)}`, 8000);
+            const definition = String(data?.definition || "").trim();
+            if (definition) {
+              definitionCache.set(key, definition);
+              return definition;
             }
           } catch (_) {
           }
@@ -1803,13 +1816,22 @@
           key.endsWith("ly") && key.length > 4 ? key.slice(0, -2) : ""
         ].filter(Boolean)));
 
-        const parseDictionaryApiDev = (data) => data?.[0]?.meanings?.flatMap((meaning) => meaning.definitions || [])
-          ?.map((entry) => entry.definition)
-          ?.find(Boolean) || "";
+        const cleanDefinition = (value) => String(value || "").replace(/^[a-z]+\t/i, "").trim();
+        const isHeading = (value) => /^meanings? relating to\b/i.test(cleanDefinition(value));
+        const parseDictionaryApiDev = (data) => {
+          const definitions = data?.[0]?.meanings?.flatMap((meaning) => meaning.definitions || [])
+            ?.map((entry) => cleanDefinition(entry.definition))
+            ?.filter(Boolean) || [];
+          return definitions.length && !isHeading(definitions[0]) ? definitions[0] : "";
+        };
 
         const parseEnglishDictionaryApi = (data) => data?.partsOfSpeech?.flatMap((part) => part?.senses || [])
-          ?.map((sense) => sense?.definition)
-          ?.find(Boolean) || "";
+          ?.map((sense) => cleanDefinition(sense?.definition))
+          ?.find((definition) => definition && !isHeading(definition)) || "";
+
+        const parseDatamuse = (data) => data?.[0]?.defs
+          ?.map(cleanDefinition)
+          ?.find((definition) => definition && !isHeading(definition)) || "";
 
         for (const candidate of candidates) {
           const sources = [
@@ -1820,24 +1842,26 @@
             {
               url: `https://englishdictionaryapi.com/api/v1/words/${encodeURIComponent(candidate)}`,
               parse: parseEnglishDictionaryApi
+            },
+            {
+              url: `https://api.datamuse.com/words?sp=${encodeURIComponent(candidate)}&md=d&max=1`,
+              parse: parseDatamuse
             }
           ];
 
-          for (const source of sources) {
-            try {
-              const response = await fetch(source.url);
-              if (!response.ok) {
-                continue;
+          try {
+            const definition = await Promise.any(sources.map(async (source) => {
+              const data = await fetchJsonWithTimeout(source.url);
+              const parsed = data ? source.parse(data) : "";
+              if (!parsed) {
+                throw new Error("Definition unavailable");
               }
-              const data = await response.json();
-              const definition = source.parse(data);
-              if (definition) {
-                definitionCache.set(key, definition);
-                definitionCache.set(candidate, definition);
-                return definition;
-              }
-            } catch (_) {
-            }
+              return parsed;
+            }));
+            definitionCache.set(key, definition);
+            definitionCache.set(candidate, definition);
+            return definition;
+          } catch (_) {
           }
         }
         return "";
@@ -1880,11 +1904,34 @@
     function openReport() {
       renderReport();
       reportOverlay.classList.remove("hidden");
+      reportOverlay.classList.add("is-visible");
+      reportOverlay.setAttribute("aria-hidden", "false");
       closeReportBtn.focus();
     }
 
     function closeReport() {
+      reportOverlay.classList.remove("is-visible");
       reportOverlay.classList.add("hidden");
+      reportOverlay.setAttribute("aria-hidden", "true");
+    }
+
+    function syncSuccessHistoryFromRoom() {
+      if (!Array.isArray(liveRoom?.acceptedWords)) {
+        return;
+      }
+      successHistory = liveRoom.acceptedWords.map((entry) => ({
+        id: entry.id,
+        teamName: entry.teamName || "Student",
+        word: String(entry.word || "").trim(),
+        points: Number(entry.points) || 0,
+        definition: String(entry.definition || "").trim(),
+        definitionState: entry.definitionState === "ready"
+          ? "ready"
+          : entry.definitionState === "missing"
+            ? "missing"
+            : "pending"
+      }));
+      renderReport();
     }
 
     function trackSuccessfulWord({ id, teamName, word, points }) {
@@ -2032,7 +2079,20 @@
 
     function applyLiveRoomFeedback() {
       const feedback = liveRoom?.lastFeedback;
-      if (!feedback?.id || feedback.id === lastHandledLiveFeedbackId) {
+      if (!feedback?.id) {
+        return;
+      }
+      if (feedback.id === lastHandledLiveFeedbackId) {
+        if (feedback.tone === "good" && feedback.definition && liveBannerFeedbackId === feedback.id) {
+          const participantName = feedback.teamName || "Student";
+          const spokenWord = String(feedback.word || "").trim();
+          setLiveAnswerBanner(buildSubmissionHeadline(participantName, spokenWord, feedback.definition));
+          const scoreLine =
+            `<strong>+${Number(feedback.points) || 0} pts</strong> ` +
+            `(${Number(feedback.lettersScore) || 0} letters + ${Number(feedback.lengthBonus) || 0} length + ${Number(feedback.stealBonus) || 0} steal)` +
+            `<span class="definition-text">${escapeHtml(feedback.definition)}</span>`;
+          setMessage(scoreLine, "good");
+        }
         return;
       }
       lastHandledLiveFeedbackId = feedback.id;
@@ -2072,7 +2132,8 @@
       }
 
       const bannerFeedbackId = feedback.id;
-      fetchWordDefinition(spokenWord).then((definition) => {
+      const serverDefinition = String(feedback.definition || "").trim();
+      (serverDefinition ? Promise.resolve(serverDefinition) : fetchWordDefinition(spokenWord)).then((definition) => {
         if (liveBannerFeedbackId !== bannerFeedbackId) {
           return;
         }
@@ -2180,7 +2241,7 @@
       if (!liveEnabled || !liveRoom) {
         return;
       }
-      const { lastSuccess, lastFeedback, podium, clearSubmissions } = options;
+      const { lastSuccess, lastFeedback, podium, clearSubmissions, clearAcceptedWords } = options;
       const syncedTeams = liveRoom.teams.map((liveTeam) => {
         const localTeam = getTeamByLiveEntry(liveTeam) || { score: 0, name: liveTeam.name, id: liveTeam.id, members: liveTeam.members };
         return {
@@ -2198,6 +2259,7 @@
         lastFeedback,
         podium,
         clearSubmissions,
+        clearAcceptedWords,
         teams: syncedTeams
       });
       liveRoom = data.room;
@@ -2205,6 +2267,7 @@
       matchFinished = liveRoom?.status === "finished";
       syncLiveTeamsIntoScores();
       syncActiveLettersFromRoom();
+      syncSuccessHistoryFromRoom();
       applyLiveRoomFeedback();
       if (clearSubmissions) {
         clearLiveSubmissionState();
@@ -2242,6 +2305,7 @@
           matchFinished = liveRoom?.status === "finished";
           syncLiveTeamsIntoScores();
           syncActiveLettersFromRoom();
+          syncSuccessHistoryFromRoom();
           applyLiveRoomFeedback();
           render();
         } catch (_) {
@@ -2270,6 +2334,7 @@
         matchFinished = liveRoom?.status === "finished";
         syncLiveTeamsIntoScores();
         syncActiveLettersFromRoom();
+        syncSuccessHistoryFromRoom();
         applyLiveRoomFeedback();
         render();
       } catch (_) {
@@ -2534,7 +2599,7 @@
       persistLiveRoomCode();
       render();
       startBackgroundLoop();
-      syncLiveRoom("waiting", { lastSuccess: null, lastFeedback: null, podium: [] }).catch(() => {});
+      syncLiveRoom("waiting", { lastSuccess: null, lastFeedback: null, podium: [], clearAcceptedWords: true }).catch(() => {});
     }
 
     function finishRound() {

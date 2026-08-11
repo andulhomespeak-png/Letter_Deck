@@ -56,16 +56,55 @@ function getDefinitionCandidates(rawWord) {
   ].filter(Boolean)));
 }
 
+function cleanDefinition(value) {
+  return String(value || "").replace(/^[a-z]+\t/i, "").trim();
+}
+
+function isDefinitionHeading(value) {
+  return /^meanings? relating to\b/i.test(cleanDefinition(value));
+}
+
 function parseDictionaryApiDev(data) {
-  return data?.[0]?.meanings?.flatMap((meaning) => meaning.definitions || [])
-    ?.map((entry) => entry.definition)
-    ?.find(Boolean) || "";
+  const definitions = data?.[0]?.meanings?.flatMap((meaning) => meaning.definitions || [])
+    ?.map((entry) => cleanDefinition(entry.definition))
+    ?.filter(Boolean) || [];
+  if (!definitions.length || isDefinitionHeading(definitions[0])) {
+    return "";
+  }
+  return definitions[0];
 }
 
 function parseEnglishDictionaryApi(data) {
-  return data?.partsOfSpeech?.flatMap((part) => part?.senses || [])
-    ?.map((sense) => sense?.definition)
-    ?.find(Boolean) || "";
+  const definitions = data?.partsOfSpeech?.flatMap((part) => part?.senses || [])
+    ?.map((sense) => cleanDefinition(sense?.definition))
+    ?.filter(Boolean) || [];
+  return definitions.find((definition) => !isDefinitionHeading(definition)) || "";
+}
+
+function parseDatamuse(data) {
+  const definitions = data?.[0]?.defs || [];
+  const definition = definitions.find((entry) => {
+    const text = cleanDefinition(entry);
+    return text && !isDefinitionHeading(text);
+  }) || "";
+  return cleanDefinition(definition);
+}
+
+async function fetchJsonWithTimeout(url, timeoutMs = 3500) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: { "User-Agent": "Letter-Clash/1.0" }
+    });
+    if (!response.ok) {
+      return null;
+    }
+    return await response.json();
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function lookupDefinition(rawWord) {
@@ -86,24 +125,38 @@ async function lookupDefinition(rawWord) {
       {
         url: `https://englishdictionaryapi.com/api/v1/words/${encodeURIComponent(candidate)}`,
         parse: parseEnglishDictionaryApi
+      },
+      {
+        url: `https://api.datamuse.com/words?sp=${encodeURIComponent(candidate)}&md=d&max=1`,
+        parse: parseDatamuse
       }
     ];
 
-    for (const source of sources) {
-      try {
-        const response = await fetch(source.url);
-        if (!response.ok) {
-          continue;
-        }
-        const data = await response.json();
-        const definition = source.parse(data);
-        if (definition) {
-          definitionCache.set(key, definition);
-          definitionCache.set(candidate, definition);
-          return definition;
-        }
-      } catch (_) {
+    const [preferredSource, ...fallbackSources] = sources;
+    try {
+      const data = await fetchJsonWithTimeout(preferredSource.url, 1800);
+      const preferredDefinition = data ? preferredSource.parse(data) : "";
+      if (preferredDefinition) {
+        definitionCache.set(key, preferredDefinition);
+        definitionCache.set(candidate, preferredDefinition);
+        return preferredDefinition;
       }
+    } catch (_) {
+    }
+
+    try {
+      const definition = await Promise.any(fallbackSources.map(async (source) => {
+        const data = await fetchJsonWithTimeout(source.url, 2500);
+        const parsed = data ? source.parse(data) : "";
+        if (!parsed) {
+          throw new Error("Definition unavailable");
+        }
+        return parsed;
+      }));
+      definitionCache.set(key, definition);
+      definitionCache.set(candidate, definition);
+      return definition;
+    } catch (_) {
     }
   }
 
@@ -191,6 +244,7 @@ function createRoom() {
     submissions: [],
     lastSuccess: null,
     lastFeedback: null,
+    acceptedWords: [],
     podium: [],
     nextPlayerId: 1,
     updatedAt: Date.now()
@@ -296,9 +350,30 @@ function serialize(room) {
     submissions: room.submissions.slice(0, 12),
     lastSuccess: room.lastSuccess,
     lastFeedback: room.lastFeedback,
+    acceptedWords: (room.acceptedWords || []).slice(0, 300),
     podium: room.podium,
     updatedAt: room.updatedAt
   };
+}
+
+async function enrichAcceptedWord(roomCode, feedbackId, word) {
+  const definition = await lookupDefinition(word);
+  const room = rooms.get(roomCode);
+  if (!room) {
+    return;
+  }
+  const entry = (room.acceptedWords || []).find((item) => item.id === feedbackId);
+  if (!entry) {
+    return;
+  }
+  entry.definition = definition;
+  entry.definitionState = definition ? "ready" : "missing";
+  if (room.lastFeedback?.id === feedbackId) {
+    room.lastFeedback.definition = definition;
+    room.lastFeedback.definitionState = entry.definitionState;
+  }
+  touch(room);
+  broadcastRoom(room);
 }
 
 function getLengthBonus(length) {
@@ -464,7 +539,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && url.pathname === "/api/live/sync") {
-      const { code, letters, status, lastSuccess, lastFeedback, teams, podium, clearSubmissions } = await body(req);
+      const { code, letters, status, lastSuccess, lastFeedback, teams, podium, clearSubmissions, clearAcceptedWords } = await body(req);
       const room = getRoom(code);
       if (Array.isArray(letters)) {
         const nextLetters = letters.slice(0, 8);
@@ -478,6 +553,7 @@ const server = http.createServer(async (req, res) => {
       if (lastFeedback !== undefined) room.lastFeedback = lastFeedback;
       if (Array.isArray(podium)) room.podium = podium.slice(0, 3);
       if (clearSubmissions) room.submissions = [];
+      if (clearAcceptedWords) room.acceptedWords = [];
       if (Array.isArray(teams)) {
         room.teams = teams.map((team, index) => {
           const existing = room.teams.find((item) => item.id === team.id)
@@ -622,8 +698,22 @@ const server = http.createServer(async (req, res) => {
         points: scoreBreakdown.total,
         lettersScore: scoreBreakdown.lettersScore,
         lengthBonus: scoreBreakdown.lengthBonus,
-        stealBonus: scoreBreakdown.stealBonus
+        stealBonus: scoreBreakdown.stealBonus,
+        definition: "",
+        definitionState: "pending"
       };
+      room.acceptedWords = room.acceptedWords || [];
+      room.acceptedWords.unshift({
+        id: submission.id,
+        teamId: team.id,
+        teamName: team.name,
+        word: evaluation.rawWord,
+        points: scoreBreakdown.total,
+        definition: "",
+        definitionState: "pending",
+        acceptedAt: Date.now()
+      });
+      room.acceptedWords = room.acceptedWords.slice(0, 300);
 
       if (team.score >= winningScore) {
         room.status = "finished";
@@ -641,6 +731,7 @@ const server = http.createServer(async (req, res) => {
       room.submissions = [];
       touch(room);
       broadcastRoom(room);
+      enrichAcceptedWord(room.code, submission.id, evaluation.rawWord).catch(() => {});
       return json(res, 200, { ok: true, room: serialize(room) });
     }
 
