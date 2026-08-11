@@ -1069,14 +1069,6 @@
       justify-content: flex-end;
     }
 
-    .definition-text {
-      display: block;
-      margin-top: 6px;
-      font-size: 0.94rem;
-      line-height: 1.4;
-      color: var(--ink-soft);
-    }
-
     .definition-inline {
       display: inline;
       margin-left: 10px;
@@ -2104,11 +2096,6 @@
           const participantName = feedback.teamName || "Student";
           const spokenWord = String(feedback.word || "").trim();
           setLiveAnswerBanner(buildSubmissionHeadline(participantName, spokenWord, feedback.definition));
-          const scoreLine =
-            `<strong>+${Number(feedback.points) || 0} pts</strong> ` +
-            `(${Number(feedback.lettersScore) || 0} letters + ${Number(feedback.lengthBonus) || 0} length + ${Number(feedback.stealBonus) || 0} steal)` +
-            `<span class="definition-text">${escapeHtml(feedback.definition)}</span>`;
-          setMessage(scoreLine, "good");
         }
         return;
       }
@@ -2155,13 +2142,6 @@
           return;
         }
         setLiveAnswerBanner(buildSubmissionHeadline(participantName, spokenWord, definition));
-        if (definition) {
-          const scoreLine =
-            `<strong>+${Number(feedback.points) || 0} pts</strong> ` +
-            `(${Number(feedback.lettersScore) || 0} letters + ${Number(feedback.lengthBonus) || 0} length + ${Number(feedback.stealBonus) || 0} steal)` +
-            `<span class="definition-text">${escapeHtml(definition)}</span>`;
-          setMessage(scoreLine, "good");
-        }
       });
     }
 
