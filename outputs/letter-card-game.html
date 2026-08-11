@@ -645,6 +645,7 @@
       background: linear-gradient(145deg, rgba(255,255,255,0.99), rgba(251,243,255,0.99));
       box-shadow: 0 36px 80px rgba(24, 11, 58, 0.3);
       display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
       gap: 16px;
       border: 1px solid rgba(255, 255, 255, 0.9);
     }
@@ -691,10 +692,31 @@
     }
 
     .report-list {
-      overflow: auto;
+      min-height: 0;
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
+      scrollbar-width: thin;
+      scrollbar-color: #7a66ea rgba(20, 11, 47, 0.08);
       display: grid;
       gap: 10px;
       padding-right: 4px;
+    }
+
+    .report-list::-webkit-scrollbar {
+      width: 9px;
+    }
+
+    .report-list::-webkit-scrollbar-track {
+      border-radius: 999px;
+      background: rgba(20, 11, 47, 0.08);
+    }
+
+    .report-list::-webkit-scrollbar-thumb {
+      border: 2px solid transparent;
+      border-radius: 999px;
+      background: linear-gradient(#7a66ea, #2457ff) padding-box;
     }
 
     .report-row {
