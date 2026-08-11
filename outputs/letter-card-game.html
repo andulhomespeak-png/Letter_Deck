@@ -2062,6 +2062,13 @@
           return;
         }
         setLiveAnswerBanner(buildSubmissionHeadline(participantName, spokenWord, definition));
+        if (definition) {
+          const scoreLine =
+            `<strong>+${Number(feedback.points) || 0} pts</strong> ` +
+            `(${Number(feedback.lettersScore) || 0} letters + ${Number(feedback.lengthBonus) || 0} length + ${Number(feedback.stealBonus) || 0} steal)` +
+            `<span class="definition-text">${escapeHtml(definition)}</span>`;
+          setMessage(scoreLine, "good");
+        }
       });
     }
 
