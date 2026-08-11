@@ -2052,6 +2052,7 @@
       } else {
         playErrorSound();
         setMessage(feedback.message || "Not valid.", "bad");
+        return;
       }
 
       const definitionRequestId = ++latestDefinitionRequest;
