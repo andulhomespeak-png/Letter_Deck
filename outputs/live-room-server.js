@@ -192,6 +192,7 @@ function contentType(filePath) {
   if (ext === ".svg") return "image/svg+xml";
   if (ext === ".mp3") return "audio/mpeg";
   if (ext === ".wav") return "audio/wav";
+  if (ext === ".html") return "text/html; charset=utf-8";
   if (ext === ".css") return "text/css; charset=utf-8";
   if (ext === ".js") return "application/javascript; charset=utf-8";
   return "application/octet-stream";
