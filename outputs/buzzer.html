@@ -220,12 +220,82 @@
       gap: 10px;
       background: #fff;
       border: 1px solid var(--line);
+      cursor: zoom-in;
+      position: relative;
+      transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+    }
+
+    .qr-box:hover {
+      transform: translateY(-3px);
+      border-color: rgba(8, 125, 255, 0.36);
+      box-shadow: 0 18px 42px rgba(8, 125, 255, 0.16);
+    }
+
+    .qr-box::after {
+      content: "Click to enlarge";
+      position: absolute;
+      left: 50%;
+      bottom: 12px;
+      transform: translateX(-50%);
+      padding: 7px 10px;
+      border-radius: 999px;
+      color: #fff;
+      background: rgba(16, 11, 47, 0.72);
+      font-size: 0.72rem;
+      font-weight: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 160ms ease;
+    }
+
+    .qr-box:hover::after {
+      opacity: 1;
     }
 
     .qr-box img {
       width: 100%;
       border-radius: 20px;
       image-rendering: pixelated;
+    }
+
+    .qr-fullscreen {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      padding: clamp(18px, 4vw, 44px);
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at 50% 44%, rgba(255, 255, 255, 0.22), transparent 34%),
+        rgba(8, 8, 24, 0.82);
+      backdrop-filter: blur(12px);
+      cursor: zoom-out;
+    }
+
+    .qr-fullscreen-card {
+      width: min(82vmin, 760px);
+      padding: clamp(16px, 3vw, 28px);
+      border-radius: clamp(26px, 4vw, 44px);
+      background: #fff;
+      box-shadow: 0 34px 90px rgba(0, 0, 0, 0.42);
+      display: grid;
+      gap: 14px;
+      text-align: center;
+      animation: qrPop 220ms ease both;
+    }
+
+    .qr-fullscreen-card img {
+      width: 100%;
+      border-radius: 28px;
+      image-rendering: pixelated;
+    }
+
+    .qr-fullscreen-code {
+      margin: 0;
+      color: var(--red);
+      font-size: clamp(2.2rem, 7vmin, 5rem);
+      font-weight: 1000;
+      letter-spacing: 0.08em;
     }
 
     .room-code {
@@ -298,6 +368,11 @@
       100% { transform: scale(1); filter: brightness(1); }
     }
 
+    @keyframes qrPop {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
     @media (max-width: 900px) {
       .app {
         grid-template-columns: 1fr;
@@ -343,7 +418,7 @@
 
     <aside class="side">
       <h2>Participants</h2>
-      <div class="qr-box">
+      <div class="qr-box" id="qrBox" role="button" tabindex="0" aria-label="Show QR fullscreen">
         <img id="qrImage" alt="Buzzer room QR">
         <div class="room-code" id="roomCode">-----</div>
       </div>
@@ -351,9 +426,20 @@
     </aside>
   </main>
 
+  <div class="qr-fullscreen hidden" id="qrOverlay" aria-hidden="true">
+    <div class="qr-fullscreen-card">
+      <img id="qrLargeImage" alt="Large buzzer room QR">
+      <p class="qr-fullscreen-code" id="qrLargeCode">-----</p>
+    </div>
+  </div>
+
   <script>
     const roomCodeEl = document.getElementById("roomCode");
+    const qrBox = document.getElementById("qrBox");
     const qrImage = document.getElementById("qrImage");
+    const qrOverlay = document.getElementById("qrOverlay");
+    const qrLargeImage = document.getElementById("qrLargeImage");
+    const qrLargeCode = document.getElementById("qrLargeCode");
     const playersEl = document.getElementById("players");
     const statusMain = document.getElementById("statusMain");
     const winnerCard = document.getElementById("winnerCard");
@@ -369,6 +455,7 @@
     let socket = null;
     let pollTimer = null;
     let lastWinnerId = "";
+    let audioContext = null;
 
     function escapeHtml(value) {
       return String(value || "")
@@ -399,11 +486,69 @@
       return `${protocol}//${window.location.host}/ws/buzzer?code=${encodeURIComponent(room.code)}`;
     }
 
+    function getQrSrc(size = 420) {
+      return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(getJoinUrl())}`;
+    }
+
+    function unlockAudio() {
+      try {
+        audioContext = audioContext || new (window.AudioContext || window.webkitAudioContext)();
+        if (audioContext.state === "suspended") {
+          audioContext.resume().catch(() => {});
+        }
+      } catch (_) {}
+    }
+
+    function playBuzzerSound() {
+      unlockAudio();
+      if (!audioContext || audioContext.state !== "running") return;
+      const now = audioContext.currentTime;
+      const master = audioContext.createGain();
+      const filter = audioContext.createBiquadFilter();
+      const noiseBuffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.55, audioContext.sampleRate);
+      const noise = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < noise.length; i += 1) {
+        noise[i] = (Math.random() * 2 - 1) * 0.72;
+      }
+
+      master.gain.setValueAtTime(0.0001, now);
+      master.gain.exponentialRampToValueAtTime(0.75, now + 0.018);
+      master.gain.exponentialRampToValueAtTime(0.0001, now + 0.62);
+      filter.type = "bandpass";
+      filter.frequency.setValueAtTime(980, now);
+      filter.Q.setValueAtTime(7, now);
+      filter.connect(master);
+      master.connect(audioContext.destination);
+
+      [96, 131].forEach((frequency, index) => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(frequency, now);
+        osc.frequency.linearRampToValueAtTime(frequency * 0.72, now + 0.58);
+        gain.gain.setValueAtTime(index ? 0.2 : 0.34, now);
+        osc.connect(gain);
+        gain.connect(filter);
+        osc.start(now);
+        osc.stop(now + 0.62);
+      });
+
+      const noiseSource = audioContext.createBufferSource();
+      const noiseGain = audioContext.createGain();
+      noiseSource.buffer = noiseBuffer;
+      noiseGain.gain.setValueAtTime(0.26, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+      noiseSource.connect(noiseGain);
+      noiseGain.connect(filter);
+      noiseSource.start(now);
+      noiseSource.stop(now + 0.22);
+    }
+
     function render() {
       if (!room) return;
       localStorage.setItem(storageKey, room.code);
       roomCodeEl.textContent = room.code;
-      qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=420x420&data=${encodeURIComponent(getJoinUrl())}`;
+      qrImage.src = getQrSrc(420);
       liveBtn.disabled = !room.players.length || room.status === "live";
       nextBtn.disabled = room.status !== "live";
 
@@ -418,6 +563,7 @@
           winnerCard.classList.remove("is-hot");
           winnerCard.offsetHeight;
           winnerCard.classList.add("is-hot");
+          playBuzzerSound();
         }
       } else {
         lastWinnerId = "";
@@ -517,6 +663,36 @@
     homeBtn.addEventListener("click", () => {
       window.location.href = "./";
     });
+
+    function openQrOverlay() {
+      if (!room) return;
+      unlockAudio();
+      qrLargeImage.src = getQrSrc(760);
+      qrLargeCode.textContent = room.code;
+      qrOverlay.classList.remove("hidden");
+      qrOverlay.setAttribute("aria-hidden", "false");
+    }
+
+    function closeQrOverlay() {
+      qrOverlay.classList.add("hidden");
+      qrOverlay.setAttribute("aria-hidden", "true");
+    }
+
+    qrBox.addEventListener("click", openQrOverlay);
+    qrBox.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openQrOverlay();
+      }
+    });
+    qrOverlay.addEventListener("click", closeQrOverlay);
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !qrOverlay.classList.contains("hidden")) {
+        closeQrOverlay();
+      }
+    });
+
+    document.addEventListener("pointerdown", unlockAudio, { once: true });
 
     playersEl.addEventListener("click", async (event) => {
       const button = event.target.closest("[data-player-id]");
