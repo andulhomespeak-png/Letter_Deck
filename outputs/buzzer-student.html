@@ -257,6 +257,7 @@
     let socket = null;
     let pollTimer = null;
     let lastRoundSubmitted = 0;
+    let wakeLock = null;
 
     async function api(path, payload = null, method = "POST") {
       const response = await fetch(path, {
@@ -283,6 +284,18 @@
       document.body.classList.remove("flash-good", "flash-bad");
       document.body.offsetHeight;
       document.body.classList.add(tone === "good" ? "flash-good" : "flash-bad");
+    }
+
+    async function requestWakeLock() {
+      if (!("wakeLock" in navigator) || document.visibilityState !== "visible") {
+        return;
+      }
+      try {
+        wakeLock = await navigator.wakeLock.request("screen");
+        wakeLock.addEventListener("release", () => {
+          wakeLock = null;
+        });
+      } catch (_) {}
     }
 
     function render() {
@@ -358,6 +371,7 @@
         joinError.textContent = "This link does not include a room code.";
         return;
       }
+      requestWakeLock();
       joinError.textContent = "";
       const data = await api("/api/buzzer/join", { code, name: nameInput.value });
       player = data.player;
@@ -370,6 +384,7 @@
 
     async function buzz() {
       if (!room || !player || buzzBtn.disabled) return;
+      requestWakeLock();
       lastRoundSubmitted = room.roundId;
       buzzBtn.disabled = true;
       try {
@@ -408,6 +423,13 @@
     buzzBtn.addEventListener("pointerdown", (event) => {
       event.preventDefault();
       buzz();
+    });
+
+    document.addEventListener("pointerdown", requestWakeLock, { once: true });
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        requestWakeLock();
+      }
     });
 
     if (!code) {

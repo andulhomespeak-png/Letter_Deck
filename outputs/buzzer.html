@@ -456,6 +456,7 @@
     let pollTimer = null;
     let lastWinnerId = "";
     let audioContext = null;
+    let wakeLock = null;
 
     function escapeHtml(value) {
       return String(value || "")
@@ -542,6 +543,18 @@
       noiseGain.connect(filter);
       noiseSource.start(now);
       noiseSource.stop(now + 0.22);
+    }
+
+    async function requestWakeLock() {
+      if (!("wakeLock" in navigator) || document.visibilityState !== "visible") {
+        return;
+      }
+      try {
+        wakeLock = await navigator.wakeLock.request("screen");
+        wakeLock.addEventListener("release", () => {
+          wakeLock = null;
+        });
+      } catch (_) {}
     }
 
     function render() {
@@ -693,6 +706,7 @@
     });
 
     document.addEventListener("pointerdown", unlockAudio, { once: true });
+    document.addEventListener("pointerdown", requestWakeLock, { once: true });
 
     playersEl.addEventListener("click", async (event) => {
       const button = event.target.closest("[data-player-id]");
@@ -705,6 +719,9 @@
     });
 
     document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        requestWakeLock();
+      }
       if (!document.hidden && room && !socket) {
         pollRoom();
       }
@@ -713,6 +730,7 @@
     initRoom().catch((error) => {
       statusMain.textContent = error.message || "Could not create buzzer room.";
     });
+    requestWakeLock();
   </script>
 </body>
 </html>
