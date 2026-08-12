@@ -504,45 +504,68 @@
       unlockAudio();
       if (!audioContext || audioContext.state !== "running") return;
       const now = audioContext.currentTime;
+      const duration = 1.4;
       const master = audioContext.createGain();
       const filter = audioContext.createBiquadFilter();
-      const noiseBuffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.55, audioContext.sampleRate);
+      const shaper = audioContext.createWaveShaper();
+      const curve = new Float32Array(256);
+      for (let i = 0; i < curve.length; i += 1) {
+        const x = (i / 128) - 1;
+        curve[i] = Math.tanh(x * 3.8);
+      }
+      shaper.curve = curve;
+      shaper.oversample = "4x";
+
+      const noiseBuffer = audioContext.createBuffer(1, audioContext.sampleRate * duration, audioContext.sampleRate);
       const noise = noiseBuffer.getChannelData(0);
       for (let i = 0; i < noise.length; i += 1) {
-        noise[i] = (Math.random() * 2 - 1) * 0.72;
+        noise[i] = (Math.random() * 2 - 1) * 0.86;
       }
 
       master.gain.setValueAtTime(0.0001, now);
-      master.gain.exponentialRampToValueAtTime(0.75, now + 0.018);
-      master.gain.exponentialRampToValueAtTime(0.0001, now + 0.62);
+      master.gain.exponentialRampToValueAtTime(0.9, now + 0.02);
+      master.gain.setValueAtTime(0.9, now + 0.16);
+      master.gain.setValueAtTime(0.45, now + 0.28);
+      master.gain.setValueAtTime(0.9, now + 0.4);
+      master.gain.setValueAtTime(0.45, now + 0.54);
+      master.gain.setValueAtTime(0.9, now + 0.68);
+      master.gain.setValueAtTime(0.5, now + 0.86);
+      master.gain.exponentialRampToValueAtTime(0.0001, now + duration);
       filter.type = "bandpass";
-      filter.frequency.setValueAtTime(980, now);
-      filter.Q.setValueAtTime(7, now);
-      filter.connect(master);
+      filter.frequency.setValueAtTime(1220, now);
+      filter.frequency.exponentialRampToValueAtTime(580, now + duration);
+      filter.Q.setValueAtTime(9, now);
+      filter.connect(shaper);
+      shaper.connect(master);
       master.connect(audioContext.destination);
 
-      [96, 131].forEach((frequency, index) => {
+      [150, 190, 245].forEach((frequency, index) => {
         const osc = audioContext.createOscillator();
         const gain = audioContext.createGain();
-        osc.type = "sawtooth";
+        osc.type = index === 2 ? "square" : "sawtooth";
         osc.frequency.setValueAtTime(frequency, now);
-        osc.frequency.linearRampToValueAtTime(frequency * 0.72, now + 0.58);
-        gain.gain.setValueAtTime(index ? 0.2 : 0.34, now);
+        osc.frequency.setValueAtTime(frequency * 1.55, now + 0.18);
+        osc.frequency.setValueAtTime(frequency * 0.82, now + 0.34);
+        osc.frequency.setValueAtTime(frequency * 1.48, now + 0.52);
+        osc.frequency.setValueAtTime(frequency * 0.78, now + 0.74);
+        osc.frequency.exponentialRampToValueAtTime(frequency * 0.62, now + duration);
+        gain.gain.setValueAtTime(index === 0 ? 0.42 : 0.22, now);
         osc.connect(gain);
         gain.connect(filter);
         osc.start(now);
-        osc.stop(now + 0.62);
+        osc.stop(now + duration);
       });
 
       const noiseSource = audioContext.createBufferSource();
       const noiseGain = audioContext.createGain();
       noiseSource.buffer = noiseBuffer;
-      noiseGain.gain.setValueAtTime(0.26, now);
-      noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+      noiseGain.gain.setValueAtTime(0.34, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.03, now + 0.36);
+      noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
       noiseSource.connect(noiseGain);
       noiseGain.connect(filter);
       noiseSource.start(now);
-      noiseSource.stop(now + 0.22);
+      noiseSource.stop(now + duration);
     }
 
     async function requestWakeLock() {
