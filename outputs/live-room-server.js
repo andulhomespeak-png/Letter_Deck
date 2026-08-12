@@ -11,11 +11,16 @@ const HOST = process.env.HOST || "0.0.0.0";
 const ROOT = path.join(__dirname);
 const TEACHER_HTML = path.join(ROOT, "letter-card-game.html");
 const STUDENT_HTML = path.join(ROOT, "student.html");
+const HOME_HTML = path.join(ROOT, "index.html");
+const BUZZER_HTML = path.join(ROOT, "buzzer.html");
+const BUZZER_STUDENT_HTML = path.join(ROOT, "buzzer-student.html");
 const WORDS_JS = path.join(ROOT, "english-words.js");
 const ROOM_TTL_MS = 60 * 60 * 1000;
 
 const rooms = new Map();
 const roomSockets = new Map();
+const buzzerRooms = new Map();
+const buzzerSockets = new Map();
 
 function loadDictionary() {
   const source = fs.readFileSync(WORDS_JS, "utf8");
@@ -229,8 +234,24 @@ function makeCode() {
   let code = "";
   do {
     code = Array.from({ length: 5 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-  } while (rooms.has(code));
+  } while (rooms.has(code) || buzzerRooms.has(code));
   return code;
+}
+
+function createBuzzerRoom() {
+  const room = {
+    code: makeCode(),
+    status: "waiting",
+    roundId: 0,
+    players: [],
+    winner: null,
+    buzzes: [],
+    nextPlayerId: 1,
+    roundStartedAt: 0,
+    updatedAt: Date.now()
+  };
+  buzzerRooms.set(room.code, room);
+  return room;
 }
 
 function createRoom() {
@@ -266,11 +287,28 @@ function cleanupRooms() {
     rooms.delete(code);
     roomSockets.delete(code);
   });
+  buzzerRooms.forEach((room, code) => {
+    const hasSockets = !!buzzerSockets.get(code)?.size;
+    if (hasSockets) {
+      return;
+    }
+    if (now - Number(room.updatedAt || 0) < ROOM_TTL_MS) {
+      return;
+    }
+    buzzerRooms.delete(code);
+    buzzerSockets.delete(code);
+  });
 }
 
 function getRoom(code) {
   const room = rooms.get(String(code || "").toUpperCase());
   if (!room) throw new Error("Room not found");
+  return room;
+}
+
+function getBuzzerRoom(code) {
+  const room = buzzerRooms.get(String(code || "").toUpperCase());
+  if (!room) throw new Error("Buzzer room not found");
   return room;
 }
 
@@ -286,6 +324,14 @@ function getRoomSocketSet(code) {
   return roomSockets.get(key);
 }
 
+function getBuzzerSocketSet(code) {
+  const key = String(code || "").toUpperCase();
+  if (!buzzerSockets.has(key)) {
+    buzzerSockets.set(key, new Set());
+  }
+  return buzzerSockets.get(key);
+}
+
 function detachSocket(socket) {
   const code = socket._roomCode;
   if (!code || !roomSockets.has(code)) {
@@ -295,6 +341,18 @@ function detachSocket(socket) {
   sockets.delete(socket);
   if (!sockets.size) {
     roomSockets.delete(code);
+  }
+}
+
+function detachBuzzerSocket(socket) {
+  const code = socket._buzzerCode;
+  if (!code || !buzzerSockets.has(code)) {
+    return;
+  }
+  const sockets = buzzerSockets.get(code);
+  sockets.delete(socket);
+  if (!sockets.size) {
+    buzzerSockets.delete(code);
   }
 }
 
@@ -340,6 +398,21 @@ function broadcastRoom(room) {
   });
 }
 
+function broadcastBuzzerRoom(room) {
+  const sockets = buzzerSockets.get(room.code);
+  if (!sockets || !sockets.size) {
+    return;
+  }
+  const payload = { type: "buzzer-room", room: serializeBuzzerRoom(room) };
+  sockets.forEach((socket) => {
+    try {
+      sendWebSocketJson(socket, payload);
+    } catch (_) {
+      detachBuzzerSocket(socket);
+    }
+  });
+}
+
 function serialize(room) {
   return {
     code: room.code,
@@ -352,6 +425,19 @@ function serialize(room) {
     lastFeedback: room.lastFeedback,
     acceptedWords: (room.acceptedWords || []).slice(0, 300),
     podium: room.podium,
+    updatedAt: room.updatedAt
+  };
+}
+
+function serializeBuzzerRoom(room) {
+  return {
+    code: room.code,
+    status: room.status,
+    roundId: room.roundId,
+    players: room.players,
+    winner: room.winner,
+    buzzes: room.buzzes.slice(0, 12),
+    roundStartedAt: room.roundStartedAt,
     updatedAt: room.updatedAt
   };
 }
@@ -498,7 +584,10 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
   try {
-    if (req.method === "GET" && url.pathname === "/") return html(res, TEACHER_HTML);
+    if (req.method === "GET" && url.pathname === "/") return html(res, HOME_HTML);
+    if (req.method === "GET" && url.pathname === "/letter-clash") return html(res, TEACHER_HTML);
+    if (req.method === "GET" && url.pathname === "/buzzer") return html(res, BUZZER_HTML);
+    if (req.method === "GET" && url.pathname === "/buzzer-student.html") return html(res, BUZZER_STUDENT_HTML);
     if (req.method === "GET" && url.pathname === "/student.html") return html(res, STUDENT_HTML);
     if (req.method === "GET" && url.pathname === "/english-words.js") {
       res.writeHead(200, { "Content-Type": "application/javascript; charset=utf-8", "Cache-Control": "no-store" });
@@ -750,6 +839,105 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { room: serialize(room) });
     }
 
+    if (req.method === "POST" && url.pathname === "/api/buzzer/create-room") {
+      return json(res, 200, { room: serializeBuzzerRoom(createBuzzerRoom()) });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/buzzer/room") {
+      return json(res, 200, { room: serializeBuzzerRoom(getBuzzerRoom(url.searchParams.get("code"))) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/buzzer/join") {
+      const { code, name } = await body(req);
+      const room = getBuzzerRoom(code);
+      const clean = String(name || "").trim();
+      if (!clean) throw new Error("Name is required");
+      let player = room.players.find((item) => item.name.toLowerCase() === clean.toLowerCase());
+      if (!player) {
+        player = {
+          id: `buzzer-player-${room.nextPlayerId++}`,
+          name: clean,
+          joinedAt: Date.now()
+        };
+        room.players.push(player);
+      }
+      touch(room);
+      broadcastBuzzerRoom(room);
+      return json(res, 200, { player, room: serializeBuzzerRoom(room) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/buzzer/start") {
+      const { code } = await body(req);
+      const room = getBuzzerRoom(code);
+      if (!room.players.length) throw new Error("Add participants before going live");
+      room.status = "live";
+      room.roundId += 1;
+      room.winner = null;
+      room.buzzes = [];
+      room.roundStartedAt = Date.now();
+      touch(room);
+      broadcastBuzzerRoom(room);
+      return json(res, 200, { room: serializeBuzzerRoom(room) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/buzzer/reset-round") {
+      const { code } = await body(req);
+      const room = getBuzzerRoom(code);
+      room.roundId += 1;
+      room.winner = null;
+      room.buzzes = [];
+      room.roundStartedAt = Date.now();
+      room.status = room.status === "waiting" ? "waiting" : "live";
+      touch(room);
+      broadcastBuzzerRoom(room);
+      return json(res, 200, { room: serializeBuzzerRoom(room) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/buzzer/buzz") {
+      const { code, playerId, playerName, roundId } = await body(req);
+      const room = getBuzzerRoom(code);
+      if (room.status !== "live") throw new Error("Buzzer is not live");
+      if (Number(roundId) !== Number(room.roundId)) {
+        return json(res, 200, { accepted: false, stale: true, room: serializeBuzzerRoom(room) });
+      }
+      const player = room.players.find((item) => item.id === playerId)
+        || room.players.find((item) => item.name.toLowerCase() === String(playerName || "").toLowerCase());
+      if (!player) throw new Error("Participant not found");
+      const now = Date.now();
+      const buzz = {
+        id: `${now}-${Math.random().toString(36).slice(2, 8)}`,
+        playerId: player.id,
+        playerName: player.name,
+        roundId: room.roundId,
+        buzzedAt: now,
+        deltaMs: Math.max(0, now - Number(room.roundStartedAt || now)),
+        accepted: !room.winner
+      };
+      room.buzzes.unshift(buzz);
+      room.buzzes = room.buzzes.slice(0, 12);
+      if (!room.winner) {
+        room.winner = buzz;
+      }
+      touch(room);
+      broadcastBuzzerRoom(room);
+      return json(res, 200, { accepted: buzz.accepted, room: serializeBuzzerRoom(room) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/buzzer/remove-player") {
+      const { code, playerId } = await body(req);
+      const room = getBuzzerRoom(code);
+      const before = room.players.length;
+      room.players = room.players.filter((player) => player.id !== playerId);
+      if (room.players.length === before) throw new Error("Participant not found");
+      room.buzzes = room.buzzes.filter((buzz) => buzz.playerId !== playerId);
+      if (room.winner?.playerId === playerId) {
+        room.winner = null;
+      }
+      touch(room);
+      broadcastBuzzerRoom(room);
+      return json(res, 200, { room: serializeBuzzerRoom(room) });
+    }
+
     res.writeHead(404);
     res.end("Not found");
   } catch (error) {
@@ -760,12 +948,14 @@ const server = http.createServer(async (req, res) => {
 server.on("upgrade", (req, socket) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
-    if (url.pathname !== "/ws/live") {
+    const isLiveSocket = url.pathname === "/ws/live";
+    const isBuzzerSocket = url.pathname === "/ws/buzzer";
+    if (!isLiveSocket && !isBuzzerSocket) {
       socket.destroy();
       return;
     }
     const code = String(url.searchParams.get("code") || "").toUpperCase();
-    if (!code || !rooms.has(code)) {
+    if (!code || (isLiveSocket && !rooms.has(code)) || (isBuzzerSocket && !buzzerRooms.has(code))) {
       socket.destroy();
       return;
     }
@@ -786,18 +976,34 @@ server.on("upgrade", (req, socket) => {
       + `Sec-WebSocket-Accept: ${accept}\r\n\r\n`
     );
 
-    socket._roomCode = code;
-    getRoomSocketSet(code).add(socket);
-    socket.on("close", () => detachSocket(socket));
-    socket.on("end", () => detachSocket(socket));
-    socket.on("error", () => detachSocket(socket));
+    if (isLiveSocket) {
+      socket._roomCode = code;
+      getRoomSocketSet(code).add(socket);
+      socket.on("close", () => detachSocket(socket));
+      socket.on("end", () => detachSocket(socket));
+      socket.on("error", () => detachSocket(socket));
+    } else {
+      socket._buzzerCode = code;
+      getBuzzerSocketSet(code).add(socket);
+      socket.on("close", () => detachBuzzerSocket(socket));
+      socket.on("end", () => detachBuzzerSocket(socket));
+      socket.on("error", () => detachBuzzerSocket(socket));
+    }
     socket.on("data", (chunk) => {
       if (chunk && chunk.length && (chunk[0] & 0x0f) === 0x8) {
-        detachSocket(socket);
+        if (isLiveSocket) {
+          detachSocket(socket);
+        } else {
+          detachBuzzerSocket(socket);
+        }
         socket.end();
       }
     });
-    sendWebSocketJson(socket, { type: "room", room: serialize(getRoom(code)) });
+    if (isLiveSocket) {
+      sendWebSocketJson(socket, { type: "room", room: serialize(getRoom(code)) });
+    } else {
+      sendWebSocketJson(socket, { type: "buzzer-room", room: serializeBuzzerRoom(getBuzzerRoom(code)) });
+    }
   } catch (_) {
     socket.destroy();
   }

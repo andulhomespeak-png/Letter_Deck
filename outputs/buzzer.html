@@ -1,0 +1,617 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fast Buzzer</title>
+  <link rel="icon" type="image/png" href="./letter-clash-favicon.png">
+  <style>
+    :root {
+      --ink: #100b2f;
+      --muted: rgba(16, 11, 47, 0.62);
+      --line: rgba(16, 11, 47, 0.12);
+      --blue: #087dff;
+      --red: #ff2541;
+      --green: #19c875;
+      --orange: #ff8a00;
+      --panel: rgba(255, 255, 255, 0.88);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      overflow: hidden;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 18% 18%, rgba(8, 125, 255, 0.34), transparent 28%),
+        radial-gradient(circle at 82% 18%, rgba(255, 37, 65, 0.32), transparent 30%),
+        radial-gradient(circle at 50% 92%, rgba(255, 138, 0, 0.28), transparent 34%),
+        linear-gradient(135deg, #fff4cf 0%, #eef8ff 46%, #ffe2e8 100%);
+    }
+
+    .app {
+      height: 100vh;
+      padding: clamp(10px, 1.6vw, 18px);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(250px, 330px);
+      gap: clamp(10px, 1.6vw, 18px);
+    }
+
+    .main,
+    .side {
+      min-height: 0;
+      border: 1px solid rgba(255,255,255,0.75);
+      border-radius: clamp(24px, 3vw, 34px);
+      background: var(--panel);
+      box-shadow: 0 26px 78px rgba(16, 11, 47, 0.16);
+      backdrop-filter: blur(18px);
+    }
+
+    .main {
+      padding: clamp(14px, 2vw, 26px);
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: clamp(10px, 1.8vw, 20px);
+      overflow: hidden;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: minmax(170px, 360px) minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo {
+      width: 100%;
+      max-height: 92px;
+      object-fit: contain;
+      object-position: left center;
+      filter: drop-shadow(0 12px 18px rgba(7, 20, 60, 0.18));
+    }
+
+    .status {
+      min-width: 0;
+      padding: 14px 18px;
+      border-radius: 22px;
+      background: rgba(255,255,255,0.82);
+      border: 1px solid var(--line);
+      box-shadow: inset 0 -10px 20px rgba(8, 125, 255, 0.06);
+    }
+
+    .status-label {
+      margin: 0 0 4px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 1000;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .status-main {
+      margin: 0;
+      font-size: clamp(1.2rem, 2.2vw, 2.2rem);
+      font-weight: 1000;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: repeat(2, 104px);
+      gap: 10px;
+      justify-content: end;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      min-height: 50px;
+      padding: 0 18px;
+      font: inherit;
+      font-weight: 1000;
+      color: var(--ink);
+      background: rgba(255,255,255,0.94);
+      box-shadow: 0 12px 26px rgba(16, 11, 47, 0.12);
+      cursor: pointer;
+      transition: transform 120ms ease, filter 120ms ease, opacity 120ms ease;
+    }
+
+    button:hover { transform: translateY(-2px); }
+    button:active { transform: translateY(1px); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+    .live {
+      color: #fff;
+      background: linear-gradient(135deg, var(--green), #039b52);
+    }
+
+    .danger {
+      color: #fff;
+      background: linear-gradient(135deg, var(--red), #a8001a);
+    }
+
+    .stage {
+      min-height: 0;
+      position: relative;
+      border-radius: clamp(24px, 4vw, 42px);
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.6), rgba(255,255,255,0.2)),
+        radial-gradient(circle at 50% 42%, rgba(255, 37, 65, 0.18), transparent 30%);
+      border: 1px dashed rgba(16, 11, 47, 0.14);
+    }
+
+    .winner {
+      width: min(860px, 90%);
+      min-height: min(380px, 58vh);
+      display: grid;
+      place-items: center;
+      text-align: center;
+      border-radius: 38px;
+      padding: clamp(24px, 4vw, 44px);
+      background: rgba(255,255,255,0.86);
+      box-shadow: inset 0 -20px 40px rgba(255, 138, 0, 0.1), 0 28px 70px rgba(16, 11, 47, 0.16);
+    }
+
+    .winner.is-hot {
+      animation: winnerPop 520ms cubic-bezier(0.18, 1.2, 0.28, 1) both;
+    }
+
+    .winner-kicker {
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-size: clamp(0.8rem, 1.4vw, 1rem);
+      font-weight: 1000;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+    }
+
+    .winner-name {
+      margin: 0;
+      font-size: clamp(3.2rem, 10vw, 9rem);
+      line-height: 0.86;
+      font-weight: 1000;
+      color: var(--red);
+      text-shadow: 0 8px 0 rgba(16, 11, 47, 0.08);
+      overflow-wrap: anywhere;
+    }
+
+    .winner-time {
+      margin: 16px 0 0;
+      font-size: clamp(1.1rem, 2.4vw, 2.4rem);
+      font-weight: 1000;
+      color: #1957e8;
+    }
+
+    .idle {
+      text-align: center;
+      display: grid;
+      gap: 16px;
+      justify-items: center;
+    }
+
+    .big-button {
+      width: min(360px, 40vw);
+      aspect-ratio: 1;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-size: clamp(2.2rem, 5vw, 5rem);
+      font-weight: 1000;
+      background: radial-gradient(circle at 35% 25%, #ff9bab, var(--red) 52%, #990015);
+      box-shadow: 0 26px 0 #7d0717, 0 44px 80px rgba(153, 0, 21, 0.34);
+      border: 10px solid rgba(255,255,255,0.72);
+    }
+
+    .hint {
+      margin: 0;
+      color: var(--muted);
+      font-weight: 900;
+      font-size: clamp(1rem, 1.8vw, 1.3rem);
+    }
+
+    .buzz-log {
+      min-height: 70px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .buzz-item {
+      padding: 12px 14px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.84);
+      border: 1px solid var(--line);
+      font-weight: 1000;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .buzz-item span:first-child {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .side {
+      padding: 18px;
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr);
+      gap: 16px;
+      overflow: hidden;
+    }
+
+    .side h2 {
+      margin: 0;
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: #3e3580;
+    }
+
+    .qr-box {
+      border-radius: 28px;
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+      background: #fff;
+      border: 1px solid var(--line);
+    }
+
+    .qr-box img {
+      width: 100%;
+      border-radius: 20px;
+      image-rendering: pixelated;
+    }
+
+    .room-code {
+      text-align: center;
+      font-size: 2.1rem;
+      font-weight: 1000;
+      color: var(--red);
+      letter-spacing: 0.08em;
+    }
+
+    .players {
+      min-height: 0;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-right: 3px;
+    }
+
+    .player {
+      min-height: 42px;
+      border-radius: 16px;
+      padding: 8px 10px 8px 14px;
+      background: rgba(255,255,255,0.84);
+      border: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 28px;
+      align-items: center;
+      gap: 8px;
+      font-weight: 1000;
+    }
+
+    .player-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .remove {
+      width: 28px;
+      min-height: 28px;
+      height: 28px;
+      padding: 0;
+      border-radius: 50%;
+      color: #fff;
+      background: var(--red);
+      box-shadow: none;
+      opacity: 0;
+    }
+
+    .player:hover .remove,
+    .remove:focus {
+      opacity: 1;
+    }
+
+    .empty {
+      color: var(--muted);
+      font-weight: 900;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .hidden { display: none !important; }
+
+    @keyframes winnerPop {
+      0% { transform: scale(0.82); filter: brightness(1.4); }
+      65% { transform: scale(1.04); }
+      100% { transform: scale(1); filter: brightness(1); }
+    }
+
+    @media (max-width: 900px) {
+      .app {
+        grid-template-columns: 1fr;
+        overflow-y: auto;
+      }
+
+      body {
+        overflow: auto;
+      }
+
+      .side {
+        min-height: 520px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="main">
+      <div class="topbar">
+        <img class="logo" src="./letter-clash-logo.png" alt="Letter Clash">
+        <div class="status">
+          <p class="status-label" id="statusLabel">Waiting</p>
+          <p class="status-main" id="statusMain">Connect participants, then go live.</p>
+        </div>
+        <div class="actions">
+          <button id="liveBtn" class="live" type="button">Live</button>
+          <button id="nextBtn" type="button">Next</button>
+          <button id="resetBtn" class="danger" type="button">Reset</button>
+          <button id="homeBtn" type="button">Home</button>
+        </div>
+      </div>
+
+      <div class="stage" id="stage">
+        <div class="idle" id="idleState">
+          <div class="big-button">BUZZ</div>
+          <p class="hint">First signal locks the turn.</p>
+        </div>
+        <div class="winner hidden" id="winnerCard">
+          <div>
+            <p class="winner-kicker">First Buzzer</p>
+            <h1 class="winner-name" id="winnerName">Player</h1>
+            <p class="winner-time" id="winnerTime">0 ms</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="buzz-log" id="buzzLog"></div>
+    </section>
+
+    <aside class="side">
+      <h2>Participants</h2>
+      <div class="qr-box">
+        <img id="qrImage" alt="Buzzer room QR">
+        <div class="room-code" id="roomCode">-----</div>
+      </div>
+      <div class="players" id="players"></div>
+    </aside>
+  </main>
+
+  <script>
+    const roomCodeEl = document.getElementById("roomCode");
+    const qrImage = document.getElementById("qrImage");
+    const playersEl = document.getElementById("players");
+    const statusLabel = document.getElementById("statusLabel");
+    const statusMain = document.getElementById("statusMain");
+    const winnerCard = document.getElementById("winnerCard");
+    const winnerName = document.getElementById("winnerName");
+    const winnerTime = document.getElementById("winnerTime");
+    const idleState = document.getElementById("idleState");
+    const buzzLog = document.getElementById("buzzLog");
+    const liveBtn = document.getElementById("liveBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const homeBtn = document.getElementById("homeBtn");
+
+    const storageKey = "letter-clash-buzzer-room-code";
+    let room = null;
+    let socket = null;
+    let pollTimer = null;
+    let lastWinnerId = "";
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    async function api(path, payload = null, method = "POST") {
+      const response = await fetch(path, {
+        method,
+        headers: payload ? { "Content-Type": "application/json" } : undefined,
+        body: payload ? JSON.stringify(payload) : undefined
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Request failed");
+      return data;
+    }
+
+    function getJoinUrl() {
+      return `${window.location.origin}/buzzer-student.html?code=${encodeURIComponent(room.code)}`;
+    }
+
+    function getSocketUrl() {
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      return `${protocol}//${window.location.host}/ws/buzzer?code=${encodeURIComponent(room.code)}`;
+    }
+
+    function formatMs(value) {
+      const ms = Number(value) || 0;
+      if (ms < 1000) return `${ms} ms`;
+      return `${(ms / 1000).toFixed(2)} s`;
+    }
+
+    function render() {
+      if (!room) return;
+      localStorage.setItem(storageKey, room.code);
+      roomCodeEl.textContent = room.code;
+      qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=420x420&data=${encodeURIComponent(getJoinUrl())}`;
+      liveBtn.disabled = !room.players.length || room.status === "live";
+      nextBtn.disabled = room.status !== "live";
+
+      if (room.status === "live") {
+        statusLabel.textContent = `Round ${room.roundId}`;
+        statusMain.textContent = room.winner ? "Turn locked." : "Listening for the first buzzer.";
+      } else {
+        statusLabel.textContent = "Waiting";
+        statusMain.textContent = room.players.length ? "Ready to go live." : "Connect participants, then go live.";
+      }
+
+      if (room.winner) {
+        idleState.classList.add("hidden");
+        winnerCard.classList.remove("hidden");
+        winnerName.textContent = room.winner.playerName;
+        winnerTime.textContent = formatMs(room.winner.deltaMs);
+        if (room.winner.id !== lastWinnerId) {
+          lastWinnerId = room.winner.id;
+          winnerCard.classList.remove("is-hot");
+          winnerCard.offsetHeight;
+          winnerCard.classList.add("is-hot");
+        }
+      } else {
+        lastWinnerId = "";
+        winnerCard.classList.add("hidden");
+        idleState.classList.remove("hidden");
+      }
+
+      playersEl.innerHTML = room.players.length
+        ? room.players.map((player) => `
+          <div class="player">
+            <span class="player-name">${escapeHtml(player.name)}</span>
+            <button class="remove" type="button" data-player-id="${escapeHtml(player.id)}" title="Remove">×</button>
+          </div>
+        `).join("")
+        : `<div class="empty">Scan QR to join.</div>`;
+
+      buzzLog.innerHTML = room.buzzes.length
+        ? room.buzzes.slice(0, 3).map((buzz) => `
+          <div class="buzz-item">
+            <span>${escapeHtml(buzz.playerName)}</span>
+            <strong>${formatMs(buzz.deltaMs)}</strong>
+          </div>
+        `).join("")
+        : `<div class="buzz-item"><span>No buzzes yet</span><strong>--</strong></div>`;
+    }
+
+    function connectSocket() {
+      if (!room || socket) return;
+      try {
+        socket = new WebSocket(getSocketUrl());
+      } catch (_) {
+        pollRoom();
+        return;
+      }
+      socket.addEventListener("message", (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload?.type === "buzzer-room" && payload.room) {
+            room = payload.room;
+            render();
+          }
+        } catch (_) {}
+      });
+      socket.addEventListener("close", () => {
+        socket = null;
+        pollRoom();
+      });
+      socket.addEventListener("error", () => {
+        socket = null;
+        pollRoom();
+      });
+    }
+
+    async function pollRoom() {
+      if (!room || pollTimer) return;
+      try {
+        const data = await api(`/api/buzzer/room?code=${encodeURIComponent(room.code)}`, null, "GET");
+        room = data.room;
+        render();
+      } catch (_) {
+      } finally {
+        pollTimer = setTimeout(() => {
+          pollTimer = null;
+          if (!socket) pollRoom();
+        }, 900);
+      }
+    }
+
+    async function initRoom() {
+      const savedCode = localStorage.getItem(storageKey);
+      if (savedCode) {
+        try {
+          const existing = await api(`/api/buzzer/room?code=${encodeURIComponent(savedCode)}`, null, "GET");
+          room = existing.room;
+        } catch (_) {
+          localStorage.removeItem(storageKey);
+        }
+      }
+      if (!room) {
+        const data = await api("/api/buzzer/create-room");
+        room = data.room;
+      }
+      render();
+      connectSocket();
+    }
+
+    liveBtn.addEventListener("click", async () => {
+      const data = await api("/api/buzzer/start", { code: room.code });
+      room = data.room;
+      render();
+    });
+
+    nextBtn.addEventListener("click", async () => {
+      const data = await api("/api/buzzer/reset-round", { code: room.code });
+      room = data.room;
+      render();
+    });
+
+    resetBtn.addEventListener("click", async () => {
+      if (!confirm("Reset this buzzer room? Participants will need to scan again.")) return;
+      localStorage.removeItem(storageKey);
+      window.location.reload();
+    });
+
+    homeBtn.addEventListener("click", () => {
+      window.location.href = "./";
+    });
+
+    playersEl.addEventListener("click", async (event) => {
+      const button = event.target.closest("[data-player-id]");
+      if (!button) return;
+      const player = room.players.find((item) => item.id === button.dataset.playerId);
+      if (!player || !confirm(`Remove ${player.name}?`)) return;
+      const data = await api("/api/buzzer/remove-player", { code: room.code, playerId: player.id });
+      room = data.room;
+      render();
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden && room && !socket) {
+        pollRoom();
+      }
+    });
+
+    initRoom().catch((error) => {
+      statusMain.textContent = error.message || "Could not create buzzer room.";
+    });
+  </script>
+</body>
+</html>

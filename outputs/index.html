@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Letter Clash Tools</title>
+  <link rel="icon" type="image/png" href="./letter-clash-favicon.png">
+  <style>
+    :root {
+      --ink: #100b2f;
+      --blue: #0b82ff;
+      --orange: #ff7a00;
+      --red: #ff2f45;
+      --green: #22c66f;
+      --panel: rgba(255, 255, 255, 0.88);
+      --line: rgba(16, 11, 47, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 14% 16%, rgba(11, 130, 255, 0.28), transparent 32%),
+        radial-gradient(circle at 88% 20%, rgba(255, 122, 0, 0.28), transparent 30%),
+        linear-gradient(135deg, #fff9dc 0%, #e8f5ff 46%, #ffe8db 100%);
+      overflow-x: hidden;
+    }
+
+    .shell {
+      width: min(1180px, calc(100vw - 32px));
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: clamp(18px, 4vw, 44px) 0;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: clamp(18px, 4vw, 36px);
+    }
+
+    header {
+      display: grid;
+      grid-template-columns: minmax(190px, 420px) 1fr;
+      gap: clamp(18px, 4vw, 42px);
+      align-items: center;
+    }
+
+    .logo {
+      width: 100%;
+      max-height: 170px;
+      object-fit: contain;
+      filter: drop-shadow(0 18px 30px rgba(7, 20, 60, 0.22));
+    }
+
+    .intro {
+      padding: clamp(18px, 3vw, 28px);
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      border-radius: 28px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.82), rgba(255,255,255,0.48));
+      box-shadow: 0 22px 70px rgba(17, 12, 48, 0.12);
+      backdrop-filter: blur(16px);
+    }
+
+    .kicker {
+      margin: 0 0 8px;
+      font-weight: 1000;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: #2450d8;
+      font-size: 0.78rem;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 5vw, 4.8rem);
+      line-height: 0.92;
+      letter-spacing: 0;
+    }
+
+    .grid {
+      align-self: center;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: clamp(18px, 3vw, 30px);
+    }
+
+    .activity {
+      position: relative;
+      min-height: clamp(330px, 44vh, 470px);
+      padding: clamp(18px, 3vw, 30px);
+      border: 1px solid rgba(255,255,255,0.82);
+      border-radius: 34px;
+      overflow: hidden;
+      background: var(--panel);
+      box-shadow: 0 28px 80px rgba(16, 11, 47, 0.16);
+      text-decoration: none;
+      color: inherit;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      transition: transform 180ms ease, box-shadow 180ms ease;
+    }
+
+    .activity:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 34px 90px rgba(16, 11, 47, 0.22);
+    }
+
+    .activity::before {
+      content: "";
+      position: absolute;
+      inset: -40% -20% auto auto;
+      width: 260px;
+      height: 260px;
+      border-radius: 50%;
+      opacity: 0.5;
+      background: var(--blue);
+      filter: blur(6px);
+    }
+
+    .activity.buzzer::before {
+      background: var(--red);
+    }
+
+    .tag {
+      width: max-content;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(16, 11, 47, 0.08);
+      font-weight: 1000;
+      text-transform: uppercase;
+      font-size: 0.78rem;
+      letter-spacing: 0.1em;
+      z-index: 1;
+    }
+
+    .visual {
+      display: grid;
+      place-items: center;
+      z-index: 1;
+    }
+
+    .letters {
+      display: flex;
+      gap: 12px;
+      transform: rotate(-4deg);
+    }
+
+    .mini-card {
+      width: clamp(82px, 11vw, 128px);
+      aspect-ratio: 0.72;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      font-size: clamp(3.5rem, 8vw, 6rem);
+      font-weight: 1000;
+      color: #fff;
+      box-shadow: 0 18px 0 rgba(16, 11, 47, 0.16), 0 26px 40px rgba(16, 11, 47, 0.2);
+    }
+
+    .mini-card.blue { background: linear-gradient(160deg, #0797ff, #143fd4); }
+    .mini-card.orange { background: linear-gradient(160deg, #ff9b00, #ff3f16); }
+
+    .buzzer-button {
+      width: clamp(150px, 18vw, 230px);
+      aspect-ratio: 1;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-size: clamp(2rem, 4vw, 3.6rem);
+      font-weight: 1000;
+      background: radial-gradient(circle at 35% 25%, #ff9bab, #ff213d 52%, #990015);
+      box-shadow: 0 18px 0 #7d0717, 0 34px 58px rgba(153, 0, 21, 0.34);
+      border: 8px solid rgba(255,255,255,0.7);
+    }
+
+    .copy {
+      z-index: 1;
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: clamp(2.1rem, 4vw, 4rem);
+      line-height: 0.92;
+    }
+
+    .go {
+      flex: 0 0 auto;
+      width: 62px;
+      height: 62px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: linear-gradient(135deg, var(--blue), #3024d8);
+      font-size: 2rem;
+      font-weight: 1000;
+    }
+
+    .buzzer .go {
+      background: linear-gradient(135deg, var(--red), var(--orange));
+    }
+
+    @media (max-width: 820px) {
+      header,
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .logo {
+        max-height: 130px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <img class="logo" src="./letter-clash-logo.png" alt="Letter Clash">
+      <section class="intro">
+        <p class="kicker">Classroom Tools</p>
+        <h1>Choose an activity.</h1>
+      </section>
+    </header>
+
+    <section class="grid" aria-label="Activities">
+      <a class="activity" href="./letter-card-game.html">
+        <span class="tag">Game</span>
+        <div class="visual">
+          <div class="letters">
+            <div class="mini-card blue">L</div>
+            <div class="mini-card orange">C</div>
+          </div>
+        </div>
+        <div class="copy">
+          <h2>Letter Clash</h2>
+          <span class="go">›</span>
+        </div>
+      </a>
+
+      <a class="activity buzzer" href="./buzzer.html">
+        <span class="tag">Tool</span>
+        <div class="visual">
+          <div class="buzzer-button">GO</div>
+        </div>
+        <div class="copy">
+          <h2>Fast Buzzer</h2>
+          <span class="go">›</span>
+        </div>
+      </a>
+    </section>
+  </main>
+</body>
+</html>

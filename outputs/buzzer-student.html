@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Fast Buzzer</title>
+  <link rel="icon" type="image/png" href="./letter-clash-favicon.png">
+  <style>
+    :root {
+      --ink: #100b2f;
+      --muted: rgba(16, 11, 47, 0.62);
+      --red: #ff2541;
+      --green: #19c875;
+      --blue: #087dff;
+      --panel: rgba(255, 255, 255, 0.9);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100svh;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 50% 20%, rgba(255, 37, 65, 0.32), transparent 34%),
+        radial-gradient(circle at 18% 84%, rgba(8, 125, 255, 0.25), transparent 32%),
+        linear-gradient(145deg, #fff3d2, #eaf7ff 48%, #ffe1e8);
+      overflow: hidden;
+    }
+
+    .screen {
+      min-height: 100svh;
+      padding: max(16px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom));
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 14px;
+    }
+
+    .join,
+    .status {
+      border-radius: 28px;
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,0.72);
+      box-shadow: 0 20px 60px rgba(16, 11, 47, 0.15);
+      backdrop-filter: blur(16px);
+    }
+
+    .join {
+      min-height: 100svh;
+      padding: 24px;
+      display: grid;
+      align-content: center;
+      gap: 16px;
+    }
+
+    .logo {
+      width: min(340px, 92vw);
+      margin: 0 auto 8px;
+      filter: drop-shadow(0 14px 22px rgba(7, 20, 60, 0.2));
+    }
+
+    label {
+      font-size: 0.8rem;
+      font-weight: 1000;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    input,
+    button {
+      width: 100%;
+      border: 0;
+      border-radius: 20px;
+      min-height: 58px;
+      padding: 0 18px;
+      font: inherit;
+      font-weight: 1000;
+    }
+
+    input {
+      background: #fff;
+      color: var(--ink);
+      box-shadow: inset 0 0 0 1px rgba(16, 11, 47, 0.12);
+      font-size: 1.15rem;
+    }
+
+    .join button {
+      color: #fff;
+      background: linear-gradient(135deg, var(--blue), #3024d8);
+      box-shadow: 0 14px 28px rgba(48, 36, 216, 0.24);
+    }
+
+    .join-error {
+      min-height: 24px;
+      margin: 0;
+      color: #a00018;
+      font-weight: 1000;
+      text-align: center;
+    }
+
+    .status {
+      padding: 14px 16px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .status p {
+      margin: 0;
+    }
+
+    .kicker {
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 1000;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .main-status {
+      margin-top: 2px;
+      font-size: clamp(1.25rem, 7vw, 2.3rem);
+      font-weight: 1000;
+      line-height: 0.95;
+      overflow-wrap: anywhere;
+    }
+
+    .round {
+      min-width: 70px;
+      padding: 10px 12px;
+      border-radius: 18px;
+      background: #fff;
+      text-align: center;
+      font-weight: 1000;
+      color: var(--blue);
+      box-shadow: inset 0 0 0 1px rgba(16, 11, 47, 0.1);
+    }
+
+    .pad {
+      min-height: 0;
+      display: grid;
+      place-items: center;
+    }
+
+    .buzz {
+      width: min(82vw, 430px);
+      aspect-ratio: 1;
+      border-radius: 50%;
+      color: #fff;
+      font-size: clamp(3.1rem, 18vw, 6.5rem);
+      letter-spacing: 0;
+      background: radial-gradient(circle at 35% 25%, #ffb3bf, var(--red) 50%, #990015);
+      box-shadow: 0 28px 0 #7d0717, 0 48px 90px rgba(153, 0, 21, 0.38);
+      border: 12px solid rgba(255,255,255,0.7);
+      transition: transform 80ms ease, filter 120ms ease, opacity 120ms ease;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .buzz:active {
+      transform: translateY(18px) scale(0.98);
+      box-shadow: 0 10px 0 #7d0717, 0 20px 38px rgba(153, 0, 21, 0.3);
+    }
+
+    .buzz:disabled {
+      opacity: 0.52;
+      filter: grayscale(0.45);
+    }
+
+    .result {
+      min-height: 74px;
+      border-radius: 24px;
+      padding: 14px 16px;
+      background: rgba(255,255,255,0.88);
+      box-shadow: 0 18px 44px rgba(16, 11, 47, 0.14);
+      font-weight: 1000;
+      display: grid;
+      align-content: center;
+      text-align: center;
+    }
+
+    .result.good {
+      color: #03592f;
+      background: rgba(221, 255, 238, 0.92);
+    }
+
+    .result.bad {
+      color: #9a0018;
+      background: rgba(255, 226, 231, 0.94);
+    }
+
+    .flash-good {
+      animation: flashGood 520ms ease both;
+    }
+
+    .flash-bad {
+      animation: flashBad 520ms ease both;
+    }
+
+    .hidden { display: none !important; }
+
+    @keyframes flashGood {
+      0%, 100% { background-color: transparent; }
+      30% { background-color: rgba(25, 200, 117, 0.45); }
+    }
+
+    @keyframes flashBad {
+      0%, 100% { background-color: transparent; }
+      30% { background-color: rgba(255, 37, 65, 0.34); }
+    }
+  </style>
+</head>
+<body>
+  <section class="join" id="joinView">
+    <img class="logo" src="./student-letter-clash-logo.png" alt="Letter Clash">
+    <label for="nameInput">Enter your name or team name</label>
+    <input id="nameInput" autocomplete="name" maxlength="34" autofocus>
+    <button id="joinBtn" type="button">Join Room</button>
+    <p class="join-error" id="joinError"></p>
+  </section>
+
+  <main class="screen hidden" id="gameView">
+    <header class="status">
+      <div>
+        <p class="kicker" id="roomLabel">Room</p>
+        <p class="main-status" id="statusText">Waiting</p>
+      </div>
+      <div class="round" id="roundText">R0</div>
+    </header>
+
+    <section class="pad">
+      <button class="buzz" id="buzzBtn" type="button" disabled>BUZZ</button>
+    </section>
+
+    <div class="result" id="resultText">Wait for the teacher to go live.</div>
+  </main>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const code = String(params.get("code") || "").toUpperCase();
+    const joinView = document.getElementById("joinView");
+    const gameView = document.getElementById("gameView");
+    const nameInput = document.getElementById("nameInput");
+    const joinBtn = document.getElementById("joinBtn");
+    const joinError = document.getElementById("joinError");
+    const roomLabel = document.getElementById("roomLabel");
+    const statusText = document.getElementById("statusText");
+    const roundText = document.getElementById("roundText");
+    const buzzBtn = document.getElementById("buzzBtn");
+    const resultText = document.getElementById("resultText");
+
+    let room = null;
+    let player = null;
+    let socket = null;
+    let pollTimer = null;
+    let lastRoundSubmitted = 0;
+
+    async function api(path, payload = null, method = "POST") {
+      const response = await fetch(path, {
+        method,
+        headers: payload ? { "Content-Type": "application/json" } : undefined,
+        body: payload ? JSON.stringify(payload) : undefined
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Request failed");
+      return data;
+    }
+
+    function getSocketUrl() {
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      return `${protocol}//${window.location.host}/ws/buzzer?code=${encodeURIComponent(room.code)}`;
+    }
+
+    function setResult(text, tone = "") {
+      resultText.className = `result ${tone}`.trim();
+      resultText.textContent = text;
+    }
+
+    function flash(tone) {
+      document.body.classList.remove("flash-good", "flash-bad");
+      document.body.offsetHeight;
+      document.body.classList.add(tone === "good" ? "flash-good" : "flash-bad");
+    }
+
+    function render() {
+      if (!room || !player) return;
+      roomLabel.textContent = `Room ${room.code}`;
+      roundText.textContent = `R${room.roundId}`;
+
+      const isLive = room.status === "live";
+      const hasWinner = !!room.winner;
+      const alreadyPressed = lastRoundSubmitted === room.roundId;
+      buzzBtn.disabled = !isLive || hasWinner || alreadyPressed;
+
+      if (!isLive) {
+        statusText.textContent = "Waiting";
+        setResult("Wait for the teacher to go live.");
+        return;
+      }
+
+      if (hasWinner) {
+        statusText.textContent = room.winner.playerId === player.id ? "You got it" : `${room.winner.playerName} got it`;
+        setResult(room.winner.playerId === player.id ? "Your turn to answer." : "Wait for the next round.", room.winner.playerId === player.id ? "good" : "");
+        return;
+      }
+
+      statusText.textContent = "Ready";
+      setResult("Press as soon as you want the turn.");
+    }
+
+    function connectSocket() {
+      if (!room || socket) return;
+      try {
+        socket = new WebSocket(getSocketUrl());
+      } catch (_) {
+        pollRoom();
+        return;
+      }
+      socket.addEventListener("message", (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload?.type === "buzzer-room" && payload.room) {
+            room = payload.room;
+            render();
+          }
+        } catch (_) {}
+      });
+      socket.addEventListener("close", () => {
+        socket = null;
+        pollRoom();
+      });
+      socket.addEventListener("error", () => {
+        socket = null;
+        pollRoom();
+      });
+    }
+
+    async function pollRoom() {
+      if (!room || pollTimer) return;
+      try {
+        const data = await api(`/api/buzzer/room?code=${encodeURIComponent(room.code)}`, null, "GET");
+        room = data.room;
+        render();
+      } catch (_) {
+      } finally {
+        pollTimer = setTimeout(() => {
+          pollTimer = null;
+          if (!socket) pollRoom();
+        }, 750);
+      }
+    }
+
+    async function joinRoom() {
+      if (!code) {
+        joinError.textContent = "This link does not include a room code.";
+        return;
+      }
+      joinError.textContent = "";
+      const data = await api("/api/buzzer/join", { code, name: nameInput.value });
+      player = data.player;
+      room = data.room;
+      joinView.classList.add("hidden");
+      gameView.classList.remove("hidden");
+      render();
+      connectSocket();
+    }
+
+    async function buzz() {
+      if (!room || !player || buzzBtn.disabled) return;
+      lastRoundSubmitted = room.roundId;
+      buzzBtn.disabled = true;
+      try {
+        const data = await api("/api/buzzer/buzz", {
+          code: room.code,
+          playerId: player.id,
+          playerName: player.name,
+          roundId: room.roundId
+        });
+        room = data.room;
+        if (data.accepted) {
+          flash("good");
+          setResult("You were first. Answer now.", "good");
+        } else {
+          flash("bad");
+          setResult(room.winner ? `${room.winner.playerName} was first.` : "Too late.", "bad");
+        }
+        render();
+      } catch (error) {
+        flash("bad");
+        setResult(error.message || "Could not send buzzer.", "bad");
+        render();
+      }
+    }
+
+    joinBtn.addEventListener("click", () => joinRoom().catch((error) => {
+      joinError.textContent = error.message || "Could not join room.";
+    }));
+    nameInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        joinRoom().catch((error) => {
+          joinError.textContent = error.message || "Could not join room.";
+        });
+      }
+    });
+    buzzBtn.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      buzz();
+    });
+
+    if (!code) {
+      nameInput.disabled = true;
+      joinBtn.disabled = true;
+      joinError.textContent = "Missing room code.";
+    }
+  </script>
+</body>
+</html>
