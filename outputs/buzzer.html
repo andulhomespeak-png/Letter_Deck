@@ -53,28 +53,30 @@
     .main {
       padding: clamp(14px, 2vw, 26px);
       display: grid;
-      grid-template-rows: auto 1fr auto;
+      grid-template-rows: auto 1fr;
       gap: clamp(10px, 1.8vw, 20px);
       overflow: hidden;
     }
 
     .topbar {
       display: grid;
-      grid-template-columns: minmax(170px, 360px) minmax(0, 1fr) auto;
+      grid-template-columns: minmax(210px, 1fr) auto auto;
       align-items: center;
       gap: 14px;
     }
 
-    .logo {
-      width: 100%;
-      max-height: 92px;
-      object-fit: contain;
-      object-position: left center;
-      filter: drop-shadow(0 12px 18px rgba(7, 20, 60, 0.18));
+    .tool-title {
+      margin: 0;
+      font-size: clamp(2.4rem, 5vw, 5.8rem);
+      line-height: 0.86;
+      font-weight: 1000;
+      color: var(--red);
+      text-transform: uppercase;
+      text-shadow: 0 8px 0 rgba(16, 11, 47, 0.08);
     }
 
     .status {
-      min-width: 0;
+      min-width: 126px;
       padding: 14px 18px;
       border-radius: 22px;
       background: rgba(255,255,255,0.82);
@@ -93,7 +95,7 @@
 
     .status-main {
       margin: 0;
-      font-size: clamp(1.2rem, 2.2vw, 2.2rem);
+      font-size: clamp(1.5rem, 2.4vw, 2.4rem);
       font-weight: 1000;
       white-space: nowrap;
       overflow: hidden;
@@ -164,15 +166,6 @@
       animation: winnerPop 520ms cubic-bezier(0.18, 1.2, 0.28, 1) both;
     }
 
-    .winner-kicker {
-      margin: 0 0 10px;
-      color: var(--muted);
-      font-size: clamp(0.8rem, 1.4vw, 1rem);
-      font-weight: 1000;
-      text-transform: uppercase;
-      letter-spacing: 0.16em;
-    }
-
     .winner-name {
       margin: 0;
       font-size: clamp(3.2rem, 10vw, 9rem);
@@ -181,13 +174,6 @@
       color: var(--red);
       text-shadow: 0 8px 0 rgba(16, 11, 47, 0.08);
       overflow-wrap: anywhere;
-    }
-
-    .winner-time {
-      margin: 16px 0 0;
-      font-size: clamp(1.1rem, 2.4vw, 2.4rem);
-      font-weight: 1000;
-      color: #1957e8;
     }
 
     .idle {
@@ -209,38 +195,6 @@
       background: radial-gradient(circle at 35% 25%, #ff9bab, var(--red) 52%, #990015);
       box-shadow: 0 26px 0 #7d0717, 0 44px 80px rgba(153, 0, 21, 0.34);
       border: 10px solid rgba(255,255,255,0.72);
-    }
-
-    .hint {
-      margin: 0;
-      color: var(--muted);
-      font-weight: 900;
-      font-size: clamp(1rem, 1.8vw, 1.3rem);
-    }
-
-    .buzz-log {
-      min-height: 70px;
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
-    }
-
-    .buzz-item {
-      padding: 12px 14px;
-      border-radius: 18px;
-      background: rgba(255,255,255,0.84);
-      border: 1px solid var(--line);
-      font-weight: 1000;
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      min-width: 0;
-    }
-
-    .buzz-item span:first-child {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
     }
 
     .side {
@@ -285,6 +239,8 @@
     .players {
       min-height: 0;
       overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
       display: flex;
       flex-direction: column;
       gap: 8px;
@@ -362,10 +318,10 @@
   <main class="app">
     <section class="main">
       <div class="topbar">
-        <img class="logo" src="./letter-clash-logo.png" alt="Letter Clash">
+        <h1 class="tool-title">Fast Buzzer</h1>
         <div class="status">
-          <p class="status-label" id="statusLabel">Waiting</p>
-          <p class="status-main" id="statusMain">Connect participants, then go live.</p>
+          <p class="status-label">Round</p>
+          <p class="status-main" id="statusMain">0</p>
         </div>
         <div class="actions">
           <button id="liveBtn" class="live" type="button">Live</button>
@@ -378,18 +334,11 @@
       <div class="stage" id="stage">
         <div class="idle" id="idleState">
           <div class="big-button">BUZZ</div>
-          <p class="hint">First signal locks the turn.</p>
         </div>
         <div class="winner hidden" id="winnerCard">
-          <div>
-            <p class="winner-kicker">First Buzzer</p>
-            <h1 class="winner-name" id="winnerName">Player</h1>
-            <p class="winner-time" id="winnerTime">0 ms</p>
-          </div>
+          <h2 class="winner-name" id="winnerName">Player</h2>
         </div>
       </div>
-
-      <div class="buzz-log" id="buzzLog"></div>
     </section>
 
     <aside class="side">
@@ -406,13 +355,10 @@
     const roomCodeEl = document.getElementById("roomCode");
     const qrImage = document.getElementById("qrImage");
     const playersEl = document.getElementById("players");
-    const statusLabel = document.getElementById("statusLabel");
     const statusMain = document.getElementById("statusMain");
     const winnerCard = document.getElementById("winnerCard");
     const winnerName = document.getElementById("winnerName");
-    const winnerTime = document.getElementById("winnerTime");
     const idleState = document.getElementById("idleState");
-    const buzzLog = document.getElementById("buzzLog");
     const liveBtn = document.getElementById("liveBtn");
     const nextBtn = document.getElementById("nextBtn");
     const resetBtn = document.getElementById("resetBtn");
@@ -453,12 +399,6 @@
       return `${protocol}//${window.location.host}/ws/buzzer?code=${encodeURIComponent(room.code)}`;
     }
 
-    function formatMs(value) {
-      const ms = Number(value) || 0;
-      if (ms < 1000) return `${ms} ms`;
-      return `${(ms / 1000).toFixed(2)} s`;
-    }
-
     function render() {
       if (!room) return;
       localStorage.setItem(storageKey, room.code);
@@ -467,19 +407,12 @@
       liveBtn.disabled = !room.players.length || room.status === "live";
       nextBtn.disabled = room.status !== "live";
 
-      if (room.status === "live") {
-        statusLabel.textContent = `Round ${room.roundId}`;
-        statusMain.textContent = room.winner ? "Turn locked." : "Listening for the first buzzer.";
-      } else {
-        statusLabel.textContent = "Waiting";
-        statusMain.textContent = room.players.length ? "Ready to go live." : "Connect participants, then go live.";
-      }
+      statusMain.textContent = room.roundId || 0;
 
       if (room.winner) {
         idleState.classList.add("hidden");
         winnerCard.classList.remove("hidden");
         winnerName.textContent = room.winner.playerName;
-        winnerTime.textContent = formatMs(room.winner.deltaMs);
         if (room.winner.id !== lastWinnerId) {
           lastWinnerId = room.winner.id;
           winnerCard.classList.remove("is-hot");
@@ -492,23 +425,15 @@
         idleState.classList.remove("hidden");
       }
 
-      playersEl.innerHTML = room.players.length
-        ? room.players.map((player) => `
+      const sortedPlayers = room.players.slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+      playersEl.innerHTML = sortedPlayers.length
+        ? sortedPlayers.map((player) => `
           <div class="player">
             <span class="player-name">${escapeHtml(player.name)}</span>
             <button class="remove" type="button" data-player-id="${escapeHtml(player.id)}" title="Remove">×</button>
           </div>
         `).join("")
         : `<div class="empty">Scan QR to join.</div>`;
-
-      buzzLog.innerHTML = room.buzzes.length
-        ? room.buzzes.slice(0, 3).map((buzz) => `
-          <div class="buzz-item">
-            <span>${escapeHtml(buzz.playerName)}</span>
-            <strong>${formatMs(buzz.deltaMs)}</strong>
-          </div>
-        `).join("")
-        : `<div class="buzz-item"><span>No buzzes yet</span><strong>--</strong></div>`;
     }
 
     function connectSocket() {
