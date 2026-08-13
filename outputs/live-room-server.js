@@ -264,6 +264,7 @@ function createRoom() {
     teams: [],
     players: [],
     submissions: [],
+    lockedOutPlayers: [],
     lastSuccess: null,
     lastFeedback: null,
     acceptedWords: [],
@@ -422,6 +423,7 @@ function serialize(room) {
     roundId: room.roundId,
     teams: room.teams,
     submissions: room.submissions.slice(0, 12),
+    lockedOutPlayers: room.lockedOutPlayers || [],
     lastSuccess: room.lastSuccess,
     lastFeedback: room.lastFeedback,
     acceptedWords: (room.acceptedWords || []).slice(0, 300),
@@ -636,6 +638,7 @@ const server = http.createServer(async (req, res) => {
         if (nextLetters.join("|") !== room.letters.join("|")) {
           room.letters = nextLetters;
           room.roundId += 1;
+          room.lockedOutPlayers = [];
         }
       }
       if (status) room.status = status;
@@ -721,6 +724,23 @@ const server = http.createServer(async (req, res) => {
         word: String(word || "").trim(),
         createdAt: Date.now()
       };
+      const lockKey = String(submission.playerId || submission.teamId || submission.teamName || "").trim();
+      const lockedOutPlayers = Array.isArray(room.lockedOutPlayers) ? room.lockedOutPlayers : [];
+      if (lockKey && lockedOutPlayers.includes(lockKey)) {
+        room.lastFeedback = {
+          id: submission.id,
+          teamId: submission.teamId || "",
+          teamName: submission.teamName || "Student",
+          word: submission.word,
+          tone: "bad",
+          lockedOut: true,
+          message: "Your answer was incorrect. Please wait for the next round."
+        };
+        room.submissions = [];
+        touch(room);
+        broadcastRoom(room);
+        return json(res, 200, { ok: false, lockedOut: true, room: serialize(room) });
+      }
       if (Number(roundId) !== Number(room.roundId)) {
         room.lastFeedback = {
           id: submission.id,
@@ -738,12 +758,17 @@ const server = http.createServer(async (req, res) => {
       const evaluation = evaluateSubmission(room, submission);
 
       if (!evaluation.ok) {
+        if (lockKey && !lockedOutPlayers.includes(lockKey)) {
+          lockedOutPlayers.push(lockKey);
+        }
+        room.lockedOutPlayers = lockedOutPlayers;
         room.lastFeedback = {
           id: submission.id,
           teamId: submission.teamId || "",
           teamName: submission.teamName || "Student",
           word: submission.word,
           tone: "bad",
+          lockedOut: true,
           message: evaluation.message
         };
         room.submissions = [];
@@ -767,6 +792,7 @@ const server = http.createServer(async (req, res) => {
         room.letters.push("ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.floor(Math.random() * 26)]);
       }
       room.roundId += 1;
+      room.lockedOutPlayers = [];
       team.score = Number(team.score || 0) + scoreBreakdown.total;
 
       room.lastSuccess = {
