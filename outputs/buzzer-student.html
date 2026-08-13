@@ -33,7 +33,7 @@
       min-height: 100svh;
       padding: max(16px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom));
       display: grid;
-      grid-template-rows: auto 1fr auto;
+      grid-template-rows: auto 1fr;
       gap: 14px;
     }
 
@@ -139,6 +139,18 @@
       box-shadow: inset 0 0 0 1px rgba(16, 11, 47, 0.1);
     }
 
+    .mobile-rank {
+      margin-top: 6px;
+      padding: 8px 10px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.78);
+      color: var(--ink);
+      font-size: 0.82rem;
+      font-weight: 1000;
+      text-align: center;
+      box-shadow: inset 0 0 0 1px rgba(16, 11, 47, 0.08);
+    }
+
     .pad {
       min-height: 0;
       display: grid;
@@ -170,26 +182,29 @@
       filter: grayscale(0.45);
     }
 
-    .result {
-      min-height: 74px;
-      border-radius: 24px;
-      padding: 14px 16px;
-      background: rgba(255,255,255,0.88);
-      box-shadow: 0 18px 44px rgba(16, 11, 47, 0.14);
-      font-weight: 1000;
+    .turn-card {
+      position: relative;
+      width: min(92vw, 430px);
+      min-height: min(46vh, 360px);
       display: grid;
-      align-content: center;
+      place-items: center;
+      border-radius: 34px;
+      padding: 24px;
       text-align: center;
+      background: rgba(255,255,255,0.9);
+      box-shadow: inset 0 -18px 38px rgba(255, 138, 0, 0.1), 0 24px 70px rgba(16, 11, 47, 0.18);
+      border: 1px solid rgba(255,255,255,0.72);
+      animation: turnPop 280ms ease both;
     }
 
-    .result.good {
-      color: #03592f;
-      background: rgba(221, 255, 238, 0.92);
-    }
-
-    .result.bad {
-      color: #9a0018;
-      background: rgba(255, 226, 231, 0.94);
+    .turn-name {
+      margin: 0;
+      color: var(--red);
+      font-size: clamp(3rem, 17vw, 6.8rem);
+      line-height: 0.88;
+      font-weight: 1000;
+      overflow-wrap: anywhere;
+      text-shadow: 0 7px 0 rgba(16, 11, 47, 0.08);
     }
 
     .flash-good {
@@ -211,6 +226,12 @@
       0%, 100% { background-color: transparent; }
       30% { background-color: rgba(255, 37, 65, 0.34); }
     }
+
+    @keyframes turnPop {
+      from { transform: scale(0.88); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
   </style>
 </head>
 <body>
@@ -228,16 +249,19 @@
         <p class="kicker" id="roomLabel">Room</p>
         <p class="main-status" id="statusText">Waiting</p>
       </div>
-      <div class="round" id="roundText">R0</div>
+      <div>
+        <div class="round" id="roundText">R0</div>
+        <div class="mobile-rank" id="rankText">--</div>
+      </div>
     </header>
 
     <section class="pad">
       <button class="buzz" id="buzzBtn" type="button" disabled>BUZZ</button>
+      <div class="turn-card hidden" id="turnCard">
+        <h1 class="turn-name" id="turnName">Player got the turn!</h1>
+      </div>
     </section>
-
-    <div class="result" id="resultText">Wait for the teacher to go live.</div>
   </main>
-
   <script>
     const params = new URLSearchParams(window.location.search);
     const code = String(params.get("code") || "").toUpperCase();
@@ -249,8 +273,10 @@
     const roomLabel = document.getElementById("roomLabel");
     const statusText = document.getElementById("statusText");
     const roundText = document.getElementById("roundText");
+    const rankText = document.getElementById("rankText");
     const buzzBtn = document.getElementById("buzzBtn");
-    const resultText = document.getElementById("resultText");
+    const turnCard = document.getElementById("turnCard");
+    const turnName = document.getElementById("turnName");
 
     let room = null;
     let player = null;
@@ -275,15 +301,22 @@
       return `${protocol}//${window.location.host}/ws/buzzer?code=${encodeURIComponent(room.code)}`;
     }
 
-    function setResult(text, tone = "") {
-      resultText.className = `result ${tone}`.trim();
-      resultText.textContent = text;
-    }
-
     function flash(tone) {
       document.body.classList.remove("flash-good", "flash-bad");
       document.body.offsetHeight;
       document.body.classList.add(tone === "good" ? "flash-good" : "flash-bad");
+    }
+
+    function ordinal(value) {
+      const number = Number(value) || 0;
+      const mod100 = number % 100;
+      if (mod100 >= 11 && mod100 <= 13) return `${number}th`;
+      switch (number % 10) {
+        case 1: return `${number}st`;
+        case 2: return `${number}nd`;
+        case 3: return `${number}rd`;
+        default: return `${number}th`;
+      }
     }
 
     async function requestWakeLock() {
@@ -291,6 +324,9 @@
         return;
       }
       try {
+        if (wakeLock && !wakeLock.released) {
+          return;
+        }
         wakeLock = await navigator.wakeLock.request("screen");
         wakeLock.addEventListener("release", () => {
           wakeLock = null;
@@ -302,26 +338,40 @@
       if (!room || !player) return;
       roomLabel.textContent = `Room ${room.code}`;
       roundText.textContent = `R${room.roundId}`;
+      const rankedPlayers = Array.isArray(room.players)
+        ? room.players.slice().sort((a, b) => {
+          const scoreDiff = Number(b.score || 0) - Number(a.score || 0);
+          return scoreDiff || String(a.name || "").localeCompare(String(b.name || ""));
+        })
+        : [];
+      const rankIndex = rankedPlayers.findIndex((item) => item.id === player.id);
+      const ownScore = rankedPlayers.find((item) => item.id === player.id)?.score || 0;
+      rankText.textContent = rankIndex >= 0 ? `Position: ${ordinal(rankIndex + 1)} - ${ownScore} pts` : "Position: --";
 
       const isLive = room.status === "live";
       const hasWinner = !!room.winner;
       const alreadyPressed = lastRoundSubmitted === room.roundId;
       buzzBtn.disabled = !isLive || hasWinner || alreadyPressed;
+      buzzBtn.classList.toggle("hidden", hasWinner);
+      turnCard.classList.toggle("hidden", !hasWinner);
 
       if (!isLive) {
-        statusText.textContent = "Waiting";
-        setResult("Wait for the teacher to go live.");
+        statusText.textContent = "";
+        turnCard.classList.add("hidden");
+        buzzBtn.classList.remove("hidden");
         return;
       }
 
       if (hasWinner) {
-        statusText.textContent = room.winner.playerId === player.id ? "You got it" : `${room.winner.playerName} got it`;
-        setResult(room.winner.playerId === player.id ? "Your turn to answer." : "Wait for the next round.", room.winner.playerId === player.id ? "good" : "");
+        const isWinner = room.winner.playerId === player.id;
+        turnName.textContent = `${room.winner.playerName} got the turn!`;
+        statusText.textContent = "";
         return;
       }
 
-      statusText.textContent = "Ready";
-      setResult("Press as soon as you want the turn.");
+      turnCard.classList.add("hidden");
+      buzzBtn.classList.remove("hidden");
+      statusText.textContent = "";
     }
 
     function connectSocket() {
@@ -397,15 +447,12 @@
         room = data.room;
         if (data.accepted) {
           flash("good");
-          setResult("You were first. Answer now.", "good");
         } else {
           flash("bad");
-          setResult(room.winner ? `${room.winner.playerName} was first.` : "Too late.", "bad");
         }
         render();
       } catch (error) {
         flash("bad");
-        setResult(error.message || "Could not send buzzer.", "bad");
         render();
       }
     }
@@ -425,12 +472,21 @@
       buzz();
     });
 
-    document.addEventListener("pointerdown", requestWakeLock, { once: true });
+    ["click", "pointerdown", "touchstart", "keydown"].forEach((eventName) => {
+      document.addEventListener(eventName, requestWakeLock, { passive: true });
+    });
+    window.addEventListener("focus", requestWakeLock);
+    window.addEventListener("pageshow", requestWakeLock);
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") {
         requestWakeLock();
       }
     });
+    setInterval(() => {
+      if (document.visibilityState === "visible" && player) {
+        requestWakeLock();
+      }
+    }, 12000);
 
     if (!code) {
       nameInput.disabled = true;
