@@ -247,6 +247,7 @@ function createBuzzerRoom() {
     players: [],
     winner: null,
     buzzes: [],
+    lockedOutPlayers: [],
     nextPlayerId: 1,
     roundStartedAt: 0,
     updatedAt: Date.now()
@@ -264,7 +265,6 @@ function createRoom() {
     teams: [],
     players: [],
     submissions: [],
-    lockedOutPlayers: [],
     lastSuccess: null,
     lastFeedback: null,
     acceptedWords: [],
@@ -423,7 +423,6 @@ function serialize(room) {
     roundId: room.roundId,
     teams: room.teams,
     submissions: room.submissions.slice(0, 12),
-    lockedOutPlayers: room.lockedOutPlayers || [],
     lastSuccess: room.lastSuccess,
     lastFeedback: room.lastFeedback,
     acceptedWords: (room.acceptedWords || []).slice(0, 300),
@@ -440,6 +439,7 @@ function serializeBuzzerRoom(room) {
     players: room.players,
     winner: room.winner,
     buzzes: room.buzzes.slice(0, 12),
+    lockedOutPlayers: room.lockedOutPlayers || [],
     roundStartedAt: room.roundStartedAt,
     updatedAt: room.updatedAt
   };
@@ -638,7 +638,6 @@ const server = http.createServer(async (req, res) => {
         if (nextLetters.join("|") !== room.letters.join("|")) {
           room.letters = nextLetters;
           room.roundId += 1;
-          room.lockedOutPlayers = [];
         }
       }
       if (status) room.status = status;
@@ -724,23 +723,6 @@ const server = http.createServer(async (req, res) => {
         word: String(word || "").trim(),
         createdAt: Date.now()
       };
-      const lockKey = String(submission.playerId || submission.teamId || submission.teamName || "").trim();
-      const lockedOutPlayers = Array.isArray(room.lockedOutPlayers) ? room.lockedOutPlayers : [];
-      if (lockKey && lockedOutPlayers.includes(lockKey)) {
-        room.lastFeedback = {
-          id: submission.id,
-          teamId: submission.teamId || "",
-          teamName: submission.teamName || "Student",
-          word: submission.word,
-          tone: "bad",
-          lockedOut: true,
-          message: "Your answer was incorrect. Please wait for the next round."
-        };
-        room.submissions = [];
-        touch(room);
-        broadcastRoom(room);
-        return json(res, 200, { ok: false, lockedOut: true, room: serialize(room) });
-      }
       if (Number(roundId) !== Number(room.roundId)) {
         room.lastFeedback = {
           id: submission.id,
@@ -758,17 +740,12 @@ const server = http.createServer(async (req, res) => {
       const evaluation = evaluateSubmission(room, submission);
 
       if (!evaluation.ok) {
-        if (lockKey && !lockedOutPlayers.includes(lockKey)) {
-          lockedOutPlayers.push(lockKey);
-        }
-        room.lockedOutPlayers = lockedOutPlayers;
         room.lastFeedback = {
           id: submission.id,
           teamId: submission.teamId || "",
           teamName: submission.teamName || "Student",
           word: submission.word,
           tone: "bad",
-          lockedOut: true,
           message: evaluation.message
         };
         room.submissions = [];
@@ -792,7 +769,6 @@ const server = http.createServer(async (req, res) => {
         room.letters.push("ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.floor(Math.random() * 26)]);
       }
       room.roundId += 1;
-      room.lockedOutPlayers = [];
       team.score = Number(team.score || 0) + scoreBreakdown.total;
 
       room.lastSuccess = {
@@ -904,6 +880,7 @@ const server = http.createServer(async (req, res) => {
       room.roundId += 1;
       room.winner = null;
       room.buzzes = [];
+      room.lockedOutPlayers = [];
       room.roundStartedAt = Date.now();
       touch(room);
       broadcastBuzzerRoom(room);
@@ -916,6 +893,7 @@ const server = http.createServer(async (req, res) => {
       room.roundId += 1;
       room.winner = null;
       room.buzzes = [];
+      room.lockedOutPlayers = [];
       room.roundStartedAt = Date.now();
       room.status = room.status === "waiting" ? "waiting" : "live";
       touch(room);
@@ -933,6 +911,10 @@ const server = http.createServer(async (req, res) => {
       const player = room.players.find((item) => item.id === playerId)
         || room.players.find((item) => item.name.toLowerCase() === String(playerName || "").toLowerCase());
       if (!player) throw new Error("Participant not found");
+      const lockedOutPlayers = Array.isArray(room.lockedOutPlayers) ? room.lockedOutPlayers : [];
+      if (lockedOutPlayers.includes(player.id)) {
+        return json(res, 200, { accepted: false, lockedOut: true, room: serializeBuzzerRoom(room) });
+      }
       const now = Date.now();
       const buzz = {
         id: `${now}-${Math.random().toString(36).slice(2, 8)}`,
@@ -963,7 +945,16 @@ const server = http.createServer(async (req, res) => {
       if (!player) throw new Error("Participant not found");
       const scoreDelta = Math.max(-10000, Math.min(10000, Math.trunc(Number(delta) || 0)));
       player.score = Number(player.score || 0) + scoreDelta;
-      room.roundId += 1;
+      if (scoreDelta < 0) {
+        const lockedOutPlayers = Array.isArray(room.lockedOutPlayers) ? room.lockedOutPlayers : [];
+        if (!lockedOutPlayers.includes(player.id)) {
+          lockedOutPlayers.push(player.id);
+        }
+        room.lockedOutPlayers = lockedOutPlayers;
+      } else {
+        room.roundId += 1;
+        room.lockedOutPlayers = [];
+      }
       room.winner = null;
       room.buzzes = [];
       room.roundStartedAt = Date.now();
@@ -980,6 +971,7 @@ const server = http.createServer(async (req, res) => {
       room.players = room.players.filter((player) => player.id !== playerId);
       if (room.players.length === before) throw new Error("Participant not found");
       room.buzzes = room.buzzes.filter((buzz) => buzz.playerId !== playerId);
+      room.lockedOutPlayers = (room.lockedOutPlayers || []).filter((id) => id !== playerId);
       if (room.winner?.playerId === playerId) {
         room.winner = null;
       }

@@ -195,7 +195,7 @@
 
     .sidebar {
         display: grid;
-        grid-template-rows: auto 1fr auto;
+        grid-template-rows: auto auto 1fr;
         gap: 10px;
         align-content: start;
         background:
@@ -995,6 +995,59 @@
       color: var(--ink-soft);
     }
 
+    .side-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .side-qr-toggle {
+      min-height: 38px;
+      padding: 0 14px;
+      font-size: 0.82rem;
+      border-radius: 999px;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .side-qr-card {
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+      border: 1px solid rgba(52, 31, 20, 0.08);
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.86);
+      box-shadow: var(--shadow-soft);
+      cursor: zoom-in;
+      transition: transform 140ms ease, box-shadow 140ms ease;
+    }
+
+    .side-qr-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 18px 30px rgba(31, 26, 23, 0.12);
+    }
+
+    .side-qr-card.hidden {
+      display: none !important;
+    }
+
+    .side-qr-card img {
+      display: block;
+      width: min(100%, 190px);
+      margin: 0 auto;
+      border-radius: 18px;
+      image-rendering: pixelated;
+    }
+
+    .side-qr-room {
+      text-align: center;
+      color: var(--ink-soft);
+      font-size: 0.78rem;
+      font-weight: 900;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
     .team-list {
       display: grid;
       gap: 8px;
@@ -1469,7 +1522,7 @@
         <div class="button-row">
           <button class="secondary" id="useLettersBtn">Deal</button>
           <button class="ghost" id="startLiveBtn">Live</button>
-          <button class="ghost" id="showQrBtn">QR</button>
+          <button class="ghost" id="homeBtn">Home</button>
           <button class="ghost" id="soundBtn">Music</button>
           <button class="ghost" id="sfxBtn">SFX</button>
           <button class="ghost" id="resetBtn">Reset</button>
@@ -1482,7 +1535,14 @@
         </section>
 
         <aside class="panel sidebar">
-          <h2 class="side-title">Players</h2>
+          <div class="side-head">
+            <h2 class="side-title">Players</h2>
+            <button class="ghost side-qr-toggle" id="sideQrToggleBtn" type="button" aria-expanded="false">Show QR</button>
+          </div>
+          <div class="side-qr-card hidden" id="sideQrCard" role="button" tabindex="0" aria-label="Open QR code">
+            <img id="sideQrImage" alt="Room QR preview">
+            <div class="side-qr-room" id="sideQrRoomText"></div>
+          </div>
           <div class="team-list" id="teamList"></div>
         </aside>
       </section>
@@ -1590,11 +1650,15 @@
     const infoDetailEl = document.getElementById("infoDetail");
     const useLettersBtn = document.getElementById("useLettersBtn");
     const startLiveBtn = document.getElementById("startLiveBtn");
-    const showQrBtn = document.getElementById("showQrBtn");
+    const homeBtn = document.getElementById("homeBtn");
     const resetBtn = document.getElementById("resetBtn");
     const teamList = document.getElementById("teamList");
     const soundBtn = document.getElementById("soundBtn");
     const sfxBtn = document.getElementById("sfxBtn");
+    const sideQrToggleBtn = document.getElementById("sideQrToggleBtn");
+    const sideQrCard = document.getElementById("sideQrCard");
+    const sideQrImage = document.getElementById("sideQrImage");
+    const sideQrRoomText = document.getElementById("sideQrRoomText");
     const qrOverlay = document.getElementById("qrOverlay");
     const qrImage = document.getElementById("qrImage");
     const qrRoomText = document.getElementById("qrRoomText");
@@ -1638,6 +1702,7 @@
     let podiumSoundPlayed = false;
     let wakeLockSentinel = null;
     let successHistory = [];
+    let sideQrVisible = false;
     const liveRoomStorageKey = "letter-clash-live-room-code";
     const maxActiveLetters = 8;
     const winningScore = 750;
@@ -2829,19 +2894,35 @@
       sfxBtn.classList.toggle("is-on", sfxEnabled);
       startLiveBtn.classList.toggle("is-on", liveRoom?.status === "live");
       qrLiveBtn.classList.toggle("is-on", liveRoom?.status === "live");
+      sideQrToggleBtn.setAttribute("aria-expanded", String(sideQrVisible));
+      sideQrToggleBtn.textContent = sideQrVisible ? "Hide QR" : "Show QR";
+      sideQrCard.classList.toggle("hidden", !sideQrVisible);
       const hasConnectedPlayers = Number(liveRoom?.teams?.length || 0) > 0;
       useLettersBtn.disabled = activeLetters.length === 0 || isGameFinished();
       startLiveBtn.disabled = isGameFinished() || !hasConnectedPlayers;
       qrLiveBtn.disabled = isGameFinished() || liveRoom?.status === "live" || !hasConnectedPlayers;
       if (liveEnabled && liveRoom) {
+        const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=420x420&data=${encodeURIComponent(getLiveJoinUrl())}`;
         qrRoomText.textContent = `Room ${liveRoom.code}`;
         qrUrlText.textContent = getLiveJoinUrl();
-        qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=420x420&data=${encodeURIComponent(getLiveJoinUrl())}`;
+        qrImage.src = qrSrc;
+        sideQrRoomText.textContent = `Room ${liveRoom.code}`;
+        sideQrImage.src = qrSrc;
       } else {
         qrRoomText.textContent = "";
         qrUrlText.textContent = "";
         qrImage.removeAttribute("src");
+        sideQrRoomText.textContent = "";
+        sideQrImage.removeAttribute("src");
       }
+    }
+
+    function openQrModal() {
+      if (!liveRoom) {
+        setMessage("Open this page through the local server first.", "bad");
+        return;
+      }
+      qrOverlay.classList.remove("hidden");
     }
 
     useLettersBtn.addEventListener("click", async () => {
@@ -2884,12 +2965,23 @@
         }).catch(() => {});
       }
     });
-    showQrBtn.addEventListener("click", () => {
+    homeBtn.addEventListener("click", () => {
+      window.location.href = liveEnabled ? "/" : "./index.html";
+    });
+    sideQrToggleBtn.addEventListener("click", () => {
       if (!liveRoom) {
         setMessage("Open this page through the local server first.", "bad");
         return;
       }
-      qrOverlay.classList.remove("hidden");
+      sideQrVisible = !sideQrVisible;
+      render();
+    });
+    sideQrCard.addEventListener("click", openQrModal);
+    sideQrCard.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openQrModal();
+      }
     });
     closeQrBtn.addEventListener("click", () => {
       qrOverlay.classList.add("hidden");

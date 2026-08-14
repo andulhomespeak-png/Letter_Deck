@@ -974,7 +974,7 @@
     }
 
     function keepInputReady() {
-      if (!wordInput || wordInput.disabled || !playView || playView.classList.contains("hidden")) {
+      if (!wordInput || !playView || playView.classList.contains("hidden")) {
         return;
       }
       if (document.activeElement === wordInput) {
@@ -1073,10 +1073,7 @@
       const wordHtml = entry.word
         ? `<span class="score-toast-word">${highlightUsedLetters(entry.word, entry.consumedLetters || [])}</span>`
         : "";
-      const detailMessage = entry.lockedOut
-        ? "That answer missed this round. Wait for the next one."
-        : entry.message;
-      const detail = detailMessage ? `<div>${escapeHtml(detailMessage)}</div>` : "";
+      const detail = entry.message ? `<div>${escapeHtml(entry.message)}</div>` : "";
       const breakdown = tone === "good"
         ? `<div class="score-breakdown">${Number(entry.lettersScore) || 0} letters + ${Number(entry.lengthBonus) || 0} length + ${Number(entry.stealBonus) || 0} steal</div>`
         : "";
@@ -1086,7 +1083,7 @@
         showClaimOverlay(entry);
       }
       showToast({
-        label: entry.lockedOut ? "Next round" : tone === "bad" ? "Not valid" : "Correct",
+        label: tone === "bad" ? "Not valid" : "Correct",
         tone,
         html: `<strong>${entry.teamName || "You"}</strong>${wordHtml}${detail}${breakdown}`
       });
@@ -1268,8 +1265,6 @@
       if (!room || !player) return;
       const live = room.status === "live";
       const finished = room.status === "finished";
-      const lockKey = String(player.id || player.teamId || player.teamName || "").trim();
-      const lockedOut = live && lockKey && Array.isArray(room.lockedOutPlayers) && room.lockedOutPlayers.includes(lockKey);
       waitingView.classList.toggle("hidden", live);
       playView.classList.toggle("hidden", !live);
       if (finished) {
@@ -1311,9 +1306,6 @@
       if (!mobileReportOverlay.classList.contains("hidden")) {
         renderMobileVocabularyReport();
       }
-      wordInput.disabled = !!lockedOut;
-      submitBtn.disabled = !!lockedOut;
-      wordInput.placeholder = lockedOut ? "Wait for the next round" : "Type your word";
       keepInputReady();
     }
 
@@ -1402,20 +1394,6 @@
 
     async function submitWord() {
       if (!player || !room) return;
-      const lockKey = String(player.id || player.teamId || player.teamName || "").trim();
-      if (lockKey && Array.isArray(room.lockedOutPlayers) && room.lockedOutPlayers.includes(lockKey)) {
-        showFeedbackToast({
-          id: `${room.roundId || Date.now()}-locked-out`,
-          teamId: player.teamId,
-          teamName: player.teamName,
-          word: wordInput.value.trim(),
-          tone: "bad",
-          lockedOut: true,
-          message: "That answer missed this round. Wait for the next one."
-        });
-        keepInputReady();
-        return;
-      }
       const nextWord = wordInput.value.trim();
       if (!nextWord) {
         keepInputReady();
