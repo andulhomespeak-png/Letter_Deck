@@ -139,8 +139,10 @@
       gap: 5px;
       padding: 12px 14px;
       border-radius: 22px;
-      background: linear-gradient(135deg, rgba(255,255,255,0.98), rgba(255, 244, 206, 0.92));
-      box-shadow: inset 0 0 0 1px rgba(16, 11, 47, 0.08);
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.98), rgba(255, 244, 206, 0.94)),
+        radial-gradient(circle at 18% 0%, rgba(255, 37, 65, 0.18), transparent 44%);
+      box-shadow: inset 0 0 0 1px rgba(16, 11, 47, 0.08), 0 10px 24px rgba(16, 11, 47, 0.1);
     }
 
     .room-block {
@@ -170,6 +172,9 @@
       font-weight: 1000;
       text-align: left;
       box-shadow: none;
+      letter-spacing: -0.055em;
+      text-transform: uppercase;
+      text-shadow: 0 3px 0 rgba(255, 212, 71, 0.38);
     }
 
     .score-line {
@@ -234,15 +239,27 @@
 
     .turn-card.is-locked {
       background:
-        radial-gradient(circle at 50% 0%, rgba(255, 212, 71, 0.28), transparent 38%),
+        radial-gradient(circle at 50% 0%, rgba(255, 212, 71, 0.34), transparent 38%),
+        linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(255, 238, 227, 0.94)),
         rgba(255,255,255,0.92);
+      border-color: rgba(255, 37, 65, 0.18);
     }
 
-    .turn-card.is-locked .turn-name {
-      color: var(--ink);
+    .turn-card.is-held {
+      background:
+        radial-gradient(circle at 50% 0%, rgba(11, 130, 255, 0.2), transparent 38%),
+        linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(232, 245, 255, 0.94));
+      border-color: rgba(11, 130, 255, 0.18);
+    }
+
+    .turn-card.is-locked .turn-name,
+    .turn-card.is-held .turn-name {
+      color: #7d0717;
       font-size: clamp(2.1rem, 10vw, 4.2rem);
-      line-height: 0.98;
-      text-shadow: 0 5px 0 rgba(255, 212, 71, 0.42);
+      line-height: 0.94;
+      letter-spacing: -0.055em;
+      text-transform: uppercase;
+      text-shadow: 0 4px 0 rgba(255, 212, 71, 0.44), 0 12px 26px rgba(153, 0, 21, 0.16);
     }
 
     .turn-name {
@@ -284,7 +301,7 @@
 </head>
 <body>
   <section class="join" id="joinView">
-    <img class="logo" src="./student-letter-clash-logo.png" alt="Letter Clash">
+    <img class="logo" src="./buzzer-logo.png" alt="Fast Buzzer">
     <label for="nameInput">Enter your name or team name</label>
     <input id="nameInput" autocomplete="name" maxlength="34" autofocus>
     <button id="joinBtn" type="button">Join Room</button>
@@ -401,19 +418,28 @@
 
       const isLive = room.status === "live";
       const hasWinner = !!room.winner;
+      const isHeld = !!room.buzzerHeld;
       const lockedOutPlayers = Array.isArray(room.lockedOutPlayers) ? room.lockedOutPlayers : [];
       const isLockedOut = lockedOutPlayers.includes(player.id);
       const alreadyPressed = lastRoundSubmitted === room.roundId;
-      buzzBtn.disabled = !isLive || hasWinner || alreadyPressed || isLockedOut;
-      buzzBtn.classList.toggle("hidden", hasWinner || isLockedOut);
-      turnCard.classList.toggle("hidden", !hasWinner && !isLockedOut);
+      buzzBtn.disabled = !isLive || hasWinner || alreadyPressed || isLockedOut || isHeld;
+      buzzBtn.classList.toggle("hidden", hasWinner || isLockedOut || isHeld);
+      turnCard.classList.toggle("hidden", !hasWinner && !isLockedOut && !isHeld);
       turnCard.classList.toggle("is-locked", isLockedOut);
+      turnCard.classList.toggle("is-held", isHeld && !hasWinner && !isLockedOut);
 
       if (!isLive) {
         statusText.textContent = "";
         turnCard.classList.add("hidden");
         turnCard.classList.remove("is-locked");
+        turnCard.classList.remove("is-held");
         buzzBtn.classList.remove("hidden");
+        return;
+      }
+
+      if (isHeld && !hasWinner && !isLockedOut) {
+        turnName.textContent = "Buzzers on hold.";
+        statusText.textContent = "";
         return;
       }
 
@@ -509,6 +535,8 @@
         room = data.room;
         if (data.accepted) {
           flash("good");
+        } else if (data.held) {
+          flash("bad");
         } else if (data.lockedOut) {
           flash("bad");
         } else {

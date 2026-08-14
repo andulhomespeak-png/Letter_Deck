@@ -248,6 +248,7 @@ function createBuzzerRoom() {
     winner: null,
     buzzes: [],
     lockedOutPlayers: [],
+    buzzerHeld: false,
     nextPlayerId: 1,
     roundStartedAt: 0,
     updatedAt: Date.now()
@@ -440,6 +441,7 @@ function serializeBuzzerRoom(room) {
     winner: room.winner,
     buzzes: room.buzzes.slice(0, 12),
     lockedOutPlayers: room.lockedOutPlayers || [],
+    buzzerHeld: !!room.buzzerHeld,
     roundStartedAt: room.roundStartedAt,
     updatedAt: room.updatedAt
   };
@@ -901,10 +903,25 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { room: serializeBuzzerRoom(room) });
     }
 
+    if (req.method === "POST" && url.pathname === "/api/buzzer/hold") {
+      const { code, held } = await body(req);
+      const room = getBuzzerRoom(code);
+      room.buzzerHeld = !!held;
+      if (!Array.isArray(room.lockedOutPlayers)) {
+        room.lockedOutPlayers = [];
+      }
+      touch(room);
+      broadcastBuzzerRoom(room);
+      return json(res, 200, { room: serializeBuzzerRoom(room) });
+    }
+
     if (req.method === "POST" && url.pathname === "/api/buzzer/buzz") {
       const { code, playerId, playerName, roundId } = await body(req);
       const room = getBuzzerRoom(code);
       if (room.status !== "live") throw new Error("Buzzer is not live");
+      if (room.buzzerHeld) {
+        return json(res, 200, { accepted: false, held: true, room: serializeBuzzerRoom(room) });
+      }
       if (Number(roundId) !== Number(room.roundId)) {
         return json(res, 200, { accepted: false, stale: true, room: serializeBuzzerRoom(room) });
       }

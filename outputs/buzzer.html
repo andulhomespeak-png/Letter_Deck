@@ -123,6 +123,12 @@
       padding: 0 12px;
     }
 
+    .actions .hold.is-active {
+      color: #fff;
+      background: linear-gradient(135deg, var(--red), #a8001a);
+      box-shadow: 0 14px 30px rgba(255, 37, 65, 0.24);
+    }
+
     .points-panel {
       min-width: 0;
       display: flex;
@@ -277,110 +283,57 @@
     .alarm-beacon {
       position: relative;
       width: min(360px, 38vw, 50vh);
-      aspect-ratio: 1.08;
       display: grid;
       place-items: center;
       isolation: isolate;
-      opacity: 0.72;
-      filter: grayscale(0.52) saturate(0.72) brightness(0.86);
+      filter: drop-shadow(0 28px 40px rgba(16, 11, 47, 0.22));
     }
 
-    .alarm-beacon::before {
-      content: "";
-      position: absolute;
-      width: 138%;
-      height: 138%;
-      border-radius: 50%;
-      background: conic-gradient(from 0deg, transparent 0 28deg, rgba(255, 37, 65, 0.42) 38deg, transparent 72deg 360deg);
-      filter: blur(16px);
-      opacity: 0;
-      z-index: -2;
-    }
-
-    .alarm-beacon.is-active {
-      opacity: 1;
-      filter: none;
+    .idle .alarm-beacon {
+      width: min(430px, 44vw, 58vh);
     }
 
     .alarm-beacon.is-active::before {
-      opacity: 0.82;
-      animation: beaconSweep 1.18s linear infinite;
-    }
-
-    .alarm-beacon::after {
       content: "";
       position: absolute;
-      bottom: 4%;
-      width: 74%;
-      height: 18%;
-      border-radius: 999px;
-      background: linear-gradient(180deg, #31294f, #100b2f);
-      box-shadow: 0 18px 34px rgba(16, 11, 47, 0.28);
-      z-index: 0;
-    }
-
-    .alarm-dome {
-      position: relative;
-      width: 74%;
-      height: 64%;
-      margin-bottom: 13%;
-      border-radius: 48% 48% 28% 28%;
-      overflow: hidden;
+      left: 50.6%;
+      top: 48.4%;
+      width: 30%;
+      aspect-ratio: 1;
+      border-radius: 50%;
       background:
-        radial-gradient(circle at 34% 22%, rgba(255,255,255,0.9), transparent 13%),
-        radial-gradient(circle at 46% 12%, #ffbdc7, transparent 24%),
-        linear-gradient(135deg, #ff6b7d 0%, var(--red) 46%, #970014 100%);
-      border: clamp(8px, 1vw, 12px) solid rgba(255,255,255,0.78);
-      box-shadow:
-        inset 0 -28px 42px rgba(93, 0, 15, 0.34),
-        inset 0 20px 34px rgba(255,255,255,0.32),
-        0 28px 70px rgba(153, 0, 21, 0.34);
-      z-index: 1;
+        conic-gradient(from 0deg, transparent 0 24deg, rgba(255,255,255,0.86) 30deg, rgba(255,212,71,0.92) 46deg, transparent 68deg 360deg),
+        radial-gradient(circle, rgba(255, 255, 255, 0.9), rgba(255, 212, 71, 0.48) 36%, transparent 66%);
+      transform: translate(-50%, -50%);
+      filter: blur(0.5px) drop-shadow(0 0 18px rgba(255, 212, 71, 0.9));
+      mix-blend-mode: screen;
+      animation: beaconSweep 1.06s linear infinite;
+      pointer-events: none;
+      z-index: 2;
     }
 
-    .alarm-dome::before {
-      content: "";
-      position: absolute;
-      inset: -20% 36%;
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.72), transparent);
-      transform-origin: 50% 58%;
-      opacity: 0.34;
-    }
-
-    .alarm-beacon.is-active .alarm-dome::before {
-      opacity: 1;
-      animation: domeSweep 1.18s linear infinite;
-    }
-
-    .alarm-dome::after {
+    .alarm-beacon.is-active::after {
       content: "";
       position: absolute;
       left: 50%;
-      bottom: 10%;
+      top: 48%;
       width: 18%;
-      height: 58%;
-      border-radius: 999px;
-      background: rgba(255, 244, 206, 0.58);
-      box-shadow: 0 0 26px rgba(255, 244, 206, 0.92);
-      transform: translateX(-50%);
-      opacity: 0.28;
-    }
-
-    .alarm-beacon.is-active .alarm-dome::after {
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.72);
+      box-shadow: 0 0 28px rgba(255, 255, 255, 0.9), 0 0 58px rgba(255, 212, 71, 0.82);
+      transform: translate(-50%, -50%);
       animation: beaconPulse 590ms ease-in-out infinite alternate;
+      pointer-events: none;
+      z-index: 3;
     }
 
-    .alarm-base {
-      position: absolute;
-      bottom: 9%;
-      width: 86%;
-      height: 24%;
-      border-radius: 34px 34px 999px 999px;
-      background:
-        linear-gradient(180deg, rgba(255,255,255,0.18), transparent 42%),
-        linear-gradient(135deg, #3f3670, #130f2d);
-      box-shadow: inset 0 2px 0 rgba(255,255,255,0.28), 0 24px 38px rgba(16, 11, 47, 0.22);
-      z-index: 0;
+    .alarm-image {
+      display: block;
+      width: 100%;
+      height: auto;
+      position: relative;
+      z-index: 1;
     }
 
     .winner-alarm {
@@ -441,27 +394,6 @@
       box-shadow: 0 18px 42px rgba(8, 125, 255, 0.16);
     }
 
-    .qr-box::after {
-      content: "Click to enlarge";
-      position: absolute;
-      left: 50%;
-      bottom: 12px;
-      transform: translateX(-50%);
-      padding: 7px 10px;
-      border-radius: 999px;
-      color: #fff;
-      background: rgba(16, 11, 47, 0.72);
-      font-size: 0.72rem;
-      font-weight: 1000;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 160ms ease;
-    }
-
-    .qr-box:hover::after {
-      opacity: 1;
-    }
-
     .qr-box img {
       width: 100%;
       border-radius: 20px;
@@ -479,7 +411,7 @@
         radial-gradient(circle at 50% 44%, rgba(255, 255, 255, 0.22), transparent 34%),
         rgba(8, 8, 24, 0.82);
       backdrop-filter: blur(12px);
-      cursor: zoom-out;
+      cursor: default;
     }
 
     .qr-fullscreen-card {
@@ -494,32 +426,59 @@
       gap: 14px;
       text-align: center;
       animation: qrPop 220ms ease both;
+      overflow: hidden;
     }
 
     .qr-fullscreen-card img {
-      width: 100%;
+      width: min(100%, 620px);
+      max-height: min(62vh, 600px);
       align-self: center;
+      justify-self: center;
       border-radius: 28px;
       image-rendering: pixelated;
+      object-fit: contain;
     }
 
     .qr-fullscreen-code {
       margin: 0;
       color: var(--red);
-      font-size: clamp(2.2rem, 7vmin, 5rem);
+      font-size: clamp(1.35rem, 3.6vmin, 2.7rem);
       font-weight: 1000;
       letter-spacing: 0.08em;
+      line-height: 0.95;
+    }
+
+    .qr-fullscreen-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .qr-fullscreen-actions button {
+      min-height: 34px;
+      padding: 0 14px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+    }
+
+    .qr-fullscreen-actions .live {
+      color: #fff;
+      background: linear-gradient(135deg, #11bf54, #0a8f42);
+      box-shadow: 0 14px 30px rgba(17, 191, 84, 0.28);
     }
 
     .qr-fullscreen-main {
       min-width: 0;
+      min-height: 0;
       display: grid;
-      gap: 12px;
-      align-content: center;
+      grid-template-rows: minmax(0, 1fr) auto auto;
+      gap: 8px;
+      align-content: stretch;
     }
 
     .qr-fullscreen-people {
       min-height: 0;
+      overflow: hidden;
       display: grid;
       grid-template-rows: auto minmax(0, 1fr);
       gap: 10px;
@@ -724,10 +683,6 @@
       to { transform: rotate(360deg); }
     }
 
-    @keyframes domeSweep {
-      to { transform: rotate(360deg); }
-    }
-
     @keyframes beaconPulse {
       from { opacity: 0.48; filter: blur(0); }
       to { opacity: 1; filter: blur(2px); }
@@ -874,6 +829,19 @@
         grid-template-columns: 1fr;
         width: min(92vw, 520px);
         max-height: 90vh;
+        grid-template-rows: minmax(0, 0.82fr) minmax(108px, 0.38fr);
+      }
+
+      .qr-fullscreen-card img {
+        max-height: 42vh;
+      }
+
+      .qr-fullscreen-code {
+        font-size: clamp(1.2rem, 5.4vw, 2rem);
+      }
+
+      .qr-fullscreen-actions button {
+        min-height: 32px;
       }
     }
   </style>
@@ -895,6 +863,7 @@
         </div>
         <div class="actions">
           <button id="liveBtn" class="live" type="button">Live</button>
+          <button id="holdBtn" class="hold" type="button">Hold</button>
           <button id="resetBtn" class="danger" type="button">Reset</button>
           <button id="homeBtn" type="button">Home</button>
         </div>
@@ -903,15 +872,13 @@
       <div class="stage" id="stage">
         <div class="idle" id="idleState">
           <div class="alarm-beacon" aria-label="Buzzer alarm waiting">
-            <div class="alarm-dome"></div>
-            <div class="alarm-base"></div>
+            <img class="alarm-image" src="./buzzer-alarm-off.png" alt="">
           </div>
         </div>
         <div class="winner hidden" id="winnerCard">
           <div class="winner-stack">
             <div class="alarm-beacon is-active winner-alarm" aria-label="Buzzer alarm active">
-              <div class="alarm-dome"></div>
-              <div class="alarm-base"></div>
+              <img class="alarm-image" src="./buzzer-alarm-on.png" alt="">
             </div>
             <h2 class="winner-name" id="winnerName">Player</h2>
             <div class="score-actions">
@@ -943,6 +910,10 @@
       <div class="qr-fullscreen-main">
         <img id="qrLargeImage" alt="Large buzzer room QR">
         <p class="qr-fullscreen-code" id="qrLargeCode">-----</p>
+        <div class="qr-fullscreen-actions">
+          <button class="live" id="qrLiveBtn" type="button">Live</button>
+          <button id="qrCloseBtn" type="button">Close</button>
+        </div>
       </div>
       <section class="qr-fullscreen-people" aria-label="Connected participants">
         <h3>Connected</h3>
@@ -970,6 +941,8 @@
     const qrOverlay = document.getElementById("qrOverlay");
     const qrLargeImage = document.getElementById("qrLargeImage");
     const qrLargeCode = document.getElementById("qrLargeCode");
+    const qrLiveBtn = document.getElementById("qrLiveBtn");
+    const qrCloseBtn = document.getElementById("qrCloseBtn");
     const qrPeopleList = document.getElementById("qrPeopleList");
     const confirmOverlay = document.getElementById("confirmOverlay");
     const confirmTitle = document.getElementById("confirmTitle");
@@ -982,6 +955,7 @@
     const winnerName = document.getElementById("winnerName");
     const idleState = document.getElementById("idleState");
     const liveBtn = document.getElementById("liveBtn");
+    const holdBtn = document.getElementById("holdBtn");
     const resetBtn = document.getElementById("resetBtn");
     const homeBtn = document.getElementById("homeBtn");
     const qrToggleBtn = document.getElementById("qrToggleBtn");
@@ -1005,10 +979,14 @@
     let qrPanelVisible = true;
     let scorerEnabled = true;
     let pointValue = 50;
-    const buzzerSound = new Audio("buzzer-chime.mp3");
-    buzzerSound.preload = "auto";
-    buzzerSound.volume = 1;
-    buzzerSound.load();
+    const turnAlarmSound = new Audio("buzzer-turn-alarm.wav");
+    turnAlarmSound.preload = "auto";
+    turnAlarmSound.volume = 1;
+    turnAlarmSound.load();
+    const awardSound = new Audio("buzzer-chime.mp3");
+    awardSound.preload = "auto";
+    awardSound.volume = 1;
+    awardSound.load();
 
     function escapeHtml(value) {
       return String(value || "")
@@ -1078,28 +1056,38 @@
     }
 
     function unlockAudio() {
+      [turnAlarmSound, awardSound].forEach((sound) => {
+        try {
+          const previousMuted = sound.muted;
+          sound.muted = true;
+          sound.play()
+            .then(() => {
+              sound.pause();
+              sound.currentTime = 0;
+              sound.muted = previousMuted;
+            })
+            .catch(() => {
+              sound.muted = previousMuted;
+            });
+        } catch (_) {}
+      });
+    }
+
+    function playSound(sound) {
       try {
-        const previousMuted = buzzerSound.muted;
-        buzzerSound.muted = true;
-        buzzerSound.play()
-          .then(() => {
-            buzzerSound.pause();
-            buzzerSound.currentTime = 0;
-            buzzerSound.muted = previousMuted;
-          })
-          .catch(() => {
-            buzzerSound.muted = previousMuted;
-          });
+        sound.pause();
+        sound.currentTime = 0;
+        sound.muted = false;
+        sound.play().catch(() => {});
       } catch (_) {}
     }
 
-    function playBuzzerSound() {
-      try {
-        buzzerSound.pause();
-        buzzerSound.currentTime = 0;
-        buzzerSound.muted = false;
-        buzzerSound.play().catch(() => {});
-      } catch (_) {}
+    function playTurnAlarmSound() {
+      playSound(turnAlarmSound);
+    }
+
+    function playAwardSound() {
+      playSound(awardSound);
     }
 
     async function requestWakeLock() {
@@ -1148,6 +1136,10 @@
       roomCodeEl.textContent = room.code;
       qrImage.src = getQrSrc(420);
       liveBtn.disabled = !room.players.length || room.status === "live";
+      holdBtn.disabled = false;
+      holdBtn.textContent = room.buzzerHeld ? "Held" : "Hold";
+      holdBtn.classList.toggle("is-active", !!room.buzzerHeld);
+      qrLiveBtn.disabled = !room.players.length || room.status === "live";
       sidePanel.classList.toggle("is-qr-hidden", !qrPanelVisible);
       qrBox.classList.toggle("hidden", !qrPanelVisible);
       qrToggleBtn.textContent = qrPanelVisible ? "Hide QR" : "Show QR";
@@ -1165,7 +1157,7 @@
         winnerName.textContent = room.winner.playerName;
         if (room.winner.id !== lastWinnerId) {
           lastWinnerId = room.winner.id;
-          playBuzzerSound();
+          playTurnAlarmSound();
           winnerCard.classList.remove("is-hot");
           winnerCard.offsetHeight;
           winnerCard.classList.add("is-hot");
@@ -1264,10 +1256,28 @@
       connectSocket();
     }
 
-    liveBtn.addEventListener("click", async () => {
+    async function startLive() {
       const data = await api("/api/buzzer/start", { code: room.code });
       room = data.room;
       qrPanelVisible = false;
+      closeQrOverlay();
+      render();
+    }
+
+    liveBtn.addEventListener("click", async () => {
+      await startLive();
+    });
+
+    holdBtn.addEventListener("click", async () => {
+      if (!room) return;
+      const previousHeld = !!room.buzzerHeld;
+      room.buzzerHeld = !previousHeld;
+      render();
+      const data = await api("/api/buzzer/hold", {
+        code: room.code,
+        held: room.buzzerHeld
+      });
+      room = data.room;
       render();
     });
 
@@ -1298,6 +1308,7 @@
     }
 
     awardPointBtn.addEventListener("click", () => {
+      playAwardSound();
       resolveCurrentTurn(pointValue).catch(() => {});
     });
 
@@ -1355,7 +1366,13 @@
         openQrOverlay();
       }
     });
-    qrOverlay.addEventListener("click", closeQrOverlay);
+    qrLiveBtn.addEventListener("click", () => {
+      startLive().catch(() => {});
+    });
+    qrCloseBtn.addEventListener("click", closeQrOverlay);
+    qrOverlay.addEventListener("click", (event) => {
+      if (event.target === qrOverlay) closeQrOverlay();
+    });
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && !qrOverlay.classList.contains("hidden")) {
         closeQrOverlay();
