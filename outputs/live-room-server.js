@@ -858,9 +858,12 @@ const server = http.createServer(async (req, res) => {
         player = {
           id: `buzzer-player-${room.nextPlayerId++}`,
           name: clean,
+          score: 0,
           joinedAt: Date.now()
         };
         room.players.push(player);
+      } else if (!Number.isFinite(Number(player.score))) {
+        player.score = 0;
       }
       touch(room);
       broadcastBuzzerRoom(room);
@@ -922,6 +925,26 @@ const server = http.createServer(async (req, res) => {
       touch(room);
       broadcastBuzzerRoom(room);
       return json(res, 200, { accepted: buzz.accepted, room: serializeBuzzerRoom(room) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/buzzer/score") {
+      const { code, playerId, delta } = await body(req);
+      const room = getBuzzerRoom(code);
+      if (!room.winner || room.winner.playerId !== playerId) {
+        throw new Error("Score can only be applied to the current turn holder");
+      }
+      const player = room.players.find((item) => item.id === playerId);
+      if (!player) throw new Error("Participant not found");
+      const scoreDelta = Math.max(-10000, Math.min(10000, Math.trunc(Number(delta) || 0)));
+      player.score = Number(player.score || 0) + scoreDelta;
+      room.roundId += 1;
+      room.winner = null;
+      room.buzzes = [];
+      room.roundStartedAt = Date.now();
+      room.status = "live";
+      touch(room);
+      broadcastBuzzerRoom(room);
+      return json(res, 200, { room: serializeBuzzerRoom(room) });
     }
 
     if (req.method === "POST" && url.pathname === "/api/buzzer/remove-player") {
