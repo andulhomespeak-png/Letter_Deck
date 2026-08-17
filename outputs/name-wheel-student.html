@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spin the Wheel</title>
+  <link rel="icon" type="image/png" href="./spin-the-wheel-student-logo.png">
+  <style>
+    :root {
+      --ink: #100b2f;
+      --muted: rgba(16, 11, 47, 0.62);
+      --line: rgba(16, 11, 47, 0.12);
+      --blue: #087dff;
+      --red: #ff2541;
+      --green: #19c875;
+      --orange: #ff8a00;
+      --panel: rgba(255, 255, 255, 0.88);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 14% 12%, rgba(8, 125, 255, 0.34), transparent 28%),
+        radial-gradient(circle at 86% 18%, rgba(255, 138, 0, 0.3), transparent 30%),
+        radial-gradient(circle at 50% 94%, rgba(25, 200, 117, 0.24), transparent 34%),
+        linear-gradient(135deg, #fff4cf 0%, #eef8ff 46%, #ffe2e8 100%);
+      display: grid;
+      place-items: center;
+      padding: 16px;
+    }
+
+    .card {
+      width: min(100%, 460px);
+      min-height: min(720px, calc(100dvh - 32px));
+      padding: clamp(18px, 6vw, 30px);
+      border-radius: 34px;
+      border: 1px solid rgba(255,255,255,0.76);
+      background: var(--panel);
+      box-shadow: 0 28px 80px rgba(16, 11, 47, 0.18);
+      backdrop-filter: blur(18px);
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 18px;
+      overflow: hidden;
+    }
+
+    .hero {
+      display: grid;
+      place-items: center;
+      gap: 10px;
+      text-align: center;
+    }
+
+    .tool-logo {
+      width: min(82vw, 310px);
+      max-height: 320px;
+      object-fit: contain;
+      filter: drop-shadow(0 20px 34px rgba(16, 11, 47, 0.18));
+    }
+
+    .form {
+      align-self: center;
+      display: grid;
+      gap: 14px;
+    }
+
+    label {
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 1000;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    input {
+      width: 100%;
+      min-height: 58px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 0 18px;
+      font: inherit;
+      font-size: 1.15rem;
+      font-weight: 1000;
+      color: var(--ink);
+      background: rgba(255,255,255,0.94);
+      outline: none;
+    }
+
+    input:focus {
+      border-color: rgba(8, 125, 255, 0.4);
+      box-shadow: 0 0 0 4px rgba(8, 125, 255, 0.12);
+    }
+
+    button {
+      min-height: 58px;
+      border: 0;
+      border-radius: 999px;
+      padding: 0 18px;
+      font: inherit;
+      font-size: 1.1rem;
+      font-weight: 1000;
+      color: #fff;
+      background: linear-gradient(135deg, var(--red), #a8001a);
+      box-shadow: 0 16px 36px rgba(255, 37, 65, 0.24);
+      cursor: pointer;
+      transition: transform 120ms ease, filter 120ms ease, opacity 120ms ease;
+    }
+
+    button:hover { transform: translateY(-2px); }
+    button:active { transform: translateY(1px); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .message {
+      min-height: 54px;
+      padding: 12px 14px;
+      border-radius: 20px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      color: var(--muted);
+      font-weight: 1000;
+      background: rgba(255,255,255,0.68);
+      border: 1px solid var(--line);
+    }
+
+    .message.good {
+      color: #075f35;
+      background: rgba(220, 255, 238, 0.86);
+      border-color: rgba(25, 200, 117, 0.28);
+    }
+
+    .message.bad {
+      color: #8f0618;
+      background: rgba(255, 226, 231, 0.86);
+      border-color: rgba(255, 37, 65, 0.28);
+    }
+
+    .card.is-submitted {
+      grid-template-rows: auto 1fr;
+    }
+
+    .card.is-submitted .form {
+      display: none;
+    }
+
+    .card.is-submitted .message {
+      align-self: center;
+      min-height: 110px;
+      padding: 22px;
+      font-size: clamp(1.35rem, 6vw, 2rem);
+      line-height: 1.12;
+      box-shadow: 0 18px 40px rgba(25, 200, 117, 0.16);
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <section class="hero">
+      <img class="tool-logo" src="./spin-the-wheel-student-logo.png" alt="Spin the Wheel">
+    </section>
+
+    <form class="form" id="joinForm">
+      <label for="nameInput">Enter your name or team name</label>
+      <input id="nameInput" name="name" autocomplete="name" placeholder="Your name" required>
+      <button id="submitBtn" type="submit">Send</button>
+    </form>
+
+    <div class="message" id="message">Your name will appear on the teacher screen.</div>
+  </main>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const code = String(params.get("code") || "").toUpperCase();
+    const form = document.getElementById("joinForm");
+    const input = document.getElementById("nameInput");
+    const submitBtn = document.getElementById("submitBtn");
+    const message = document.getElementById("message");
+    const card = document.querySelector(".card");
+    const submittedNameKey = `name-wheel-name-${code}`;
+    let submittedName = localStorage.getItem(submittedNameKey) || "";
+
+    if (submittedName) {
+      input.value = submittedName;
+      input.disabled = true;
+      submitBtn.disabled = true;
+      card.classList.add("is-submitted");
+    }
+
+    function setMessage(text, tone = "") {
+      message.textContent = text;
+      message.className = `message ${tone}`.trim();
+    }
+
+    async function api(path, payload = null, method = "POST") {
+      const response = await fetch(path, {
+        method,
+        headers: payload ? { "Content-Type": "application/json" } : undefined,
+        body: payload ? JSON.stringify(payload) : undefined
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Request failed");
+      return data;
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const name = input.value.trim();
+      if (!code) {
+        setMessage("Missing room code. Scan the QR again.", "bad");
+        return;
+      }
+      if (!name) {
+        setMessage("Type your name first.", "bad");
+        input.focus();
+        return;
+      }
+      if (submittedName) {
+        return;
+      }
+      submitBtn.disabled = true;
+      try {
+        const data = await api("/api/wheel/join", { code, name });
+        submittedName = data.name;
+        localStorage.setItem(submittedNameKey, submittedName);
+        input.disabled = true;
+        submitBtn.disabled = true;
+        card.classList.add("is-submitted");
+        setMessage(`${data.name} will appear on the teacher list.`, "good");
+        input.blur();
+      } catch (error) {
+        setMessage(error.message || "Could not join this wheel.", "bad");
+        submitBtn.disabled = false;
+      }
+    });
+
+    window.addEventListener("load", () => {
+      if (submittedName) {
+        setMessage(`${submittedName} will appear on the teacher list.`, "good");
+        return;
+      }
+      input.focus();
+    });
+  </script>
+</body>
+</html>

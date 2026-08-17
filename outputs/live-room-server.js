@@ -14,6 +14,8 @@ const STUDENT_HTML = path.join(ROOT, "student.html");
 const HOME_HTML = path.join(ROOT, "index.html");
 const BUZZER_HTML = path.join(ROOT, "buzzer.html");
 const BUZZER_STUDENT_HTML = path.join(ROOT, "buzzer-student.html");
+const NAME_WHEEL_HTML = path.join(ROOT, "name-wheel.html");
+const NAME_WHEEL_STUDENT_HTML = path.join(ROOT, "name-wheel-student.html");
 const WORDS_JS = path.join(ROOT, "english-words.js");
 const ROOM_TTL_MS = 60 * 60 * 1000;
 
@@ -21,6 +23,7 @@ const rooms = new Map();
 const roomSockets = new Map();
 const buzzerRooms = new Map();
 const buzzerSockets = new Map();
+const wheelRooms = new Map();
 
 function loadDictionary() {
   const source = fs.readFileSync(WORDS_JS, "utf8");
@@ -235,8 +238,19 @@ function makeCode() {
   let code = "";
   do {
     code = Array.from({ length: 5 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-  } while (rooms.has(code) || buzzerRooms.has(code));
+  } while (rooms.has(code) || buzzerRooms.has(code) || wheelRooms.has(code));
   return code;
+}
+
+function createWheelRoom() {
+  const room = {
+    code: makeCode(),
+    names: [],
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+  wheelRooms.set(room.code, room);
+  return room;
 }
 
 function createBuzzerRoom() {
@@ -301,6 +315,12 @@ function cleanupRooms() {
     buzzerRooms.delete(code);
     buzzerSockets.delete(code);
   });
+  wheelRooms.forEach((room, code) => {
+    if (now - Number(room.updatedAt || 0) < ROOM_TTL_MS) {
+      return;
+    }
+    wheelRooms.delete(code);
+  });
 }
 
 function getRoom(code) {
@@ -312,6 +332,12 @@ function getRoom(code) {
 function getBuzzerRoom(code) {
   const room = buzzerRooms.get(String(code || "").toUpperCase());
   if (!room) throw new Error("Buzzer room not found");
+  return room;
+}
+
+function getWheelRoom(code) {
+  const room = wheelRooms.get(String(code || "").toUpperCase());
+  if (!room) throw new Error("Wheel room not found");
   return room;
 }
 
@@ -445,6 +471,30 @@ function serializeBuzzerRoom(room) {
     roundStartedAt: room.roundStartedAt,
     updatedAt: room.updatedAt
   };
+}
+
+function serializeWheelRoom(room) {
+  return {
+    code: room.code,
+    names: room.names,
+    updatedAt: room.updatedAt
+  };
+}
+
+function normalizeWheelNames(values) {
+  const seen = new Set();
+  return (Array.isArray(values) ? values : [])
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .filter((value) => {
+      const key = value.toLowerCase();
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 500);
 }
 
 async function enrichAcceptedWord(roomCode, feedbackId, word) {
@@ -592,7 +642,9 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/") return html(res, HOME_HTML);
     if (req.method === "GET" && url.pathname === "/letter-clash") return html(res, TEACHER_HTML);
     if (req.method === "GET" && url.pathname === "/buzzer") return html(res, BUZZER_HTML);
+    if (req.method === "GET" && url.pathname === "/name-wheel") return html(res, NAME_WHEEL_HTML);
     if (req.method === "GET" && url.pathname === "/buzzer-student.html") return html(res, BUZZER_STUDENT_HTML);
+    if (req.method === "GET" && url.pathname === "/name-wheel-student.html") return html(res, NAME_WHEEL_STUDENT_HTML);
     if (req.method === "GET" && url.pathname === "/student.html") return html(res, STUDENT_HTML);
     if (req.method === "GET" && url.pathname === "/english-words.js") {
       res.writeHead(200, { "Content-Type": "application/javascript; charset=utf-8", "Cache-Control": "no-store" });
@@ -1029,6 +1081,39 @@ const server = http.createServer(async (req, res) => {
       touch(room);
       broadcastBuzzerRoom(room);
       return json(res, 200, { room: serializeBuzzerRoom(room) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/wheel/create-room") {
+      return json(res, 200, { room: serializeWheelRoom(createWheelRoom()) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/wheel/delete-room") {
+      const { code } = await body(req);
+      wheelRooms.delete(String(code || "").toUpperCase());
+      return json(res, 200, { ok: true });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/wheel/room") {
+      return json(res, 200, { room: serializeWheelRoom(getWheelRoom(url.searchParams.get("code"))) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/wheel/sync") {
+      const { code, names } = await body(req);
+      const room = getWheelRoom(code);
+      room.names = normalizeWheelNames(names);
+      touch(room);
+      return json(res, 200, { room: serializeWheelRoom(room) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/wheel/join") {
+      const { code, name } = await body(req);
+      const room = getWheelRoom(code);
+      const clean = String(name || "").trim();
+      if (!clean) throw new Error("Name is required");
+      const alreadyExists = room.names.some((item) => item.toLowerCase() === clean.toLowerCase());
+      room.names = normalizeWheelNames([...room.names, clean]);
+      touch(room);
+      return json(res, 200, { room: serializeWheelRoom(room), added: !alreadyExists, name: clean });
     }
 
     res.writeHead(404);

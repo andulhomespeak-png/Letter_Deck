@@ -1,0 +1,1194 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Name Wheel</title>
+  <link rel="icon" type="image/png" href="./letter-clash-favicon.png">
+  <style>
+    :root {
+      --ink: #100b2f;
+      --muted: rgba(16, 11, 47, 0.62);
+      --line: rgba(16, 11, 47, 0.12);
+      --blue: #087dff;
+      --red: #ff2541;
+      --green: #19c875;
+      --orange: #ff8a00;
+      --panel: rgba(255, 255, 255, 0.88);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 16% 16%, rgba(8, 125, 255, 0.34), transparent 28%),
+        radial-gradient(circle at 82% 18%, rgba(255, 138, 0, 0.3), transparent 30%),
+        radial-gradient(circle at 52% 90%, rgba(25, 200, 117, 0.22), transparent 34%),
+        linear-gradient(135deg, #fff4cf 0%, #eef8ff 46%, #ffe2e8 100%);
+    }
+
+    .app {
+      height: 100vh;
+      height: 100dvh;
+      padding: clamp(8px, 1.3vw, 16px);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(310px, 390px);
+      gap: clamp(8px, 1.3vw, 16px);
+    }
+
+    .main,
+    .side {
+      min-height: 0;
+      border: 1px solid rgba(255,255,255,0.75);
+      border-radius: clamp(24px, 3vw, 34px);
+      background: var(--panel);
+      box-shadow: 0 26px 78px rgba(16, 11, 47, 0.16);
+      backdrop-filter: blur(18px);
+    }
+
+    .main {
+      padding: clamp(12px, 1.7vw, 22px);
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: clamp(8px, 1.4vw, 16px);
+      overflow: clip;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: center;
+      gap: 10px;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: "Franklin Gothic Heavy", "Arial Black", "Trebuchet MS", sans-serif;
+      font-size: clamp(1.9rem, 4.2vw, 4.7rem);
+      line-height: 0.9;
+      letter-spacing: -0.05em;
+      text-transform: uppercase;
+      color: transparent;
+      background: linear-gradient(180deg, #fffdf2 0%, #ffe066 34%, #ff8a00 70%, #ff2541 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-stroke: clamp(1px, 0.14vw, 2px) #073a9b;
+      text-shadow: 0 4px 0 #087dff, 0 14px 28px rgba(16, 11, 47, 0.18);
+    }
+
+    .status {
+      justify-self: center;
+      min-width: 120px;
+      padding: 8px 14px;
+      border-radius: 22px;
+      background: rgba(255,255,255,0.82);
+      border: 1px solid var(--line);
+      box-shadow: inset 0 -10px 20px rgba(8, 125, 255, 0.06);
+      text-align: center;
+    }
+
+    .status-label {
+      margin: 0 0 4px;
+      color: var(--muted);
+      font-size: 0.7rem;
+      font-weight: 1000;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .status-main {
+      margin: 0;
+      font-size: clamp(1.25rem, 2vw, 2rem);
+      font-weight: 1000;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: end;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      min-height: 46px;
+      padding: 0 18px;
+      font: inherit;
+      font-weight: 1000;
+      color: var(--ink);
+      background: rgba(255,255,255,0.94);
+      box-shadow: 0 12px 26px rgba(16, 11, 47, 0.12);
+      cursor: pointer;
+      transition: transform 120ms ease, filter 120ms ease, opacity 120ms ease;
+    }
+
+    button:hover { transform: translateY(-2px); }
+    button:active { transform: translateY(1px); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+    .spin-btn {
+      color: #fff;
+      background: linear-gradient(135deg, var(--red), #a8001a);
+      box-shadow: 0 16px 36px rgba(255, 37, 65, 0.24);
+    }
+
+    .center-spin {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: clamp(84px, 13vmin, 128px);
+      height: clamp(84px, 13vmin, 128px);
+      min-height: 0;
+      padding: 0;
+      transform: translate(-50%, -50%);
+      border: 8px solid rgba(255,255,255,0.92);
+      color: #fff;
+      background: radial-gradient(circle at 34% 28%, #fff4a8 0 12%, #ffb000 34%, #ff2541 100%);
+      box-shadow:
+        inset 0 -10px 18px rgba(16, 11, 47, 0.18),
+        0 16px 30px rgba(16, 11, 47, 0.24);
+      font-size: clamp(1.05rem, 2.4vmin, 1.45rem);
+      letter-spacing: -0.02em;
+      z-index: 5;
+    }
+
+    .center-spin:hover {
+      transform: translate(-50%, -50%) scale(1.04);
+    }
+
+    .center-spin:active {
+      transform: translate(-50%, -50%) scale(0.98);
+    }
+
+    .center-spin:disabled {
+      transform: translate(-50%, -50%);
+    }
+
+    .center-spin:focus,
+    .center-spin:focus-visible {
+      outline: 0;
+      box-shadow:
+        inset 0 -10px 18px rgba(16, 11, 47, 0.18),
+        0 16px 30px rgba(16, 11, 47, 0.24);
+    }
+
+    .mode-toggle.is-remove {
+      color: #fff;
+      background: linear-gradient(135deg, var(--orange), var(--red));
+      box-shadow: 0 14px 32px rgba(255, 122, 0, 0.2);
+    }
+
+    .mode-toggle:not(.is-remove) {
+      color: #fff;
+      background: linear-gradient(135deg, var(--green), #039b52);
+      box-shadow: 0 14px 32px rgba(25, 200, 117, 0.2);
+    }
+
+    .danger {
+      color: #fff;
+      background: linear-gradient(135deg, var(--red), #a8001a);
+    }
+
+    .stage {
+      min-height: 0;
+      position: relative;
+      border-radius: clamp(24px, 4vw, 42px);
+      display: grid;
+      place-items: center;
+      padding: clamp(10px, 1.6vw, 22px);
+      overflow: clip;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.62), rgba(255,255,255,0.18)),
+        radial-gradient(circle at 50% 48%, rgba(8, 125, 255, 0.14), transparent 34%);
+      border: 1px dashed rgba(16, 11, 47, 0.14);
+    }
+
+    .wheel-wrap {
+      position: relative;
+      width: min(78vmin, 720px);
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      filter: drop-shadow(0 36px 42px rgba(16, 11, 47, 0.18));
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      transition: transform 8.4s cubic-bezier(0.07, 0.64, 0.01, 1);
+    }
+
+    .wheel-ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      pointer-events: none;
+      box-shadow:
+        inset 0 0 0 14px rgba(255,255,255,0.9),
+        inset 0 0 0 24px rgba(16, 11, 47, 0.08),
+        0 0 0 1px rgba(255,255,255,0.8);
+    }
+
+    .pointer {
+      position: absolute;
+      top: -5px;
+      left: 50%;
+      width: clamp(28px, 4.2vw, 46px);
+      height: clamp(42px, 6vw, 64px);
+      transform: translateX(-50%);
+      clip-path: polygon(50% 100%, 0 0, 100% 0);
+      background: linear-gradient(180deg, #fff7b4, var(--orange), var(--red));
+      filter: drop-shadow(0 10px 16px rgba(255, 37, 65, 0.28));
+      z-index: 4;
+    }
+
+    .winner-banner {
+      position: absolute;
+      left: 50%;
+      bottom: clamp(18px, 3vw, 34px);
+      transform: translateX(-50%);
+      width: min(680px, calc(100% - 30px));
+      padding: clamp(14px, 2vw, 22px);
+      border-radius: 28px;
+      text-align: center;
+      color: #fff;
+      background: linear-gradient(135deg, #087dff, #3024d8 48%, #ff2541);
+      box-shadow: 0 24px 58px rgba(16, 11, 47, 0.24);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .winner-banner.show {
+      animation: winnerIn 900ms cubic-bezier(0.18, 1.2, 0.28, 1) both;
+    }
+
+    .winner-label {
+      margin: 0 0 4px;
+      font-size: 0.78rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      font-weight: 1000;
+      opacity: 0.86;
+    }
+
+    .winner-name {
+      margin: 0;
+      font-size: clamp(2.2rem, 6vw, 5.2rem);
+      line-height: 0.9;
+      font-weight: 1000;
+      overflow-wrap: anywhere;
+      text-shadow: 0 7px 0 rgba(0,0,0,0.12);
+    }
+
+    .side {
+      padding: clamp(12px, 1.4vw, 18px);
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr);
+      gap: 12px;
+      overflow: hidden;
+    }
+
+    .side.is-qr-hidden {
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .side-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .side h2 {
+      margin: 0;
+      color: #3e3580;
+      font-size: 1rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .qr-toggle {
+      min-height: 36px;
+      padding: 0 12px;
+      font-size: 0.8rem;
+      box-shadow: none;
+      border: 1px solid var(--line);
+    }
+
+    .room-code {
+      margin: 0;
+      color: var(--red);
+      font-size: 1.4rem;
+      font-weight: 1000;
+      letter-spacing: 0.1em;
+    }
+
+    .qr-box {
+      border-radius: 28px;
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+      place-items: center;
+      background: rgba(255,255,255,0.78);
+      border: 1px solid var(--line);
+      cursor: zoom-in;
+      transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+    }
+
+    .qr-box:hover {
+      transform: translateY(-3px) scale(1.01);
+      border-color: rgba(8, 125, 255, 0.36);
+      box-shadow: 0 18px 42px rgba(8, 125, 255, 0.16);
+    }
+
+    .qr-box img {
+      width: min(100%, 190px);
+      border-radius: 18px;
+      image-rendering: pixelated;
+      background: #fff;
+    }
+
+    textarea {
+      min-height: 0;
+      width: 100%;
+      resize: none;
+      border: 1px solid rgba(16, 11, 47, 0.12);
+      border-radius: 24px;
+      padding: 14px 16px;
+      font: inherit;
+      font-weight: 900;
+      color: var(--ink);
+      background: rgba(255,255,255,0.9);
+      outline: none;
+      box-shadow: inset 0 0 0 1px rgba(16, 11, 47, 0.03);
+    }
+
+    textarea:focus {
+      border-color: rgba(8, 125, 255, 0.38);
+      box-shadow: 0 0 0 4px rgba(8, 125, 255, 0.12);
+    }
+
+    .empty {
+      padding: 14px;
+      color: var(--muted);
+      font-weight: 1000;
+      text-align: center;
+    }
+
+    .qr-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      padding: clamp(12px, 3vw, 28px);
+      background: rgba(16, 11, 47, 0.42);
+      backdrop-filter: blur(18px);
+      overflow: hidden;
+    }
+
+    .qr-modal-card {
+      position: fixed;
+      left: 50vw;
+      top: 50vh;
+      transform: translate(-50%, -50%);
+      width: min(92vw, 980px);
+      height: min(88vh, 820px);
+      max-width: calc(100vw - clamp(24px, 6vw, 56px));
+      max-height: calc(100vh - clamp(24px, 6vw, 56px));
+      padding: clamp(16px, 3vw, 28px);
+      border-radius: clamp(28px, 4vw, 42px);
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(240px, 0.85fr);
+      gap: clamp(14px, 2vw, 22px);
+      background: rgba(255,255,255,0.92);
+      border: 1px solid rgba(255,255,255,0.78);
+      box-shadow: 0 32px 90px rgba(16, 11, 47, 0.28);
+      animation: qrModalIn 220ms ease both;
+      overflow: hidden;
+    }
+
+    .qr-modal-main {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      gap: 10px;
+      place-items: center;
+    }
+
+    .qr-modal-main img {
+      width: min(100%, 620px);
+      max-height: min(62vh, 600px);
+      border-radius: 24px;
+      image-rendering: pixelated;
+      background: #fff;
+    }
+
+    .qr-modal-actions {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .qr-modal-actions button {
+      min-height: 38px;
+    }
+
+    .qr-modal-list-panel {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 10px;
+      padding: 14px;
+      border-radius: 28px;
+      background: rgba(255,255,255,0.68);
+      border: 1px solid var(--line);
+    }
+
+    .qr-modal-list-panel h3 {
+      margin: 0;
+      color: #3e3580;
+      font-size: 0.95rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .qr-modal-names {
+      min-height: 0;
+      overflow-y: auto;
+      margin: 0;
+      padding: 0;
+      font-weight: 1000;
+      line-height: 1.55;
+      white-space: pre-line;
+    }
+
+    .hidden { display: none !important; }
+
+    @keyframes winnerIn {
+      0% { opacity: 0; transform: translateX(-50%) translateY(20px) scale(0.92); }
+      65% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1.04); }
+      100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+    }
+
+    @keyframes qrModalIn {
+      0% { opacity: 0; transform: translate(-50%, -50%) scale(0.92); }
+      100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    }
+
+    @media (max-height: 760px) and (min-width: 761px) {
+      .wheel-wrap { width: min(70vmin, 610px); }
+      .winner-name { font-size: clamp(1.9rem, 5vw, 4rem); }
+      .side { grid-template-rows: auto auto minmax(0, 1fr); }
+      .side.is-qr-hidden { grid-template-rows: auto minmax(0, 1fr); }
+      .qr-box img { width: min(100%, 150px); }
+      button { min-height: 40px; }
+    }
+
+    @media (max-width: 760px) {
+      body { height: auto; overflow: auto; }
+      .app {
+        height: auto;
+        min-height: 100dvh;
+        grid-template-columns: 1fr;
+      }
+      .main { min-height: 62vh; }
+      .topbar { grid-template-columns: 1fr; }
+      .status { justify-self: stretch; }
+      .actions { justify-content: stretch; }
+      .actions button { flex: 1; }
+      .side { min-height: 520px; }
+      .qr-modal-card {
+        grid-template-columns: 1fr;
+        width: min(92vw, 520px);
+        height: min(90vh, 760px);
+      }
+      .qr-modal-main img {
+        max-height: 42vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="main">
+      <header class="topbar">
+        <div class="status">
+          <p class="status-label">Names</p>
+          <p class="status-main" id="nameCount">0</p>
+        </div>
+        <div class="actions">
+          <button class="mode-toggle" id="modeToggleBtn" type="button">Keep Pick</button>
+          <button id="homeBtn" type="button">Home</button>
+          <button class="danger" id="resetBtn" type="button">Reset</button>
+        </div>
+      </header>
+
+      <section class="stage">
+        <div class="wheel-wrap">
+          <canvas id="wheelCanvas" width="1000" height="1000" aria-label="Name wheel"></canvas>
+          <div class="wheel-ring"></div>
+          <div class="pointer"></div>
+          <button class="center-spin spin-btn" id="spinBtn" type="button">Spin</button>
+        </div>
+        <div class="winner-banner" id="winnerBanner">
+          <p class="winner-label">Selected</p>
+          <p class="winner-name" id="winnerName">Name</p>
+        </div>
+      </section>
+    </section>
+
+    <aside class="side is-qr-hidden" id="sidePanel">
+      <div class="side-head">
+        <h2>Players</h2>
+        <button class="qr-toggle" id="qrToggleBtn" type="button">Show QR</button>
+      </div>
+      <div class="qr-box hidden" id="qrBox" role="button" tabindex="0" aria-label="Name wheel room QR">
+        <img id="qrImage" alt="Name wheel room QR">
+        <p class="room-code" id="roomCode">-----</p>
+      </div>
+      <textarea id="namesInput" spellcheck="false" placeholder="Type or paste names here. One name per line."></textarea>
+    </aside>
+  </main>
+
+  <div class="qr-modal hidden" id="qrModal" aria-hidden="true">
+    <div class="qr-modal-card">
+      <div class="qr-modal-main">
+        <img id="qrLargeImage" alt="Large name wheel room QR">
+        <p class="room-code" id="qrLargeCode">-----</p>
+        <div class="qr-modal-actions">
+          <button id="qrModalCloseBtn" type="button">Close</button>
+        </div>
+      </div>
+      <section class="qr-modal-list-panel" aria-label="Names sent">
+        <h3>Names Sent</h3>
+        <div class="qr-modal-names" id="qrModalNames"></div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const storageKey = "name-wheel-room-code";
+    const colors = ["#087dff", "#ff2541", "#ff8a00", "#19c875", "#3024d8", "#ffd426", "#00b8ff", "#ff5db1"];
+    const canvas = document.getElementById("wheelCanvas");
+    const ctx = canvas.getContext("2d");
+    const nameCountEl = document.getElementById("nameCount");
+    const spinBtn = document.getElementById("spinBtn");
+    const modeToggleBtn = document.getElementById("modeToggleBtn");
+    const homeBtn = document.getElementById("homeBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const qrToggleBtn = document.getElementById("qrToggleBtn");
+    const sidePanel = document.getElementById("sidePanel");
+    const qrBox = document.getElementById("qrBox");
+    const qrImage = document.getElementById("qrImage");
+    const roomCodeEl = document.getElementById("roomCode");
+    const qrModal = document.getElementById("qrModal");
+    const qrLargeImage = document.getElementById("qrLargeImage");
+    const qrLargeCode = document.getElementById("qrLargeCode");
+    const qrModalNames = document.getElementById("qrModalNames");
+    const qrModalCloseBtn = document.getElementById("qrModalCloseBtn");
+    const namesInput = document.getElementById("namesInput");
+    const winnerBanner = document.getElementById("winnerBanner");
+    const winnerName = document.getElementById("winnerName");
+
+    let room = null;
+    let baseUrl = window.location.origin;
+    let qrVisible = false;
+    let names = [];
+    let spinningNames = null;
+    let removeWinner = false;
+    let pendingRemovalName = "";
+    const removedNames = new Set();
+    let rotation = 0;
+    let spinning = false;
+    let spinTimeout = null;
+    let spinWinnerIndex = -1;
+    let tickAnimationFrame = null;
+    let lastTickBoundary = null;
+    let pollTimer = null;
+    let syncTimer = null;
+    let audioContext = null;
+    let editingNames = false;
+    let namesDirty = false;
+    let editIdleTimer = null;
+    const spinEasing = "cubic-bezier(0.07, 0.64, 0.01, 1)";
+
+    async function api(path, payload = null, method = "POST") {
+      const response = await fetch(path, {
+        method,
+        headers: payload ? { "Content-Type": "application/json" } : undefined,
+        body: payload ? JSON.stringify(payload) : undefined
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Request failed");
+      return data;
+    }
+
+    function normalize(values) {
+      const seen = new Set();
+      return values
+        .map((value) => String(value || "").trim())
+        .filter(Boolean)
+        .filter((value) => {
+          const key = value.toLowerCase();
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
+        .slice(0, 500);
+    }
+
+    function getInputNames() {
+      return normalize(namesInput.value.split(/\r?\n/));
+    }
+
+    function commitNamesFromInput(updateInput = false) {
+      pendingRemovalName = "";
+      removedNames.clear();
+      setNames(getInputNames(), updateInput);
+      scheduleSync();
+    }
+
+    function setNames(nextNames, updateInput = true) {
+      names = normalize(nextNames);
+      if (updateInput && namesInput.value !== names.join("\n")) {
+        namesInput.value = names.join("\n");
+      }
+      render();
+    }
+
+    function mergeNames(remoteNames) {
+      if (editingNames) {
+        return;
+      }
+      const filteredRemoteNames = (remoteNames || [])
+        .filter((name) => !removedNames.has(String(name || "").trim().toLowerCase()));
+      const nextNames = normalize([...getInputNames(), ...filteredRemoteNames]);
+      setNames(nextNames, !editingNames);
+    }
+
+    function drawWheel() {
+      const wheelNames = spinningNames || names;
+      const size = canvas.width;
+      const center = size / 2;
+      const radius = size * 0.47;
+      ctx.clearRect(0, 0, size, size);
+      ctx.save();
+      ctx.translate(center, center);
+
+      if (!wheelNames.length) {
+        const emptySlices = 7;
+        const slice = (Math.PI * 2) / emptySlices;
+        for (let index = 0; index < emptySlices; index += 1) {
+          const start = -Math.PI / 2 + index * slice;
+          const end = start + slice;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.arc(0, 0, radius, start, end);
+          ctx.closePath();
+          ctx.fillStyle = colors[index % colors.length];
+          ctx.fill();
+          ctx.strokeStyle = "rgba(255,255,255,0.78)";
+          ctx.lineWidth = 5;
+          ctx.stroke();
+        }
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.18, 0, Math.PI * 2);
+        ctx.fillStyle = "#fff";
+        ctx.fill();
+        ctx.lineWidth = 10;
+        ctx.strokeStyle = "rgba(16,11,47,0.12)";
+        ctx.stroke();
+        ctx.restore();
+        return;
+      }
+
+      const slice = (Math.PI * 2) / wheelNames.length;
+      wheelNames.forEach((name, index) => {
+        const start = -Math.PI / 2 + index * slice;
+        const end = start + slice;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, radius, start, end);
+        ctx.closePath();
+        ctx.fillStyle = colors[index % colors.length];
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,0.78)";
+        ctx.lineWidth = 5;
+        ctx.stroke();
+
+        ctx.save();
+        ctx.rotate(start + slice / 2);
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "#fff";
+        ctx.font = `1000 ${Math.max(24, Math.min(44, 280 / Math.max(6, wheelNames.length)))}px Trebuchet MS`;
+        ctx.shadowColor = "rgba(0,0,0,0.25)";
+        ctx.shadowBlur = 8;
+        ctx.fillText(name.slice(0, 22), radius - 42, 0);
+        ctx.restore();
+      });
+
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.18, 0, Math.PI * 2);
+      ctx.fillStyle = "#fff";
+      ctx.fill();
+      ctx.lineWidth = 10;
+      ctx.strokeStyle = "rgba(16,11,47,0.12)";
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function getJoinUrl() {
+      if (!room) return "";
+      return `${baseUrl}/name-wheel-student.html?code=${encodeURIComponent(room.code)}`;
+    }
+
+    function getQrSrc(size = 420) {
+      if (!room) return "";
+      return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(getJoinUrl())}`;
+    }
+
+    function renderQrModalNames() {
+      if (!names.length) {
+        qrModalNames.textContent = "No names yet.";
+        return;
+      }
+      qrModalNames.textContent = names.join("\n");
+    }
+
+    function render() {
+      nameCountEl.textContent = names.length;
+      spinBtn.disabled = names.length < 2;
+      spinBtn.textContent = spinning ? "Boost" : "Spin";
+      modeToggleBtn.textContent = removeWinner ? "Remove Pick" : "Keep Pick";
+      modeToggleBtn.classList.toggle("is-remove", removeWinner);
+      drawWheel();
+
+      if (!room) {
+        roomCodeEl.textContent = "-----";
+        qrImage.removeAttribute("src");
+      } else {
+        localStorage.setItem(storageKey, room.code);
+        roomCodeEl.textContent = room.code;
+        qrImage.src = getQrSrc(420);
+        qrLargeCode.textContent = room.code;
+        qrLargeImage.src = getQrSrc(720);
+      }
+      renderQrModalNames();
+
+      sidePanel.classList.toggle("is-qr-hidden", !qrVisible);
+      qrBox.classList.toggle("hidden", !qrVisible || !room);
+      qrToggleBtn.textContent = qrVisible ? "Hide QR" : "Show QR";
+    }
+
+    function openQrModal() {
+      if (!room || !qrVisible) return;
+      qrModal.classList.remove("hidden");
+      qrModal.setAttribute("aria-hidden", "false");
+      renderQrModalNames();
+    }
+
+    function closeQrModal() {
+      qrModal.classList.add("hidden");
+      qrModal.setAttribute("aria-hidden", "true");
+    }
+
+    async function hydrateBaseUrl() {
+      try {
+        const data = await api("/api/live/server-info", null, "GET");
+        const onLocalHost = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+        baseUrl = onLocalHost && data?.localOrigin ? data.localOrigin : (data?.publicOrigin || window.location.origin);
+      } catch (_) {}
+    }
+
+    async function ensureRoom() {
+      if (room) return room;
+      const savedCode = localStorage.getItem(storageKey);
+      if (savedCode) {
+        try {
+          const existing = await api(`/api/wheel/room?code=${encodeURIComponent(savedCode)}`, null, "GET");
+          room = existing.room;
+          mergeNames(room.names);
+          return room;
+        } catch (_) {
+          localStorage.removeItem(storageKey);
+        }
+      }
+      const data = await api("/api/wheel/create-room");
+      room = data.room;
+      await syncNamesNow();
+      return room;
+    }
+
+    async function syncNamesNow() {
+      if (!room) return;
+      const data = await api("/api/wheel/sync", { code: room.code, names });
+      room = data.room;
+      render();
+    }
+
+    function scheduleSync() {
+      clearTimeout(syncTimer);
+      syncTimer = setTimeout(() => {
+        syncNamesNow().catch(() => {});
+      }, 250);
+    }
+
+    function getAudioContext() {
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioContext.state === "suspended") {
+        audioContext.resume().catch(() => {});
+      }
+      return audioContext;
+    }
+
+    function playWinChime() {
+      try {
+        const audio = getAudioContext();
+        const now = audio.currentTime;
+        [523.25, 659.25, 783.99, 1046.5].forEach((pitch, index) => {
+          const start = now + index * 0.09;
+          const osc = audio.createOscillator();
+          const gain = audio.createGain();
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(pitch, start);
+          gain.gain.setValueAtTime(0.0001, start);
+          gain.gain.exponentialRampToValueAtTime(0.18, start + 0.018);
+          gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.42);
+          osc.connect(gain);
+          gain.connect(audio.destination);
+          osc.start(start);
+          osc.stop(start + 0.45);
+        });
+      } catch (_) {}
+    }
+
+    function playWheelTick(strength = 1) {
+      try {
+        const audio = getAudioContext();
+        const now = audio.currentTime;
+        const volume = Math.min(0.18, 0.09 + strength * 0.035);
+        const noiseLength = Math.floor(audio.sampleRate * 0.028);
+        const noiseBuffer = audio.createBuffer(1, noiseLength, audio.sampleRate);
+        const noiseData = noiseBuffer.getChannelData(0);
+        for (let index = 0; index < noiseLength; index += 1) {
+          const fade = 1 - index / noiseLength;
+          noiseData[index] = (Math.random() * 2 - 1) * fade;
+        }
+        const noise = audio.createBufferSource();
+        const filter = audio.createBiquadFilter();
+        const noiseGain = audio.createGain();
+        noise.buffer = noiseBuffer;
+        filter.type = "bandpass";
+        filter.frequency.setValueAtTime(2600, now);
+        filter.Q.setValueAtTime(5, now);
+        noiseGain.gain.setValueAtTime(0.0001, now);
+        noiseGain.gain.exponentialRampToValueAtTime(volume, now + 0.003);
+        noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.03);
+        noise.connect(filter);
+        filter.connect(noiseGain);
+        noiseGain.connect(audio.destination);
+        noise.start(now);
+        noise.stop(now + 0.034);
+
+        const tone = audio.createOscillator();
+        const toneGain = audio.createGain();
+        tone.type = "triangle";
+        tone.frequency.setValueAtTime(980 + Math.min(220, strength * 80), now);
+        tone.frequency.exponentialRampToValueAtTime(520, now + 0.045);
+        toneGain.gain.setValueAtTime(0.0001, now);
+        toneGain.gain.exponentialRampToValueAtTime(volume * 0.45, now + 0.004);
+        toneGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.055);
+        tone.connect(toneGain);
+        toneGain.connect(audio.destination);
+        tone.start(now);
+        tone.stop(now + 0.06);
+      } catch (_) {}
+    }
+
+    function stopBoundaryTicks() {
+      if (tickAnimationFrame) {
+        cancelAnimationFrame(tickAnimationFrame);
+      }
+      tickAnimationFrame = null;
+      lastTickBoundary = null;
+    }
+
+    function startBoundaryTicks() {
+      stopBoundaryTicks();
+      getAudioContext();
+      const activeNames = spinningNames || names;
+      if (activeNames.length < 2) return;
+      const sliceDeg = 360 / activeNames.length;
+      let previousAngle = getCurrentWheelAngle();
+      lastTickBoundary = Math.floor((((-previousAngle % 360) + 360) % 360) / sliceDeg);
+
+      const tick = () => {
+        if (!spinning) {
+          stopBoundaryTicks();
+          return;
+        }
+        const angle = getCurrentWheelAngle();
+        const localFromTop = (((-angle % 360) + 360) % 360);
+        const boundary = Math.floor(localFromTop / sliceDeg);
+        if (boundary !== lastTickBoundary) {
+          const movement = Math.abs(angle - previousAngle);
+          playWheelTick(Math.min(3, Math.max(0.7, movement / sliceDeg)));
+          lastTickBoundary = boundary;
+        }
+        previousAngle = angle;
+        tickAnimationFrame = requestAnimationFrame(tick);
+      };
+
+      tickAnimationFrame = requestAnimationFrame(tick);
+    }
+
+    function getCurrentWheelAngle() {
+      const transform = getComputedStyle(canvas).transform;
+      if (!transform || transform === "none") {
+        return ((rotation % 360) + 360) % 360;
+      }
+      const matrix = new DOMMatrixReadOnly(transform);
+      return ((Math.atan2(matrix.b, matrix.a) * 180 / Math.PI) + 360) % 360;
+    }
+
+    function setWheelTransition(durationMs) {
+      canvas.style.transition = `transform ${durationMs}ms ${spinEasing}`;
+    }
+
+    function getIndexAtPointer(rotationDeg, count) {
+      if (!count) return -1;
+      const sliceDeg = 360 / count;
+      const normalizedRotation = ((rotationDeg % 360) + 360) % 360;
+      const localFromTop = ((-normalizedRotation % 360) + 360) % 360;
+      return Math.floor(localFromTop / sliceDeg) % count;
+    }
+
+    function scheduleSpinFinish(durationMs) {
+      clearTimeout(spinTimeout);
+      spinTimeout = setTimeout(() => {
+        const activeNames = spinningNames || names;
+        const selectedIndex = getIndexAtPointer(rotation, activeNames.length);
+        const selectedName = activeNames[selectedIndex] || activeNames[spinWinnerIndex] || activeNames[0] || "Name";
+        winnerName.textContent = selectedName;
+        playWinChime();
+        stopBoundaryTicks();
+        winnerBanner.classList.remove("show");
+        winnerBanner.offsetHeight;
+        winnerBanner.classList.add("show");
+        spinning = false;
+        spinningNames = null;
+        spinWinnerIndex = -1;
+        if (removeWinner && selectedName) {
+          pendingRemovalName = selectedName;
+        }
+        render();
+      }, durationMs + 80);
+    }
+
+    function boostSpin() {
+      if (!spinning) return;
+      const boostDurationMs = 5200;
+      const activeNames = spinningNames || names;
+      const currentAngle = getCurrentWheelAngle();
+      canvas.style.transition = "none";
+      canvas.style.transform = `rotate(${currentAngle}deg)`;
+      canvas.offsetHeight;
+      const sliceDeg = 360 / activeNames.length;
+      const centerDeg = spinWinnerIndex * sliceDeg + sliceDeg / 2;
+      const desired = (360 - centerDeg) % 360;
+      rotation = currentAngle + 4 * 360 + ((desired - currentAngle + 360) % 360);
+      setWheelTransition(boostDurationMs);
+      canvas.style.transform = `rotate(${rotation}deg)`;
+      scheduleSpinFinish(boostDurationMs);
+    }
+
+    async function pollRoom() {
+      if (!room) return;
+      try {
+        const data = await api(`/api/wheel/room?code=${encodeURIComponent(room.code)}`, null, "GET");
+        room = data.room;
+        mergeNames(room.names);
+      } catch (_) {
+        room = null;
+        qrVisible = false;
+        localStorage.removeItem(storageKey);
+        render();
+      } finally {
+        pollTimer = setTimeout(pollRoom, 1200);
+      }
+    }
+
+    function startPolling() {
+      clearTimeout(pollTimer);
+      pollTimer = setTimeout(pollRoom, 700);
+    }
+
+    function spin() {
+      if (spinning) {
+        boostSpin();
+        return;
+      }
+      if (namesDirty) {
+        clearTimeout(editIdleTimer);
+        commitNamesFromInput(false);
+        namesDirty = false;
+      }
+      if (pendingRemovalName) {
+        const pendingKey = pendingRemovalName.toLowerCase();
+        removedNames.add(pendingKey);
+        const nextNames = names.filter((name) => name.toLowerCase() !== pendingKey);
+        if (nextNames.length !== names.length) {
+          names = nextNames;
+          namesInput.value = names.join("\n");
+          syncNamesNow().catch(() => scheduleSync());
+        }
+        pendingRemovalName = "";
+      }
+      if (names.length < 2) return;
+      spinning = true;
+      spinningNames = names.slice();
+      const spinDurationMs = 8400;
+      winnerBanner.classList.remove("show");
+      const winnerIndex = Math.floor(Math.random() * spinningNames.length);
+      spinWinnerIndex = winnerIndex;
+      const sliceDeg = 360 / spinningNames.length;
+      const centerDeg = winnerIndex * sliceDeg + sliceDeg / 2;
+      const extraTurns = 6 + Math.floor(Math.random() * 3);
+      const current = ((rotation % 360) + 360) % 360;
+      const desired = (360 - centerDeg) % 360;
+      const delta = extraTurns * 360 + ((desired - current + 360) % 360);
+      rotation += delta;
+      setWheelTransition(spinDurationMs);
+      canvas.style.transform = `rotate(${rotation}deg)`;
+      render();
+      startBoundaryTicks();
+      scheduleSpinFinish(spinDurationMs);
+    }
+
+    namesInput.addEventListener("input", () => {
+      editingNames = true;
+      namesDirty = true;
+      clearTimeout(editIdleTimer);
+      editIdleTimer = setTimeout(() => {
+        if (namesDirty) {
+          commitNamesFromInput(false);
+          namesDirty = false;
+        }
+      }, 900);
+    });
+
+    namesInput.addEventListener("focus", () => {
+      editingNames = true;
+    });
+
+    namesInput.addEventListener("blur", () => {
+      clearTimeout(editIdleTimer);
+      editingNames = false;
+      if (namesDirty) {
+        commitNamesFromInput(true);
+        namesDirty = false;
+      }
+    });
+
+    spinBtn.addEventListener("click", () => {
+      spinBtn.blur();
+      spin();
+    });
+    modeToggleBtn.addEventListener("click", () => {
+      removeWinner = !removeWinner;
+      render();
+    });
+    document.addEventListener("keydown", (event) => {
+      const target = event.target;
+      const isTyping = target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
+      if (isTyping || event.code !== "Space") return;
+      event.preventDefault();
+      spinBtn.blur();
+      spin();
+    });
+    homeBtn.addEventListener("click", () => { window.location.href = "./"; });
+
+    resetBtn.addEventListener("click", async () => {
+      if (!confirm("Reset this wheel and clear all names?")) return;
+      const oldCode = room?.code;
+      names = [];
+      namesInput.value = "";
+      pendingRemovalName = "";
+      removedNames.clear();
+      winnerBanner.classList.remove("show");
+      if (oldCode) {
+        try { await api("/api/wheel/delete-room", { code: oldCode }); } catch (_) {}
+      }
+      room = null;
+      qrVisible = false;
+      localStorage.removeItem(storageKey);
+      closeQrModal();
+      render();
+    });
+
+    qrToggleBtn.addEventListener("click", async () => {
+      if (!qrVisible) {
+        await ensureRoom();
+        qrVisible = true;
+        render();
+        startPolling();
+        return;
+      }
+      qrVisible = false;
+      closeQrModal();
+      render();
+    });
+
+    qrBox.addEventListener("click", openQrModal);
+    qrBox.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openQrModal();
+      }
+    });
+    qrModalCloseBtn.addEventListener("click", closeQrModal);
+    qrModal.addEventListener("click", (event) => {
+      if (event.target === qrModal) {
+        closeQrModal();
+      }
+    });
+
+    hydrateBaseUrl().then(async () => {
+      drawWheel();
+      render();
+      const savedCode = localStorage.getItem(storageKey);
+      if (savedCode) {
+        try {
+          const data = await api(`/api/wheel/room?code=${encodeURIComponent(savedCode)}`, null, "GET");
+          room = data.room;
+          mergeNames(room.names);
+          startPolling();
+        } catch (_) {
+          localStorage.removeItem(storageKey);
+          render();
+        }
+      }
+    });
+  </script>
+</body>
+</html>
