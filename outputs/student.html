@@ -868,6 +868,7 @@
     const playView = document.getElementById("playView");
     const teamName = document.getElementById("teamName");
     const joinBtn = document.getElementById("joinBtn");
+    const joinPrompt = joinView.querySelector("p");
     const letters = document.getElementById("letters");
     const wordInput = document.getElementById("wordInput");
     const submitBtn = document.getElementById("submitBtn");
@@ -950,6 +951,22 @@
       }
       roomSocket = null;
       roomSocketActive = false;
+    }
+
+    function leaveDeletedRoom(message = "This room was reset. Scan the new QR to join again.") {
+      closeRoomSocket();
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      room = null;
+      player = null;
+      waitingView.classList.add("hidden");
+      playView.classList.add("hidden");
+      joinView.classList.remove("hidden");
+      if (joinPrompt) {
+        joinPrompt.textContent = message;
+      }
     }
 
     function openConfirm({ title, text, confirmLabel = "Reconnect" }) {
@@ -1315,9 +1332,13 @@
         const data = await api(`/api/live/room?code=${encodeURIComponent(code)}`, null, "GET");
         room = data.room;
         render();
+      } catch (_) {
+        leaveDeletedRoom("This room is no longer available. Scan the new QR to join again.");
       } finally {
-        const interval = Date.now() < quickPollUntil ? 220 : 850;
-        timer = setTimeout(poll, interval);
+        if (room) {
+          const interval = Date.now() < quickPollUntil ? 220 : 850;
+          timer = setTimeout(poll, interval);
+        }
       }
     }
 
@@ -1340,6 +1361,10 @@
       roomSocket.addEventListener("message", (event) => {
         try {
           const payload = JSON.parse(event.data);
+          if (payload?.type === "room-deleted") {
+            leaveDeletedRoom();
+            return;
+          }
           if (payload?.type !== "room" || !payload.room) {
             return;
           }

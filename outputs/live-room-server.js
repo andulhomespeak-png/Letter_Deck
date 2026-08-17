@@ -628,6 +628,23 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { room: serialize(createRoom()) });
     }
 
+    if (req.method === "POST" && url.pathname === "/api/live/delete-room") {
+      const { code } = await body(req);
+      const cleanCode = String(code || "").toUpperCase();
+      const sockets = roomSockets.get(cleanCode);
+      if (sockets) {
+        sockets.forEach((socket) => {
+          try {
+            sendWebSocketJson(socket, { type: "room-deleted", code: cleanCode });
+            socket.destroy();
+          } catch (_) {}
+        });
+      }
+      rooms.delete(cleanCode);
+      roomSockets.delete(cleanCode);
+      return json(res, 200, { ok: true });
+    }
+
     if (req.method === "GET" && url.pathname === "/api/live/room") {
       return json(res, 200, { room: serialize(getRoom(url.searchParams.get("code"))) });
     }
@@ -846,6 +863,23 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && url.pathname === "/api/buzzer/create-room") {
       return json(res, 200, { room: serializeBuzzerRoom(createBuzzerRoom()) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/buzzer/delete-room") {
+      const { code } = await body(req);
+      const cleanCode = String(code || "").toUpperCase();
+      const sockets = buzzerSockets.get(cleanCode);
+      if (sockets) {
+        sockets.forEach((socket) => {
+          try {
+            sendWebSocketJson(socket, { type: "buzzer-room-deleted", code: cleanCode });
+            socket.destroy();
+          } catch (_) {}
+        });
+      }
+      buzzerRooms.delete(cleanCode);
+      buzzerSockets.delete(cleanCode);
+      return json(res, 200, { ok: true });
     }
 
     if (req.method === "GET" && url.pathname === "/api/buzzer/room") {

@@ -1057,14 +1057,21 @@
     }
 
     .team-card.waiting-card {
-      padding: 9px 12px;
+      padding: 4px 2px;
       box-shadow: none;
-      background: rgba(255, 255, 255, 0.52);
+      background: transparent;
+      border-color: transparent;
+      border-radius: 0;
     }
 
     .team-card:hover {
       transform: translateY(-1px);
       box-shadow: 0 20px 26px rgba(31, 26, 23, 0.08);
+    }
+
+    .team-card.waiting-card:hover {
+      transform: none;
+      box-shadow: none;
     }
 
     .team-card.active-turn {
@@ -1242,6 +1249,13 @@
       background: rgba(255, 255, 255, 0.86);
       color: var(--ink);
       border: 1px solid rgba(31, 26, 23, 0.08);
+    }
+
+    .danger {
+      color: #fff;
+      background: linear-gradient(180deg, #ff4f62, #d9152f);
+      border-color: rgba(153, 0, 21, 0.2);
+      box-shadow: 0 16px 30px rgba(255, 47, 69, 0.24);
     }
 
     .scorebar .accent,
@@ -1517,7 +1531,7 @@
           <button class="ghost" id="homeBtn">Home</button>
           <button class="ghost" id="soundBtn">Music</button>
           <button class="ghost" id="sfxBtn">SFX</button>
-          <button class="ghost" id="resetBtn">Reset</button>
+          <button class="danger" id="resetBtn">Reset</button>
         </div>
       </header>
 
@@ -1529,9 +1543,9 @@
         <aside class="panel sidebar">
           <div class="side-head">
             <h2 class="side-title">Players</h2>
-            <button class="ghost side-qr-toggle" id="sideQrToggleBtn" type="button" aria-expanded="true">Hide QR</button>
+            <button class="ghost side-qr-toggle" id="sideQrToggleBtn" type="button" aria-expanded="false">Show QR</button>
           </div>
-          <div class="side-qr-card" id="sideQrCard" role="button" tabindex="0" aria-label="Open QR code">
+          <div class="side-qr-card hidden" id="sideQrCard" role="button" tabindex="0" aria-label="Open QR code">
             <img id="sideQrImage" alt="Room QR preview">
             <div class="side-qr-room" id="sideQrRoomText"></div>
           </div>
@@ -1693,7 +1707,7 @@
     let podiumSoundPlayed = false;
     let wakeLockSentinel = null;
     let successHistory = [];
-    let sideQrVisible = true;
+    let sideQrVisible = false;
     const liveRoomStorageKey = "letter-clash-live-room-code";
     const maxActiveLetters = 8;
     const winningScore = 750;
@@ -2243,6 +2257,25 @@
       liveSocketActive = false;
     }
 
+    function stopLivePolling() {
+      if (livePollTimer) {
+        clearTimeout(livePollTimer);
+        livePollTimer = null;
+      }
+    }
+
+    function disconnectLiveRoom() {
+      closeLiveSocket();
+      stopLivePolling();
+    }
+
+    function clearPersistedLiveRoomCode() {
+      try {
+        window.localStorage.removeItem(liveRoomStorageKey);
+      } catch (_) {
+      }
+    }
+
     async function liveApi(path, body, method = "POST") {
       const response = await fetch(path, {
         method,
@@ -2371,6 +2404,16 @@
       liveSocket.addEventListener("message", (event) => {
         try {
           const payload = JSON.parse(event.data);
+          if (payload?.type === "room-deleted") {
+            disconnectLiveRoom();
+            liveRoom = null;
+            clearPersistedLiveRoomCode();
+            sideQrVisible = false;
+            teams = [];
+            clearLiveSubmissionState();
+            render();
+            return;
+          }
           if (payload?.type !== "room" || !payload.room) {
             return;
           }
@@ -2410,25 +2453,32 @@
         applyLiveRoomFeedback();
         render();
       } catch (_) {
+        disconnectLiveRoom();
+        liveRoom = null;
+        clearPersistedLiveRoomCode();
+        sideQrVisible = false;
+        teams = [];
+        render();
       } finally {
-        livePollTimer = setTimeout(pollLiveRoom, 1000);
+        if (liveRoom && !liveSocketActive) {
+          livePollTimer = setTimeout(pollLiveRoom, 1000);
+        }
       }
     }
 
-    async function initLiveRoom() {
+    async function ensureLiveRoom() {
       if (!liveEnabled) {
-        return;
+        return null;
       }
+      let recoveredExistingRoom = !!liveRoom;
       const persistedCode = getPersistedLiveRoomCode();
-      if (persistedCode) {
+      if (!liveRoom && persistedCode) {
         try {
           const existing = await liveApi(`/api/live/room?code=${encodeURIComponent(persistedCode)}`, null, "GET");
           liveRoom = existing.room;
+          recoveredExistingRoom = true;
         } catch (_) {
-          try {
-            window.localStorage.removeItem(liveRoomStorageKey);
-          } catch (_) {
-          }
+          clearPersistedLiveRoomCode();
         }
       }
       if (!liveRoom) {
@@ -2436,16 +2486,29 @@
         liveRoom = data.room;
       }
       persistLiveRoomCode();
-      matchFinished = false;
-      clearLiveSubmissionState();
-      await syncLiveRoom("waiting");
-      connectLiveSocket();
-      if (livePollTimer) {
-        clearTimeout(livePollTimer);
+      if (recoveredExistingRoom) {
+        matchFinished = liveRoom?.status === "finished";
+        syncLiveTeamsIntoScores();
+        syncActiveLettersFromRoom();
+        applyLiveRoomFeedback();
+        render();
+      } else {
+        matchFinished = false;
+        clearLiveSubmissionState();
+        await syncLiveRoom("waiting");
       }
+      connectLiveSocket();
+      stopLivePolling();
       if (!liveSocketActive) {
         pollLiveRoom();
       }
+      return liveRoom;
+    }
+
+    async function initLiveRoom() {
+      liveRoom = null;
+      sideQrVisible = false;
+      render();
     }
 
     async function startLiveGame() {
@@ -2674,6 +2737,22 @@
       syncLiveRoom("waiting", { lastSuccess: null, lastFeedback: null, podium: [], clearAcceptedWords: true }).catch(() => {});
     }
 
+    async function resetGameAndDeleteLiveRoom() {
+      const oldCode = liveRoom?.code || "";
+      liveRoom = null;
+      disconnectLiveRoom();
+      if (oldCode) {
+        try {
+          await liveApi("/api/live/delete-room", { code: oldCode });
+        } catch (_) {
+        }
+      }
+      sideQrVisible = false;
+      teams = liveEnabled ? [] : teams.map((team) => ({ ...team, score: 0 }));
+      clearPersistedLiveRoomCode();
+      resetGame();
+    }
+
     function finishRound() {
       if (isGameFinished()) {
         return;
@@ -2762,12 +2841,19 @@
 
     function renderTeams() {
       teamList.innerHTML = "";
+      if (liveEnabled && !liveRoom) {
+        const empty = document.createElement("div");
+        empty.className = "team-card waiting-card";
+        empty.innerHTML = `<div class="team-name">Press Show QR to create a room.</div>`;
+        teamList.appendChild(empty);
+        return;
+      }
       const rankedTeamsSource = getScoreboardTeams();
 
       if (!rankedTeamsSource.length) {
         const empty = document.createElement("div");
         empty.className = "team-card waiting-card";
-        empty.innerHTML = `<div class="team-name">Waiting for teams...</div>`;
+        empty.innerHTML = `<div class="team-name">Waiting for players...</div>`;
         teamList.appendChild(empty);
         return;
       }
@@ -2844,6 +2930,13 @@
         return;
       }
       qrPeopleList.innerHTML = "";
+      if (!liveRoom) {
+        const empty = document.createElement("div");
+        empty.className = "qr-empty";
+        empty.textContent = "No room yet.";
+        qrPeopleList.appendChild(empty);
+        return;
+      }
       const connectedTeams = (liveRoom?.teams || [])
         .map((team) => getTeamByLiveEntry(team) || { id: team.id, name: team.name, score: 0 })
         .sort((a, b) => (b.score - a.score) || a.name.localeCompare(b.name));
@@ -2851,7 +2944,7 @@
       if (!connectedTeams.length) {
         const empty = document.createElement("div");
         empty.className = "qr-empty";
-        empty.textContent = "Waiting for teams...";
+        empty.textContent = "Waiting for players...";
         qrPeopleList.appendChild(empty);
         return;
       }
@@ -2890,7 +2983,7 @@
       sideQrCard.classList.toggle("hidden", !sideQrVisible);
       const hasConnectedPlayers = Number(liveRoom?.teams?.length || 0) > 0;
       useLettersBtn.disabled = activeLetters.length === 0 || isGameFinished();
-      startLiveBtn.disabled = isGameFinished() || !hasConnectedPlayers;
+      startLiveBtn.disabled = isGameFinished() || !liveRoom || !hasConnectedPlayers;
       qrLiveBtn.disabled = isGameFinished() || liveRoom?.status === "live" || !hasConnectedPlayers;
       if (liveEnabled && liveRoom) {
         const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=420x420&data=${encodeURIComponent(getLiveJoinUrl())}`;
@@ -2908,11 +3001,12 @@
       }
     }
 
-    function openQrModal() {
-      if (!liveRoom) {
+    async function openQrModal() {
+      if (!liveEnabled) {
         setMessage("Open this page through the local server first.", "bad");
         return;
       }
+      await ensureLiveRoom();
       qrOverlay.classList.remove("hidden");
     }
 
@@ -2927,6 +3021,11 @@
       }
     });
     startLiveBtn.addEventListener("click", async () => {
+      if (!liveRoom) {
+        setMessage("Press Show QR to create a room first.", "bad");
+        playErrorSound();
+        return;
+      }
       if (liveRoom?.status === "live") {
         return;
       }
@@ -2959,19 +3058,27 @@
     homeBtn.addEventListener("click", () => {
       window.location.href = liveEnabled ? "/" : "./index.html";
     });
-    sideQrToggleBtn.addEventListener("click", () => {
-      if (!liveRoom) {
+    sideQrToggleBtn.addEventListener("click", async () => {
+      if (!liveEnabled) {
         setMessage("Open this page through the local server first.", "bad");
+        return;
+      }
+      if (!liveRoom) {
+        await ensureLiveRoom();
+        sideQrVisible = true;
+        render();
         return;
       }
       sideQrVisible = !sideQrVisible;
       render();
     });
-    sideQrCard.addEventListener("click", openQrModal);
+    sideQrCard.addEventListener("click", () => {
+      openQrModal().catch(() => {});
+    });
     sideQrCard.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
-        openQrModal();
+        openQrModal().catch(() => {});
       }
     });
     closeQrBtn.addEventListener("click", () => {
@@ -3030,11 +3137,11 @@
     resetBtn.addEventListener("click", async () => {
       const confirmed = await openConfirm({
         title: "Reset Game?",
-        text: "This will reset letters, scores, and the live session state.",
+        text: "This will delete the current live room. A new room will be created only when you press Show QR again.",
         confirmLabel: "Reset"
       });
       if (confirmed) {
-        resetGame();
+        resetGameAndDeleteLiveRoom().catch(() => {});
       }
     });
     podiumResetBtn.addEventListener("click", async () => {

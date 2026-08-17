@@ -894,8 +894,8 @@
 
     <aside class="side" id="sidePanel">
       <div class="side-head">
-        <h2>Participants</h2>
-        <button class="qr-toggle" id="qrToggleBtn" type="button">Hide QR</button>
+        <h2>Players</h2>
+        <button class="qr-toggle" id="qrToggleBtn" type="button">Show QR</button>
       </div>
       <div class="qr-box" id="qrBox" role="button" tabindex="0" aria-label="Show QR fullscreen">
         <img id="qrImage" alt="Buzzer room QR">
@@ -915,7 +915,7 @@
           <button id="qrCloseBtn" type="button">Close</button>
         </div>
       </div>
-      <section class="qr-fullscreen-people" aria-label="Connected participants">
+      <section class="qr-fullscreen-people" aria-label="Connected players">
         <h3>Connected</h3>
         <div class="qr-fullscreen-list" id="qrPeopleList"></div>
       </section>
@@ -976,7 +976,7 @@
     let pollTimer = null;
     let lastWinnerId = "";
     let wakeLock = null;
-    let qrPanelVisible = true;
+    let qrPanelVisible = false;
     let scorerEnabled = true;
     let pointValue = 50;
     const turnAlarmSound = new Audio("buzzer-turn-alarm.wav");
@@ -1043,15 +1043,18 @@
     }
 
     function getJoinUrl() {
+      if (!room) return "";
       return `${buzzerBaseUrl}/buzzer-student.html?code=${encodeURIComponent(room.code)}`;
     }
 
     function getSocketUrl() {
+      if (!room) return "";
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       return `${protocol}//${window.location.host}/ws/buzzer?code=${encodeURIComponent(room.code)}`;
     }
 
     function getQrSrc(size = 420) {
+      if (!room) return "";
       return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(getJoinUrl())}`;
     }
 
@@ -1131,7 +1134,10 @@
     }
 
     function render() {
-      if (!room) return;
+      if (!room) {
+        renderNoRoom();
+        return;
+      }
       localStorage.setItem(storageKey, room.code);
       roomCodeEl.textContent = room.code;
       qrImage.src = getQrSrc(420);
@@ -1139,6 +1145,7 @@
       holdBtn.disabled = false;
       holdBtn.textContent = room.buzzerHeld ? "Held" : "Hold";
       holdBtn.classList.toggle("is-active", !!room.buzzerHeld);
+      resetBtn.disabled = false;
       qrLiveBtn.disabled = !room.players.length || room.status === "live";
       sidePanel.classList.toggle("is-qr-hidden", !qrPanelVisible);
       qrBox.classList.toggle("hidden", !qrPanelVisible);
@@ -1185,7 +1192,7 @@
             <button class="remove" type="button" data-player-id="${escapeHtml(player.id)}" title="Remove">×</button>
           </div>
         `).join("")
-        : `<div class="empty">Scan QR to join.</div>`;
+        : `<div class="empty">Waiting for players...</div>`;
       qrPeopleList.innerHTML = sortedPlayers.length
         ? sortedPlayers.map((player) => `
           <div class="qr-fullscreen-person ${lockedOutPlayers.includes(player.id) ? "is-locked" : ""}">
@@ -1193,7 +1200,49 @@
             <button class="remove" type="button" data-player-id="${escapeHtml(player.id)}" title="Remove">×</button>
           </div>
         `).join("")
-        : `<div class="empty">Waiting for participants.</div>`;
+        : `<div class="empty">Waiting for players...</div>`;
+    }
+
+    function renderNoRoom() {
+      qrPanelVisible = false;
+      roomCodeEl.textContent = "-----";
+      qrImage.removeAttribute("src");
+      qrLargeImage.removeAttribute("src");
+      qrLargeCode.textContent = "-----";
+      liveBtn.disabled = true;
+      holdBtn.disabled = true;
+      holdBtn.textContent = "Hold";
+      holdBtn.classList.remove("is-active");
+      resetBtn.disabled = true;
+      qrLiveBtn.disabled = true;
+      sidePanel.classList.add("is-qr-hidden");
+      qrBox.classList.add("hidden");
+      qrToggleBtn.textContent = "Show QR";
+      pointsPanel.classList.toggle("hidden", !scorerEnabled);
+      scoreActions.classList.toggle("hidden", !scorerEnabled);
+      noScoreNextBtn.classList.add("hidden");
+      scorerToggleBtn.textContent = scorerEnabled ? "Scorer On" : "Scorer Off";
+      scorerToggleBtn.classList.toggle("is-off", !scorerEnabled);
+      statusMain.textContent = "0";
+      lastWinnerId = "";
+      winnerCard.classList.add("hidden");
+      idleState.classList.remove("hidden");
+      playersEl.innerHTML = `<div class="empty">Press Show QR to create a room.</div>`;
+      qrPeopleList.innerHTML = `<div class="empty">No room yet.</div>`;
+      closeQrOverlay();
+    }
+
+    function disconnectRoom() {
+      if (socket) {
+        try {
+          socket.close();
+        } catch (_) {}
+        socket = null;
+      }
+      if (pollTimer) {
+        clearTimeout(pollTimer);
+        pollTimer = null;
+      }
     }
 
     function connectSocket() {
@@ -1209,6 +1258,11 @@
           const payload = JSON.parse(event.data);
           if (payload?.type === "buzzer-room" && payload.room) {
             room = payload.room;
+            render();
+          } else if (payload?.type === "buzzer-room-deleted") {
+            disconnectRoom();
+            room = null;
+            localStorage.removeItem(storageKey);
             render();
           }
         } catch (_) {}
@@ -1230,6 +1284,10 @@
         room = data.room;
         render();
       } catch (_) {
+        disconnectRoom();
+        room = null;
+        localStorage.removeItem(storageKey);
+        render();
       } finally {
         pollTimer = setTimeout(() => {
           pollTimer = null;
@@ -1238,7 +1296,8 @@
       }
     }
 
-    async function initRoom() {
+    async function ensureRoom() {
+      if (room) return room;
       const savedCode = localStorage.getItem(storageKey);
       if (savedCode) {
         try {
@@ -1254,9 +1313,17 @@
       }
       render();
       connectSocket();
+      return room;
+    }
+
+    async function initRoom() {
+      room = null;
+      qrPanelVisible = false;
+      render();
     }
 
     async function startLive() {
+      if (!room) return;
       const data = await api("/api/buzzer/start", { code: room.code });
       room = data.room;
       qrPanelVisible = false;
@@ -1282,14 +1349,22 @@
     });
 
     resetBtn.addEventListener("click", async () => {
+      if (!room) return;
       const confirmed = await askConfirm({
         title: "Reset Room?",
-        text: "This will create a new buzzer room. Participants will need to scan again.",
+        text: "This will delete the current buzzer room. A new room will be created only when you press Show QR again.",
         confirmLabel: "Reset"
       });
       if (!confirmed) return;
+      const oldCode = room.code;
+      disconnectRoom();
+      room = null;
       localStorage.removeItem(storageKey);
-      window.location.reload();
+      try {
+        await api("/api/buzzer/delete-room", { code: oldCode });
+      } catch (_) {}
+      qrPanelVisible = false;
+      render();
     });
 
     homeBtn.addEventListener("click", () => {
@@ -1335,7 +1410,13 @@
       setPointValue(customPointsInput.value, "custom");
     });
 
-    qrToggleBtn.addEventListener("click", () => {
+    qrToggleBtn.addEventListener("click", async () => {
+      if (!room) {
+        await ensureRoom();
+        qrPanelVisible = true;
+        render();
+        return;
+      }
       qrPanelVisible = !qrPanelVisible;
       render();
     });

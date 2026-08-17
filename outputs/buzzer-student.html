@@ -352,6 +352,25 @@
     let lastRoundSubmitted = 0;
     let wakeLock = null;
 
+    function leaveDeadRoom(message = "This room was reset. Scan the new QR to join again.") {
+      if (socket) {
+        try {
+          socket.close();
+        } catch (_) {}
+        socket = null;
+      }
+      if (pollTimer) {
+        clearTimeout(pollTimer);
+        pollTimer = null;
+      }
+      room = null;
+      player = null;
+      gameView.classList.add("hidden");
+      joinView.classList.remove("hidden");
+      joinError.textContent = message;
+      buzzBtn.disabled = true;
+    }
+
     async function api(path, payload = null, method = "POST") {
       const response = await fetch(path, {
         method,
@@ -476,6 +495,8 @@
           if (payload?.type === "buzzer-room" && payload.room) {
             room = payload.room;
             render();
+          } else if (payload?.type === "buzzer-room-deleted") {
+            leaveDeadRoom();
           }
         } catch (_) {}
       });
@@ -496,6 +517,7 @@
         room = data.room;
         render();
       } catch (_) {
+        leaveDeadRoom("This room is no longer available. Scan the new QR to join again.");
       } finally {
         pollTimer = setTimeout(() => {
           pollTimer = null;
