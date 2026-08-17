@@ -205,6 +205,7 @@
       border-radius: clamp(24px, 4vw, 42px);
       display: grid;
       place-items: center;
+      padding: clamp(10px, 1.4vw, 18px);
       overflow: clip;
       background:
         linear-gradient(135deg, rgba(255,255,255,0.6), rgba(255,255,255,0.2)),
@@ -214,7 +215,7 @@
 
     .winner {
       width: min(860px, 90%);
-      min-height: min(340px, 54vh);
+      min-height: min(430px, 62vh);
       display: grid;
       place-items: center;
       text-align: center;
@@ -290,7 +291,7 @@
     }
 
     .idle .alarm-beacon {
-      width: min(430px, 44vw, 58vh);
+      width: min(720px, 68vw, 78vh);
     }
 
     .alarm-beacon.is-active::before {
@@ -337,7 +338,7 @@
     }
 
     .winner-alarm {
-      width: min(220px, 22vw, 28vh);
+      width: min(580px, 50vw, 56vh);
       margin-bottom: -4px;
     }
 
@@ -762,12 +763,16 @@
       }
 
       .winner {
-        min-height: min(300px, 50vh);
-        padding: 16px;
+        min-height: min(330px, 50vh);
+        padding: 12px;
+      }
+
+      .winner-stack {
+        gap: 10px;
       }
 
       .winner-name {
-        font-size: clamp(2.8rem, 7.4vw, 6.4rem);
+        font-size: clamp(2.4rem, 6.6vw, 5.6rem);
       }
 
       .score-actions button,
@@ -776,7 +781,15 @@
       }
 
       .alarm-beacon {
-        width: min(300px, 34vw, 44vh);
+        width: min(260px, 30vw, 35vh);
+      }
+
+      .idle .alarm-beacon {
+        width: min(580px, 52vw, 60vh);
+      }
+
+      .winner-alarm {
+        width: min(430px, 38vw, 40vh);
       }
 
       .qr-box {
@@ -790,6 +803,44 @@
       .player {
         min-height: 36px;
         padding-block: 6px;
+      }
+    }
+
+    @media (max-height: 660px) and (min-width: 761px) {
+      .main {
+        padding: 10px;
+        gap: 8px;
+      }
+
+      .stage {
+        padding: 8px;
+        border-radius: 26px;
+      }
+
+      .idle .alarm-beacon {
+        width: min(470px, 46vw, 52vh);
+      }
+
+      .winner {
+        min-height: min(280px, 45vh);
+        padding: 10px;
+      }
+
+      .winner-name {
+        font-size: clamp(2.1rem, 5.8vw, 4.8rem);
+      }
+
+      .winner-alarm {
+        width: min(330px, 30vw, 32vh);
+      }
+
+      .score-actions {
+        gap: 8px;
+      }
+
+      .score-actions button,
+      .no-score-next {
+        min-height: 40px;
       }
     }
 
@@ -987,6 +1038,10 @@
     awardSound.preload = "auto";
     awardSound.volume = 1;
     awardSound.load();
+    const wrongSound = new Audio("buzzer-wrong.mp3");
+    wrongSound.preload = "auto";
+    wrongSound.volume = 1;
+    wrongSound.load();
 
     function escapeHtml(value) {
       return String(value || "")
@@ -1059,7 +1114,7 @@
     }
 
     function unlockAudio() {
-      [turnAlarmSound, awardSound].forEach((sound) => {
+      [turnAlarmSound, awardSound, wrongSound].forEach((sound) => {
         try {
           const previousMuted = sound.muted;
           sound.muted = true;
@@ -1076,10 +1131,10 @@
       });
     }
 
-    function playSound(sound) {
+    function playSound(sound, startAt = 0) {
       try {
         sound.pause();
-        sound.currentTime = 0;
+        sound.currentTime = startAt;
         sound.muted = false;
         sound.play().catch(() => {});
       } catch (_) {}
@@ -1091,6 +1146,10 @@
 
     function playAwardSound() {
       playSound(awardSound);
+    }
+
+    function playWrongSound() {
+      playSound(wrongSound);
     }
 
     async function requestWakeLock() {
@@ -1396,6 +1455,7 @@
     });
 
     removePointBtn.addEventListener("click", () => {
+      playWrongSound();
       resolveCurrentTurn(-pointValue).catch(() => {});
     });
 
