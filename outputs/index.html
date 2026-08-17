@@ -124,6 +124,10 @@
       background: var(--green);
     }
 
+    .activity.timer::before {
+      background: var(--orange);
+    }
+
     .tag {
       width: max-content;
       padding: 8px 12px;
@@ -155,6 +159,11 @@
     }
 
     .wheel-logo {
+      width: min(96%, 390px);
+      max-height: 280px;
+    }
+
+    .timer-logo {
       width: min(96%, 390px);
       max-height: 280px;
     }
@@ -213,6 +222,13 @@
         <span class="tag">Tool</span>
         <div class="visual">
           <img class="activity-logo wheel-logo" src="./spin-the-wheel-logo.png" alt="Spin The Wheel">
+        </div>
+      </a>
+
+      <a class="activity timer" href="/timer">
+        <span class="tag">Tool</span>
+        <div class="visual">
+          <img class="activity-logo timer-logo" src="./timer-logo.png" alt="Timer">
         </div>
       </a>
     </section>

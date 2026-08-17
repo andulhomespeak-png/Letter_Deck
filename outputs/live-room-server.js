@@ -14,6 +14,7 @@ const STUDENT_HTML = path.join(ROOT, "student.html");
 const HOME_HTML = path.join(ROOT, "index.html");
 const BUZZER_HTML = path.join(ROOT, "buzzer.html");
 const BUZZER_STUDENT_HTML = path.join(ROOT, "buzzer-student.html");
+const TIMER_HTML = path.join(ROOT, "timer.html");
 const NAME_WHEEL_HTML = path.join(ROOT, "name-wheel.html");
 const NAME_WHEEL_STUDENT_HTML = path.join(ROOT, "name-wheel-student.html");
 const WORDS_JS = path.join(ROOT, "english-words.js");
@@ -642,6 +643,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/") return html(res, HOME_HTML);
     if (req.method === "GET" && url.pathname === "/letter-clash") return html(res, TEACHER_HTML);
     if (req.method === "GET" && url.pathname === "/buzzer") return html(res, BUZZER_HTML);
+    if (req.method === "GET" && url.pathname === "/timer") return html(res, TIMER_HTML);
     if (req.method === "GET" && url.pathname === "/name-wheel") return html(res, NAME_WHEEL_HTML);
     if (req.method === "GET" && url.pathname === "/buzzer-student.html") return html(res, BUZZER_STUDENT_HTML);
     if (req.method === "GET" && url.pathname === "/name-wheel-student.html") return html(res, NAME_WHEEL_STUDENT_HTML);

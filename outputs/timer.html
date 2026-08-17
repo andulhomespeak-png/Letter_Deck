@@ -1,0 +1,613 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Class Timer</title>
+  <link rel="icon" type="image/png" href="./letter-clash-favicon.png">
+  <style>
+    :root {
+      --ink: #100b2f;
+      --blue: #087dff;
+      --purple: #3024d8;
+      --red: #ff2541;
+      --green: #19c875;
+      --orange: #ff8a00;
+      --panel: rgba(255, 255, 255, 0.88);
+      --line: rgba(16, 11, 47, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 14% 16%, rgba(8, 125, 255, 0.22), transparent 32%),
+        radial-gradient(circle at 88% 20%, rgba(255, 138, 0, 0.22), transparent 30%),
+        linear-gradient(135deg, #f9fbff 0%, #eef9ff 44%, #fff0f6 100%);
+    }
+
+    .app {
+      width: 100%;
+      height: 100%;
+      padding: clamp(10px, 1.2vw, 18px);
+    }
+
+    .main {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      padding: clamp(12px, 1.7vw, 22px);
+      border: 1px solid rgba(255,255,255,0.75);
+      border-radius: clamp(24px, 3vw, 34px);
+      background: var(--panel);
+      box-shadow: 0 26px 78px rgba(16, 11, 47, 0.16);
+      backdrop-filter: blur(18px);
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: clamp(10px, 1.4vw, 16px);
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: 148px minmax(420px, 620px) minmax(0, 1fr);
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status {
+      width: 148px;
+      padding: 10px 16px;
+      border: 0;
+      border-radius: 20px;
+      color: #fff;
+      background: linear-gradient(135deg, var(--green), #0aa85d);
+      text-align: center;
+      box-shadow: inset 0 -2px 0 rgba(16, 11, 47, 0.04);
+    }
+
+    .status.is-countdown {
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+    }
+
+    .status-label {
+      margin: 0;
+      color: rgba(255,255,255,0.82);
+      font-size: 0.68rem;
+      font-weight: 1000;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .status-main {
+      margin: 2px 0 0;
+      font-size: clamp(1.15rem, 1.35vw, 1.55rem);
+      font-weight: 1000;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .preset-actions,
+    .actions,
+    .bottom-controls {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .actions {
+      justify-content: flex-end;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      min-height: 46px;
+      padding: 0 18px;
+      color: var(--ink);
+      background: #fff;
+      font: inherit;
+      font-weight: 1000;
+      cursor: pointer;
+      box-shadow: 0 14px 30px rgba(16, 11, 47, 0.1);
+      transition: transform 140ms ease, opacity 140ms ease, box-shadow 140ms ease;
+    }
+
+    button:hover { transform: translateY(-2px); }
+    button:active { transform: translateY(1px); }
+
+    .primary {
+      color: #fff;
+      background: linear-gradient(135deg, var(--green), #0aa85d);
+    }
+
+    .danger {
+      color: #fff;
+      background: linear-gradient(135deg, var(--red), #c90020);
+    }
+
+    .stage {
+      min-height: 0;
+      position: relative;
+      border: 1px dashed rgba(16, 11, 47, 0.13);
+      border-radius: clamp(24px, 4vw, 42px);
+      background:
+        radial-gradient(circle at center, rgba(8, 125, 255, 0.08), transparent 36%),
+        linear-gradient(145deg, rgba(255,255,255,0.82), rgba(255,255,255,0.48));
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) auto;
+      gap: clamp(12px, 2vw, 20px);
+      padding: clamp(14px, 2vw, 24px);
+      overflow: hidden;
+    }
+
+    .setup-strip {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: 260px minmax(440px, 1fr);
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .setup-card {
+      min-width: 0;
+      padding: 9px 10px;
+      border: 1px solid rgba(16, 11, 47, 0.09);
+      border-radius: 20px;
+      background: rgba(255,255,255,0.78);
+      box-shadow: 0 12px 26px rgba(16, 11, 47, 0.07);
+    }
+
+    .setup-title {
+      margin: 0 0 7px;
+      color: #3e3580;
+      font-size: 0.68rem;
+      font-weight: 1000;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .time-inputs {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    label {
+      display: grid;
+      gap: 4px;
+      color: rgba(16, 11, 47, 0.58);
+      font-size: 0.68rem;
+      font-weight: 1000;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    input {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid rgba(16, 11, 47, 0.14);
+      border-radius: 16px;
+      padding: 7px 6px;
+      color: var(--ink);
+      background: #fff;
+      font: inherit;
+      font-size: 1rem;
+      font-weight: 1000;
+      text-align: center;
+    }
+
+    .preset-actions {
+      justify-content: flex-start;
+      gap: 7px;
+      flex-wrap: nowrap;
+    }
+
+    .preset-actions button {
+      min-height: 38px;
+      padding: 0 10px;
+      background: rgba(16, 11, 47, 0.07);
+      box-shadow: inset 0 -2px 0 rgba(16, 11, 47, 0.06);
+    }
+
+    .clock-wrap {
+      min-height: 0;
+      position: relative;
+      display: grid;
+      place-items: center;
+    }
+
+    .display {
+      position: relative;
+      z-index: 1;
+      min-width: min(88vw, 780px);
+      padding: clamp(22px, 3.4vw, 42px);
+      border-radius: clamp(22px, 4vw, 36px);
+      border: 7px solid transparent;
+      background:
+        linear-gradient(rgba(255,255,255,0.8), rgba(255,255,255,0.8)) padding-box,
+        conic-gradient(from -90deg,
+          var(--blue) 0 var(--progress),
+          rgba(16, 11, 47, 0.08) var(--progress) 360deg) border-box;
+      text-align: center;
+      box-shadow: 0 18px 46px rgba(16, 11, 47, 0.1), 0 0 24px rgba(8, 125, 255, 0.12);
+    }
+
+    .time {
+      font-family: "Arial Black", "Trebuchet MS", sans-serif;
+      font-size: clamp(5.2rem, 15vw, 14rem);
+      line-height: 0.86;
+      letter-spacing: 0;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .fraction {
+      font-size: 0.5em;
+      vertical-align: baseline;
+    }
+
+    .lap-display {
+      margin-top: 14px;
+      color: rgba(16, 11, 47, 0.56);
+      font-weight: 1000;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      min-height: 1.2em;
+    }
+
+    .lap-display:empty {
+      display: none;
+    }
+
+    .bottom-controls {
+      position: relative;
+      z-index: 2;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .bottom-controls button {
+      min-width: 124px;
+    }
+
+    .start-large {
+      min-width: min(42vw, 280px);
+      min-height: 64px;
+      font-size: clamp(1.25rem, 2.1vw, 2rem);
+      box-shadow: 0 18px 38px rgba(16, 11, 47, 0.16);
+    }
+
+    @media (max-width: 900px) {
+      body {
+        height: auto;
+        min-height: 100vh;
+        overflow: auto;
+      }
+
+      .app {
+        min-height: 100vh;
+        height: auto;
+      }
+
+      .main {
+        min-height: calc(100vh - 20px);
+      }
+
+      .topbar,
+      .setup-strip {
+        grid-template-columns: 1fr;
+      }
+
+      .status {
+        width: 148px;
+      }
+
+      .actions,
+      .bottom-controls {
+        justify-content: stretch;
+      }
+
+      .actions button,
+      .bottom-controls button {
+        flex: 1;
+      }
+
+      .display {
+        min-width: 0;
+        width: min(100%, 760px);
+      }
+    }
+
+    @media (max-width: 560px) {
+      .actions,
+      .setup-strip,
+      .preset-actions,
+      .bottom-controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .start-large {
+        grid-column: span 2;
+      }
+
+      .time {
+        font-size: clamp(4rem, 22vw, 7rem);
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="main">
+      <header class="topbar">
+        <button class="status is-countdown" id="modeToggleBtn" type="button">
+          <p class="status-label">Mode</p>
+          <p class="status-main" id="modeLabel">Countdown</p>
+        </button>
+        <div class="setup-strip">
+          <section class="setup-card">
+            <p class="setup-title">Countdown Setup</p>
+            <div class="time-inputs">
+              <label>Hr
+                <input id="hoursInput" type="number" min="0" max="9" value="0" inputmode="numeric">
+              </label>
+              <label>Min
+                <input id="minutesInput" type="number" min="0" max="59" value="0" inputmode="numeric">
+              </label>
+              <label>Sec
+                <input id="secondsInput" type="number" min="0" max="59" value="30" inputmode="numeric">
+              </label>
+            </div>
+          </section>
+
+          <section class="setup-card">
+            <p class="setup-title">Presets</p>
+            <div class="preset-actions">
+              <button class="preset" data-seconds="10" type="button">10 sec</button>
+              <button class="preset" data-seconds="15" type="button">15 sec</button>
+              <button class="preset" data-seconds="30" type="button">30 sec</button>
+              <button class="preset" data-seconds="60" type="button">1 min</button>
+              <button class="preset" data-seconds="180" type="button">3 min</button>
+              <button class="preset" data-seconds="300" type="button">5 min</button>
+              <button class="preset" data-seconds="600" type="button">10 min</button>
+            </div>
+          </section>
+        </div>
+        <div class="actions">
+          <button class="danger" id="resetBtn" type="button">Reset</button>
+          <button id="homeBtn" type="button">Home</button>
+        </div>
+      </header>
+
+      <section class="stage" aria-label="Class timer">
+        <div class="clock-wrap">
+          <div class="display" id="progressFrame" style="--progress: 0deg">
+            <div class="time" id="timeDisplay">00:00.0</div>
+            <div class="lap-display" id="lapDisplay"></div>
+          </div>
+        </div>
+
+        <div class="bottom-controls">
+          <button class="primary start-large" id="startPauseBtn" type="button">Start</button>
+          <button id="lapBtn" type="button">Lap</button>
+          <button id="addMinuteBtn" type="button">+30 sec</button>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const homeBtn = document.getElementById("homeBtn");
+    const modeToggleBtn = document.getElementById("modeToggleBtn");
+    const startPauseBtn = document.getElementById("startPauseBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const lapBtn = document.getElementById("lapBtn");
+    const addMinuteBtn = document.getElementById("addMinuteBtn");
+    const modeLabel = document.getElementById("modeLabel");
+    const timeDisplay = document.getElementById("timeDisplay");
+    const lapDisplay = document.getElementById("lapDisplay");
+    const progressFrame = document.getElementById("progressFrame");
+    const hoursInput = document.getElementById("hoursInput");
+    const minutesInput = document.getElementById("minutesInput");
+    const secondsInput = document.getElementById("secondsInput");
+    const presetBtns = Array.from(document.querySelectorAll(".preset"));
+    const timeUpSound = new Audio("buzzer-turn-alarm.wav");
+    timeUpSound.preload = "auto";
+    timeUpSound.volume = 1;
+    timeUpSound.load();
+
+    let mode = "down";
+    let running = false;
+    let startedAt = 0;
+    let elapsedBeforeStart = 0;
+    let durationMs = getInputDuration();
+    let frameId = 0;
+    let timeUpPlayed = false;
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, Number(value) || 0));
+    }
+
+    function getInputDuration() {
+      const hours = clamp(hoursInput.value, 0, 9);
+      const minutes = clamp(minutesInput.value, 0, 59);
+      const seconds = clamp(secondsInput.value, 0, 59);
+      hoursInput.value = hours;
+      minutesInput.value = minutes;
+      secondsInput.value = seconds;
+      return ((hours * 3600) + (minutes * 60) + seconds) * 1000;
+    }
+
+    function setInputDuration(totalSeconds) {
+      const seconds = Math.max(0, Math.trunc(Number(totalSeconds) || 0));
+      hoursInput.value = Math.floor(seconds / 3600);
+      minutesInput.value = Math.floor((seconds % 3600) / 60);
+      secondsInput.value = seconds % 60;
+      durationMs = getInputDuration();
+      render();
+    }
+
+    function formatTime(ms) {
+      const totalHundredths = Math.max(0, Math.floor(ms / 10));
+      const hundredths = totalHundredths % 100;
+      const totalSeconds = Math.floor(totalHundredths / 100);
+      const seconds = totalSeconds % 60;
+      const totalMinutes = Math.floor(totalSeconds / 60);
+      const minutes = totalMinutes % 60;
+      const hours = Math.floor(totalMinutes / 60);
+      const base = hours > 0
+        ? `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
+        : `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+      return `${base}<span class="fraction">.${String(hundredths).padStart(2, "0")}</span>`;
+    }
+
+    function getElapsed() {
+      return elapsedBeforeStart + (running ? Date.now() - startedAt : 0);
+    }
+
+    function getVisibleTime() {
+      const elapsed = getElapsed();
+      return mode === "down" ? Math.max(0, durationMs - elapsed) : elapsed;
+    }
+
+    function render() {
+      const elapsed = getElapsed();
+      const visibleTime = getVisibleTime();
+      const complete = mode === "down" && durationMs > 0 && elapsed >= durationMs;
+      timeDisplay.innerHTML = formatTime(visibleTime);
+      startPauseBtn.textContent = running ? "Pause" : elapsedBeforeStart > 0 && !complete ? "Resume" : "Start";
+      modeLabel.textContent = mode === "up" ? "Timer" : "Countdown";
+      lapBtn.style.display = mode === "up" ? "" : "none";
+      addMinuteBtn.style.display = mode === "down" ? "" : "none";
+      modeToggleBtn.classList.toggle("is-countdown", mode === "down");
+      document.body.classList.toggle("is-count-up", mode === "up");
+      const progress = mode === "down" && durationMs > 0
+        ? Math.min(360, (elapsed / durationMs) * 360)
+        : 0;
+      progressFrame.style.setProperty("--progress", `${progress}deg`);
+      if (complete && running) {
+        playTimeUpSound();
+        stop();
+      }
+    }
+
+    function playTimeUpSound() {
+      if (timeUpPlayed) {
+        return;
+      }
+      timeUpPlayed = true;
+      try {
+        timeUpSound.pause();
+        timeUpSound.currentTime = 0;
+        timeUpSound.play().catch(() => {});
+      } catch (_) {}
+    }
+
+    function unlockAudio() {
+      try {
+        const previousMuted = timeUpSound.muted;
+        timeUpSound.muted = true;
+        timeUpSound.play()
+          .then(() => {
+            timeUpSound.pause();
+            timeUpSound.currentTime = 0;
+            timeUpSound.muted = previousMuted;
+          })
+          .catch(() => {
+            timeUpSound.muted = previousMuted;
+          });
+      } catch (_) {}
+    }
+
+    function tick() {
+      render();
+      if (running) {
+        frameId = requestAnimationFrame(tick);
+      }
+    }
+
+    function start() {
+      if (mode === "down" && durationMs <= 0) {
+        durationMs = getInputDuration();
+      }
+      if (mode === "down" && durationMs > 0 && elapsedBeforeStart >= durationMs) {
+        elapsedBeforeStart = 0;
+      }
+      timeUpPlayed = false;
+      running = true;
+      startedAt = Date.now();
+      tick();
+    }
+
+    function stop() {
+      elapsedBeforeStart = getElapsed();
+      running = false;
+      cancelAnimationFrame(frameId);
+      render();
+    }
+
+    function reset() {
+      running = false;
+      cancelAnimationFrame(frameId);
+      elapsedBeforeStart = 0;
+      startedAt = 0;
+      durationMs = getInputDuration();
+      lapDisplay.textContent = "";
+      timeUpPlayed = false;
+      render();
+    }
+
+    function setMode(nextMode) {
+      mode = nextMode;
+      running = false;
+      cancelAnimationFrame(frameId);
+      elapsedBeforeStart = 0;
+      startedAt = 0;
+      durationMs = getInputDuration();
+      lapDisplay.textContent = "";
+      timeUpPlayed = false;
+      render();
+    }
+
+    homeBtn.addEventListener("click", () => { window.location.href = "./"; });
+    modeToggleBtn.addEventListener("click", () => setMode(mode === "up" ? "down" : "up"));
+    startPauseBtn.addEventListener("click", () => { running ? stop() : start(); });
+    resetBtn.addEventListener("click", reset);
+    lapBtn.addEventListener("click", () => { lapDisplay.innerHTML = `Lap ${formatTime(getElapsed())}`; });
+    addMinuteBtn.addEventListener("click", () => {
+      durationMs += 30000;
+      render();
+    });
+
+    [hoursInput, minutesInput, secondsInput].forEach((input) => {
+      input.addEventListener("input", () => {
+        durationMs = getInputDuration();
+        if (!running) {
+          elapsedBeforeStart = 0;
+        }
+        render();
+      });
+    });
+
+    presetBtns.forEach((button) => {
+      button.addEventListener("click", () => {
+        setMode("down");
+        setInputDuration(button.dataset.seconds);
+      });
+    });
+
+    document.addEventListener("pointerdown", unlockAudio, { once: true });
+
+    render();
+  </script>
+</body>
+</html>
