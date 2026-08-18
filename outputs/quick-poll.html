@@ -1,0 +1,847 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quick Poll</title>
+  <link rel="icon" type="image/png" href="./letter-clash-favicon.png">
+  <style>
+    :root {
+      --ink: #100b2f;
+      --muted: rgba(16, 11, 47, 0.62);
+      --line: rgba(16, 11, 47, 0.12);
+      --blue: #087dff;
+      --red: #ff2541;
+      --green: #19c875;
+      --orange: #ff8a00;
+      --panel: rgba(255, 255, 255, 0.88);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 16% 16%, rgba(8, 125, 255, 0.34), transparent 28%),
+        radial-gradient(circle at 82% 18%, rgba(255, 138, 0, 0.3), transparent 30%),
+        radial-gradient(circle at 52% 90%, rgba(25, 200, 117, 0.22), transparent 34%),
+        linear-gradient(135deg, #fff4cf 0%, #eef8ff 46%, #ffe2e8 100%);
+    }
+
+    .app {
+      height: 100vh;
+      height: 100dvh;
+      padding: clamp(8px, 1.3vw, 16px);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(310px, 390px);
+      gap: clamp(8px, 1.3vw, 16px);
+    }
+
+    .main,
+    .side {
+      min-height: 0;
+      border: 1px solid rgba(255,255,255,0.75);
+      border-radius: clamp(24px, 3vw, 34px);
+      background: var(--panel);
+      box-shadow: 0 26px 78px rgba(16, 11, 47, 0.16);
+      backdrop-filter: blur(18px);
+    }
+
+    .main {
+      padding: clamp(12px, 1.7vw, 22px);
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: clamp(8px, 1.4vw, 16px);
+      overflow: clip;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status {
+      min-width: 108px;
+      padding: 8px 14px;
+      border-radius: 22px;
+      background: rgba(255,255,255,0.82);
+      border: 1px solid var(--line);
+      box-shadow: inset 0 -10px 20px rgba(8, 125, 255, 0.06);
+      text-align: center;
+    }
+
+    .status-label {
+      margin: 0 0 4px;
+      color: var(--muted);
+      font-size: 0.7rem;
+      font-weight: 1000;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .status-main {
+      margin: 0;
+      font-size: clamp(1.25rem, 2vw, 2rem);
+      font-weight: 1000;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: end;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      min-height: 44px;
+      padding: 0 16px;
+      font: inherit;
+      font-weight: 1000;
+      color: var(--ink);
+      background: rgba(255,255,255,0.94);
+      box-shadow: 0 12px 26px rgba(16, 11, 47, 0.12);
+      cursor: pointer;
+      transition: transform 120ms ease, opacity 120ms ease;
+    }
+
+    button:hover { transform: translateY(-2px); }
+    button:active { transform: translateY(1px); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+    .primary {
+      color: #fff;
+      background: linear-gradient(135deg, var(--green), #039b52);
+      box-shadow: 0 14px 32px rgba(25, 200, 117, 0.22);
+    }
+
+    .danger {
+      color: #fff;
+      background: linear-gradient(135deg, var(--red), #a8001a);
+    }
+
+    .stage {
+      min-height: 0;
+      border: 1px dashed rgba(16, 11, 47, 0.14);
+      border-radius: clamp(24px, 4vw, 42px);
+      padding: clamp(12px, 2vw, 24px);
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.62), rgba(255,255,255,0.18)),
+        radial-gradient(circle at 50% 48%, rgba(8, 125, 255, 0.14), transparent 34%);
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 14px;
+    }
+
+    .hero-result {
+      min-height: 96px;
+      border-radius: 30px;
+      padding: 16px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      background: rgba(255,255,255,0.72);
+      border: 1px solid var(--line);
+    }
+
+    .hero-result strong {
+      display: block;
+      font-size: clamp(2rem, 6vw, 5.4rem);
+      line-height: 0.95;
+      letter-spacing: -0.05em;
+      color: var(--red);
+      text-shadow: 0 5px 0 rgba(8, 125, 255, 0.16);
+    }
+
+    .hero-result span {
+      color: var(--muted);
+      font-size: clamp(0.9rem, 1.5vw, 1.2rem);
+      font-weight: 1000;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .results {
+      min-height: 0;
+      overflow-y: auto;
+      display: grid;
+      align-content: start;
+      gap: 12px;
+      padding-right: 4px;
+    }
+
+    .result-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 14px;
+      border-radius: 24px;
+      background: rgba(255,255,255,0.84);
+      border: 1px solid var(--line);
+      box-shadow: 0 14px 30px rgba(16, 11, 47, 0.09);
+    }
+
+    .result-name {
+      min-width: 0;
+      font-size: clamp(1.05rem, 2vw, 1.55rem);
+      font-weight: 1000;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .bar {
+      grid-column: 1 / -1;
+      height: 14px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(16,11,47,0.08);
+    }
+
+    .bar span {
+      display: block;
+      height: 100%;
+      width: var(--w, 0%);
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--blue), var(--green), var(--orange));
+      transition: width 220ms ease;
+    }
+
+    .votes {
+      font-size: 1.2rem;
+      font-weight: 1000;
+      color: var(--blue);
+    }
+
+    .side {
+      padding: clamp(14px, 1.8vw, 22px);
+      display: grid;
+      grid-template-rows: auto auto auto minmax(0, 1fr);
+      gap: 12px;
+      overflow: hidden;
+    }
+
+    .side.is-qr-hidden {
+      grid-template-rows: auto auto minmax(0, 1fr);
+    }
+
+    .side-content {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) minmax(0, 3fr);
+      gap: 12px;
+    }
+
+    .side.is-players-source .side-content {
+      grid-template-rows: minmax(0, 1fr);
+    }
+
+    .side-head,
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    h2,
+    h3 {
+      margin: 0;
+      color: #3e3580;
+      font-size: 1rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .qr-box {
+      display: grid;
+      place-items: center;
+      gap: 8px;
+      padding: 12px;
+      border-radius: 24px;
+      background: rgba(255,255,255,0.72);
+      border: 1px solid var(--line);
+      cursor: zoom-in;
+      transition: transform 140ms ease, box-shadow 140ms ease;
+    }
+
+    .qr-box:hover {
+      transform: translateY(-2px) scale(1.01);
+      box-shadow: 0 16px 34px rgba(16, 11, 47, 0.14);
+    }
+
+    .qr-box img {
+      width: min(100%, 190px);
+      border-radius: 18px;
+      background: #fff;
+      image-rendering: pixelated;
+    }
+
+    .room-code {
+      margin: 0;
+      font-weight: 1000;
+      letter-spacing: 0.18em;
+      color: var(--muted);
+    }
+
+    .panel {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 8px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 0;
+      resize: none;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 14px;
+      font: inherit;
+      font-weight: 900;
+      background: rgba(255,255,255,0.74);
+      outline: none;
+    }
+
+    .players {
+      min-height: 0;
+      overflow-y: auto;
+      display: grid;
+      align-content: start;
+      gap: 8px;
+    }
+
+    .player {
+      padding: 10px 12px;
+      border-radius: 18px;
+      font-weight: 1000;
+      background: rgba(255,255,255,0.76);
+      border: 1px solid var(--line);
+    }
+
+    .segment {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .segment button.is-active,
+    .self-toggle.is-active {
+      color: #fff;
+      background: linear-gradient(135deg, var(--blue), #3024d8);
+    }
+
+    .hidden { display: none !important; }
+
+    .qr-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      padding: clamp(12px, 3vw, 28px);
+      background: rgba(16, 11, 47, 0.42);
+      backdrop-filter: blur(18px);
+    }
+
+    .qr-modal-card {
+      position: fixed;
+      left: 50vw;
+      top: 50vh;
+      transform: translate(-50%, -50%);
+      width: min(92vw, 980px);
+      height: min(88vh, 820px);
+      padding: clamp(16px, 3vw, 28px);
+      border-radius: clamp(28px, 4vw, 42px);
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(240px, 0.85fr);
+      gap: clamp(14px, 2vw, 22px);
+      background: rgba(255,255,255,0.92);
+      border: 1px solid rgba(255,255,255,0.78);
+      box-shadow: 0 32px 90px rgba(16, 11, 47, 0.28);
+      overflow: hidden;
+    }
+
+    .qr-modal-main {
+      display: grid;
+      gap: 10px;
+      place-items: center;
+      min-height: 0;
+    }
+
+    .qr-modal-main img {
+      width: min(100%, 620px);
+      max-height: min(62vh, 600px);
+      border-radius: 24px;
+      background: #fff;
+      image-rendering: pixelated;
+    }
+
+    .qr-modal-list {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 10px;
+      padding: 14px;
+      border-radius: 28px;
+      background: rgba(255,255,255,0.68);
+      border: 1px solid var(--line);
+    }
+
+    .modal-names {
+      min-height: 0;
+      overflow-y: auto;
+      font-weight: 1000;
+      line-height: 1.55;
+      white-space: pre-line;
+    }
+
+    @media (max-width: 900px) {
+      body { height: auto; overflow: auto; }
+      .app {
+        height: auto;
+        min-height: 100dvh;
+        grid-template-columns: 1fr;
+      }
+      .topbar { grid-template-columns: 1fr; }
+      .actions { justify-content: stretch; }
+      .actions button { flex: 1; }
+      .side { min-height: 650px; }
+      .qr-modal-card {
+        grid-template-columns: 1fr;
+        width: min(92vw, 520px);
+        height: min(90vh, 760px);
+      }
+      .qr-modal-main img { max-height: 42vh; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="main">
+      <header class="topbar">
+        <div class="status">
+          <p class="status-label">Status</p>
+          <p class="status-main" id="statusText">Waiting</p>
+        </div>
+        <div></div>
+        <div class="actions">
+          <button class="primary" id="startBtn" type="button">Start</button>
+          <button id="endBtn" type="button">End</button>
+          <button id="resetBtn" type="button">Reset</button>
+          <button id="homeBtn" type="button">Home</button>
+          <button class="danger" id="destroyBtn" type="button">Deal</button>
+        </div>
+      </header>
+
+      <section class="stage">
+        <div class="hero-result" id="heroResult">
+          <div>
+            <span id="heroLabel">Waiting for votes</span>
+            <strong id="heroName">Quick Poll</strong>
+          </div>
+        </div>
+        <div class="results" id="results"></div>
+      </section>
+    </section>
+
+    <aside class="side is-qr-hidden" id="sidePanel">
+      <div class="side-head">
+        <h2>Players</h2>
+        <button id="qrToggleBtn" type="button">Show QR</button>
+      </div>
+      <div class="qr-box hidden" id="qrBox" role="button" tabindex="0" aria-label="Quick Poll room QR">
+        <img id="qrImage" alt="Quick Poll room QR">
+        <p class="room-code" id="roomCode">-----</p>
+      </div>
+      <div class="segment">
+        <button id="manualBtn" class="is-active" type="button">Manual</button>
+        <button id="playersBtn" type="button">Players</button>
+      </div>
+      <button class="self-toggle is-active" id="selfVoteBtn" type="button">Block Self-Vote</button>
+      <div class="side-content">
+        <section class="panel" id="optionsPanel">
+          <div class="row">
+            <h3>Options</h3>
+            <span id="optionCount">0</span>
+          </div>
+          <textarea id="optionsInput" spellcheck="false" placeholder="Type options here. One per line."></textarea>
+        </section>
+        <section class="panel">
+          <div class="row">
+            <h3>Connected</h3>
+            <span id="playerCount">0</span>
+          </div>
+          <div class="players" id="playersList"></div>
+        </section>
+      </div>
+    </aside>
+  </main>
+
+  <div class="qr-modal hidden" id="qrModal" aria-hidden="true">
+    <div class="qr-modal-card">
+      <div class="qr-modal-main">
+        <img id="qrLargeImage" alt="Large Quick Poll room QR">
+        <p class="room-code" id="qrLargeCode">-----</p>
+        <button id="qrModalCloseBtn" type="button">Close</button>
+      </div>
+      <section class="qr-modal-list" aria-label="Connected players">
+        <h3>Connected Players</h3>
+        <div class="modal-names" id="modalNames"></div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const storageKey = "quick-poll-room-code";
+    const statusText = document.getElementById("statusText");
+    const startBtn = document.getElementById("startBtn");
+    const endBtn = document.getElementById("endBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const destroyBtn = document.getElementById("destroyBtn");
+    const homeBtn = document.getElementById("homeBtn");
+    const qrToggleBtn = document.getElementById("qrToggleBtn");
+    const qrBox = document.getElementById("qrBox");
+    const qrImage = document.getElementById("qrImage");
+    const roomCodeEl = document.getElementById("roomCode");
+    const qrModal = document.getElementById("qrModal");
+    const qrLargeImage = document.getElementById("qrLargeImage");
+    const qrLargeCode = document.getElementById("qrLargeCode");
+    const qrModalCloseBtn = document.getElementById("qrModalCloseBtn");
+    const sidePanel = document.getElementById("sidePanel");
+    const manualBtn = document.getElementById("manualBtn");
+    const playersBtn = document.getElementById("playersBtn");
+    const selfVoteBtn = document.getElementById("selfVoteBtn");
+    const optionsPanel = document.getElementById("optionsPanel");
+    const optionsInput = document.getElementById("optionsInput");
+    const optionCount = document.getElementById("optionCount");
+    const playerCount = document.getElementById("playerCount");
+    const playersList = document.getElementById("playersList");
+    const modalNames = document.getElementById("modalNames");
+    const results = document.getElementById("results");
+    const heroLabel = document.getElementById("heroLabel");
+    const heroName = document.getElementById("heroName");
+
+    let room = null;
+    let baseUrl = window.location.origin;
+    let qrVisible = false;
+    let source = "manual";
+    let blockSelfVote = true;
+    let options = [];
+    let pollTimer = null;
+    let syncTimer = null;
+    let editingOptions = false;
+
+    async function api(path, payload = null, method = "POST") {
+      const response = await fetch(path, {
+        method,
+        headers: payload ? { "Content-Type": "application/json" } : undefined,
+        body: payload ? JSON.stringify(payload) : undefined
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Request failed");
+      return data;
+    }
+
+    function normalize(values) {
+      const seen = new Set();
+      return values.map((value) => String(value || "").trim()).filter(Boolean).filter((value) => {
+        const key = value.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      }).slice(0, 100);
+    }
+
+    function getInputOptions() {
+      return normalize(optionsInput.value.split(/\r?\n/));
+    }
+
+    function getJoinUrl() {
+      return room ? `${baseUrl}/quick-poll-student.html?code=${encodeURIComponent(room.code)}` : "";
+    }
+
+    function getQrSrc(size = 420) {
+      return room ? `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(getJoinUrl())}` : "";
+    }
+
+    function renderPlayers() {
+      const players = room?.players || [];
+      playerCount.textContent = players.length;
+      playersList.innerHTML = players.length
+        ? players.slice().sort((a, b) => a.name.localeCompare(b.name)).map((player) => `<div class="player">${escapeHtml(player.name)}</div>`).join("")
+        : `<div class="player">Waiting for players...</div>`;
+      modalNames.textContent = players.length ? players.map((player) => player.name).sort((a, b) => a.localeCompare(b)).join("\n") : "No players yet.";
+    }
+
+    function renderResults() {
+      const list = room?.results || [];
+      const total = (room?.votes || []).length;
+      const leader = list[0];
+      if (room?.status === "closed" && leader && leader.votes > 0) {
+        heroLabel.textContent = "Top result";
+        heroName.textContent = leader.label;
+      } else if (room?.status === "voting") {
+        heroLabel.textContent = `${total} vote${total === 1 ? "" : "s"} submitted`;
+        heroName.textContent = leader?.votes ? leader.label : "Voting";
+      } else {
+        heroLabel.textContent = "Waiting for votes";
+        heroName.textContent = "Quick Poll";
+      }
+      if (!list.length) {
+        results.innerHTML = `<div class="result-row"><div class="result-name">Add options or use players as options.</div><div class="votes">0</div><div class="bar"><span></span></div></div>`;
+        return;
+      }
+      const maxVotes = Math.max(1, ...list.map((item) => item.votes));
+      results.innerHTML = list.map((item) => {
+        const width = Math.round((item.votes / maxVotes) * 100);
+        return `<div class="result-row"><div class="result-name">${escapeHtml(item.label)}</div><div class="votes">${item.votes}</div><div class="bar"><span style="--w:${width}%"></span></div></div>`;
+      }).join("");
+    }
+
+    function render() {
+      statusText.textContent = room ? room.status[0].toUpperCase() + room.status.slice(1) : "Waiting";
+      source = room?.source || source;
+      blockSelfVote = room?.blockSelfVote ?? blockSelfVote;
+      options = room?.options || options;
+      optionCount.textContent = source === "manual" ? options.length : (room?.players || []).length;
+      manualBtn.classList.toggle("is-active", source === "manual");
+      playersBtn.classList.toggle("is-active", source === "players");
+      selfVoteBtn.classList.toggle("hidden", source !== "players");
+      selfVoteBtn.classList.toggle("is-active", blockSelfVote);
+      selfVoteBtn.textContent = blockSelfVote ? "Block Self-Vote" : "Allow Self-Vote";
+      optionsPanel.classList.toggle("hidden", source !== "manual");
+      if (source === "manual" && !editingOptions && optionsInput.value !== options.join("\n")) {
+        optionsInput.value = options.join("\n");
+      }
+      startBtn.disabled = !room || room.status === "voting";
+      endBtn.disabled = !room || room.status !== "voting";
+      resetBtn.disabled = !room || room.status === "voting";
+      if (room) {
+        localStorage.setItem(storageKey, room.code);
+        roomCodeEl.textContent = room.code;
+        qrLargeCode.textContent = room.code;
+        qrImage.src = getQrSrc(420);
+        qrLargeImage.src = getQrSrc(720);
+      } else {
+        roomCodeEl.textContent = "-----";
+        qrImage.removeAttribute("src");
+      }
+      sidePanel.classList.toggle("is-qr-hidden", !qrVisible);
+      sidePanel.classList.toggle("is-players-source", source === "players");
+      qrBox.classList.toggle("hidden", !qrVisible || !room);
+      qrToggleBtn.textContent = qrVisible ? "Hide QR" : "Show QR";
+      renderPlayers();
+      renderResults();
+    }
+
+    function escapeHtml(value) {
+      return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    async function hydrateBaseUrl() {
+      try {
+        const data = await api("/api/live/server-info", null, "GET");
+        const localHost = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+        baseUrl = localHost && data?.localOrigin ? data.localOrigin : (data?.publicOrigin || window.location.origin);
+      } catch (_) {}
+    }
+
+    async function ensureRoom() {
+      if (room) return room;
+      const savedCode = localStorage.getItem(storageKey);
+      if (savedCode) {
+        try {
+          const data = await api(`/api/poll/room?code=${encodeURIComponent(savedCode)}`, null, "GET");
+          room = data.room;
+          render();
+          return room;
+        } catch (_) {
+          localStorage.removeItem(storageKey);
+        }
+      }
+      const data = await api("/api/poll/create-room");
+      room = data.room;
+      await syncSettings();
+      return room;
+    }
+
+    async function syncSettings() {
+      if (!room) return;
+      const data = await api("/api/poll/sync", { code: room.code, options, source, blockSelfVote });
+      room = data.room;
+      render();
+    }
+
+    function scheduleSync() {
+      clearTimeout(syncTimer);
+      syncTimer = setTimeout(() => syncSettings().catch(() => {}), 250);
+    }
+
+    async function pollRoom() {
+      if (!room) return;
+      try {
+        const data = await api(`/api/poll/room?code=${encodeURIComponent(room.code)}`, null, "GET");
+        room = data.room;
+        render();
+      } catch (_) {
+        room = null;
+        qrVisible = false;
+        localStorage.removeItem(storageKey);
+        render();
+      } finally {
+        pollTimer = setTimeout(pollRoom, 1200);
+      }
+    }
+
+    function startPolling() {
+      clearTimeout(pollTimer);
+      pollTimer = setTimeout(pollRoom, 500);
+    }
+
+    function openQrModal() {
+      if (!room || !qrVisible) return;
+      qrModal.classList.remove("hidden");
+      qrModal.setAttribute("aria-hidden", "false");
+      renderPlayers();
+    }
+
+    function closeQrModal() {
+      qrModal.classList.add("hidden");
+      qrModal.setAttribute("aria-hidden", "true");
+    }
+
+    optionsInput.addEventListener("input", () => {
+      editingOptions = true;
+      options = getInputOptions();
+      optionCount.textContent = options.length;
+      scheduleSync();
+      renderResults();
+    });
+
+    optionsInput.addEventListener("focus", () => {
+      editingOptions = true;
+    });
+
+    optionsInput.addEventListener("blur", () => {
+      editingOptions = false;
+      options = getInputOptions();
+      scheduleSync();
+      render();
+    });
+
+    manualBtn.addEventListener("click", async () => {
+      await ensureRoom();
+      source = "manual";
+      await syncSettings();
+    });
+
+    playersBtn.addEventListener("click", async () => {
+      await ensureRoom();
+      source = "players";
+      await syncSettings();
+    });
+
+    selfVoteBtn.addEventListener("click", async () => {
+      await ensureRoom();
+      blockSelfVote = !blockSelfVote;
+      await syncSettings();
+    });
+
+    qrToggleBtn.addEventListener("click", async () => {
+      if (!qrVisible) {
+        await ensureRoom();
+        qrVisible = true;
+        render();
+        startPolling();
+        return;
+      }
+      qrVisible = false;
+      closeQrModal();
+      render();
+    });
+
+    startBtn.addEventListener("click", async () => {
+      try {
+        await ensureRoom();
+        await syncSettings();
+        const data = await api("/api/poll/start", { code: room.code });
+        room = data.room;
+        render();
+        startPolling();
+      } catch (error) {
+        alert(error.message || "Could not start poll.");
+      }
+    });
+
+    endBtn.addEventListener("click", async () => {
+      if (!room) return;
+      const data = await api("/api/poll/end", { code: room.code });
+      room = data.room;
+      render();
+    });
+
+    resetBtn.addEventListener("click", async () => {
+      if (!room || !confirm("Reset votes for this poll?")) return;
+      const data = await api("/api/poll/reset", { code: room.code });
+      room = data.room;
+      render();
+    });
+
+    destroyBtn.addEventListener("click", async () => {
+      if (!confirm("Delete this Quick Poll room and clear the session?")) return;
+      const oldCode = room?.code;
+      if (oldCode) {
+        try { await api("/api/poll/delete-room", { code: oldCode }); } catch (_) {}
+      }
+      room = null;
+      qrVisible = false;
+      options = [];
+      source = "manual";
+      optionsInput.value = "";
+      localStorage.removeItem(storageKey);
+      closeQrModal();
+      render();
+    });
+
+    homeBtn.addEventListener("click", () => { window.location.href = "./"; });
+    qrBox.addEventListener("click", openQrModal);
+    qrBox.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openQrModal();
+      }
+    });
+    qrModalCloseBtn.addEventListener("click", closeQrModal);
+    qrModal.addEventListener("click", (event) => {
+      if (event.target === qrModal) closeQrModal();
+    });
+
+    hydrateBaseUrl().then(async () => {
+      render();
+      const savedCode = localStorage.getItem(storageKey);
+      if (savedCode) {
+        try {
+          const data = await api(`/api/poll/room?code=${encodeURIComponent(savedCode)}`, null, "GET");
+          room = data.room;
+          render();
+          startPolling();
+        } catch (_) {
+          localStorage.removeItem(storageKey);
+          render();
+        }
+      }
+    });
+  </script>
+</body>
+</html>

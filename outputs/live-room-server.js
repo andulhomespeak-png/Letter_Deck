@@ -17,6 +17,8 @@ const BUZZER_STUDENT_HTML = path.join(ROOT, "buzzer-student.html");
 const TIMER_HTML = path.join(ROOT, "timer.html");
 const NAME_WHEEL_HTML = path.join(ROOT, "name-wheel.html");
 const NAME_WHEEL_STUDENT_HTML = path.join(ROOT, "name-wheel-student.html");
+const QUICK_POLL_HTML = path.join(ROOT, "quick-poll.html");
+const QUICK_POLL_STUDENT_HTML = path.join(ROOT, "quick-poll-student.html");
 const WORDS_JS = path.join(ROOT, "english-words.js");
 const ROOM_TTL_MS = 60 * 60 * 1000;
 
@@ -25,6 +27,7 @@ const roomSockets = new Map();
 const buzzerRooms = new Map();
 const buzzerSockets = new Map();
 const wheelRooms = new Map();
+const pollRooms = new Map();
 
 function loadDictionary() {
   const source = fs.readFileSync(WORDS_JS, "utf8");
@@ -239,8 +242,26 @@ function makeCode() {
   let code = "";
   do {
     code = Array.from({ length: 5 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-  } while (rooms.has(code) || buzzerRooms.has(code) || wheelRooms.has(code));
+  } while (rooms.has(code) || buzzerRooms.has(code) || wheelRooms.has(code) || pollRooms.has(code));
   return code;
+}
+
+function createPollRoom() {
+  const room = {
+    code: makeCode(),
+    status: "waiting",
+    source: "manual",
+    blockSelfVote: true,
+    options: [],
+    players: [],
+    votes: [],
+    nextPlayerId: 1,
+    pollId: 1,
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+  pollRooms.set(room.code, room);
+  return room;
 }
 
 function createWheelRoom() {
@@ -322,6 +343,12 @@ function cleanupRooms() {
     }
     wheelRooms.delete(code);
   });
+  pollRooms.forEach((room, code) => {
+    if (now - Number(room.updatedAt || 0) < ROOM_TTL_MS) {
+      return;
+    }
+    pollRooms.delete(code);
+  });
 }
 
 function getRoom(code) {
@@ -339,6 +366,12 @@ function getBuzzerRoom(code) {
 function getWheelRoom(code) {
   const room = wheelRooms.get(String(code || "").toUpperCase());
   if (!room) throw new Error("Wheel room not found");
+  return room;
+}
+
+function getPollRoom(code) {
+  const room = pollRooms.get(String(code || "").toUpperCase());
+  if (!room) throw new Error("Poll room not found");
   return room;
 }
 
@@ -498,6 +531,59 @@ function normalizeWheelNames(values) {
     .slice(0, 500);
 }
 
+function normalizePollOptions(values) {
+  const seen = new Set();
+  return (Array.isArray(values) ? values : [])
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .filter((value) => {
+      const key = value.toLowerCase();
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 100);
+}
+
+function getPollCandidates(room) {
+  if (room.source === "players") {
+    return (room.players || []).map((player) => ({
+      id: `player-${player.id}`,
+      playerId: player.id,
+      label: player.name
+    }));
+  }
+  return (room.options || []).map((label, index) => ({
+    id: `option-${index}`,
+    label
+  }));
+}
+
+function serializePollRoom(room) {
+  const candidates = getPollCandidates(room);
+  const candidateIds = new Set(candidates.map((candidate) => candidate.id));
+  const validVotes = (room.votes || []).filter((vote) => candidateIds.has(vote.candidateId));
+  const results = candidates.map((candidate) => ({
+    ...candidate,
+    votes: validVotes.filter((vote) => vote.candidateId === candidate.id).length
+  })).sort((a, b) => b.votes - a.votes || a.label.localeCompare(b.label));
+  return {
+    code: room.code,
+    status: room.status,
+    source: room.source,
+    blockSelfVote: !!room.blockSelfVote,
+    options: room.options || [],
+    players: room.players || [],
+    candidates,
+    results,
+    votes: validVotes,
+    pollId: room.pollId,
+    updatedAt: room.updatedAt
+  };
+}
+
 async function enrichAcceptedWord(roomCode, feedbackId, word) {
   const definition = await lookupDefinition(word);
   const room = rooms.get(roomCode);
@@ -645,8 +731,10 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/buzzer") return html(res, BUZZER_HTML);
     if (req.method === "GET" && url.pathname === "/timer") return html(res, TIMER_HTML);
     if (req.method === "GET" && url.pathname === "/name-wheel") return html(res, NAME_WHEEL_HTML);
+    if (req.method === "GET" && url.pathname === "/quick-poll") return html(res, QUICK_POLL_HTML);
     if (req.method === "GET" && url.pathname === "/buzzer-student.html") return html(res, BUZZER_STUDENT_HTML);
     if (req.method === "GET" && url.pathname === "/name-wheel-student.html") return html(res, NAME_WHEEL_STUDENT_HTML);
+    if (req.method === "GET" && url.pathname === "/quick-poll-student.html") return html(res, QUICK_POLL_STUDENT_HTML);
     if (req.method === "GET" && url.pathname === "/student.html") return html(res, STUDENT_HTML);
     if (req.method === "GET" && url.pathname === "/english-words.js") {
       res.writeHead(200, { "Content-Type": "application/javascript; charset=utf-8", "Cache-Control": "no-store" });
@@ -1116,6 +1204,105 @@ const server = http.createServer(async (req, res) => {
       room.names = normalizeWheelNames([...room.names, clean]);
       touch(room);
       return json(res, 200, { room: serializeWheelRoom(room), added: !alreadyExists, name: clean });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/poll/create-room") {
+      return json(res, 200, { room: serializePollRoom(createPollRoom()) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/poll/delete-room") {
+      const { code } = await body(req);
+      pollRooms.delete(String(code || "").toUpperCase());
+      return json(res, 200, { ok: true });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/poll/room") {
+      return json(res, 200, { room: serializePollRoom(getPollRoom(url.searchParams.get("code"))) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/poll/sync") {
+      const { code, options, source, blockSelfVote } = await body(req);
+      const room = getPollRoom(code);
+      const nextSource = source === "players" ? "players" : "manual";
+      const nextOptions = normalizePollOptions(options);
+      const changed = room.source !== nextSource || room.options.join("\n") !== nextOptions.join("\n") || room.blockSelfVote !== !!blockSelfVote;
+      room.source = nextSource;
+      room.options = nextOptions;
+      room.blockSelfVote = !!blockSelfVote;
+      if (changed && room.status !== "voting") {
+        room.votes = [];
+      }
+      touch(room);
+      return json(res, 200, { room: serializePollRoom(room) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/poll/join") {
+      const { code, name, playerId } = await body(req);
+      const room = getPollRoom(code);
+      const clean = String(name || "").trim();
+      if (!clean) throw new Error("Name is required");
+      const requestedId = Number(playerId || 0);
+      let player = room.players.find((item) => item.id === requestedId);
+      const duplicate = room.players.find((item) => item !== player && String(item.name || "").trim().toLowerCase() === clean.toLowerCase());
+      if (duplicate) throw new Error("A participant with this name is already connected.");
+      if (!player) {
+        player = { id: room.nextPlayerId || 1, name: clean, joinedAt: Date.now(), updatedAt: Date.now() };
+        room.nextPlayerId = player.id + 1;
+        room.players.push(player);
+      } else {
+        player.name = clean;
+        player.updatedAt = Date.now();
+      }
+      touch(room);
+      return json(res, 200, { room: serializePollRoom(room), player });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/poll/start") {
+      const { code } = await body(req);
+      const room = getPollRoom(code);
+      const candidates = getPollCandidates(room);
+      if (!room.players.length) throw new Error("Add participants before starting the vote.");
+      if (candidates.length < 2) throw new Error("Add at least two options before starting the vote.");
+      room.status = "voting";
+      room.votes = [];
+      room.pollId = Number(room.pollId || 0) + 1;
+      touch(room);
+      return json(res, 200, { room: serializePollRoom(room) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/poll/end") {
+      const { code } = await body(req);
+      const room = getPollRoom(code);
+      room.status = "closed";
+      touch(room);
+      return json(res, 200, { room: serializePollRoom(room) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/poll/reset") {
+      const { code } = await body(req);
+      const room = getPollRoom(code);
+      room.status = "waiting";
+      room.votes = [];
+      room.pollId = Number(room.pollId || 0) + 1;
+      touch(room);
+      return json(res, 200, { room: serializePollRoom(room) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/poll/vote") {
+      const { code, playerId, candidateId } = await body(req);
+      const room = getPollRoom(code);
+      if (room.status !== "voting") throw new Error("Voting is not open.");
+      const voter = room.players.find((player) => player.id === Number(playerId || 0));
+      if (!voter) throw new Error("Join the poll before voting.");
+      if (room.votes.some((vote) => vote.voterId === voter.id)) throw new Error("You already voted.");
+      const candidate = getPollCandidates(room).find((item) => item.id === String(candidateId || ""));
+      if (!candidate) throw new Error("Option not found.");
+      if (room.source === "players" && room.blockSelfVote && candidate.playerId === voter.id) {
+        throw new Error("You cannot vote for yourself.");
+      }
+      room.votes.push({ voterId: voter.id, voterName: voter.name, candidateId: candidate.id, candidateLabel: candidate.label, createdAt: Date.now() });
+      touch(room);
+      return json(res, 200, { room: serializePollRoom(room), vote: room.votes[room.votes.length - 1] });
     }
 
     res.writeHead(404);
