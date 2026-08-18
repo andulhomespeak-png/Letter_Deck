@@ -253,6 +253,7 @@ function createPollRoom() {
     source: "manual",
     blockSelfVote: true,
     options: [],
+    candidatePlayerIds: [],
     players: [],
     votes: [],
     nextPlayerId: 1,
@@ -549,7 +550,8 @@ function normalizePollOptions(values) {
 
 function getPollCandidates(room) {
   if (room.source === "players") {
-    return (room.players || []).map((player) => ({
+    const candidateIds = new Set((room.candidatePlayerIds || []).map((id) => Number(id)));
+    return (room.players || []).filter((player) => candidateIds.has(Number(player.id))).map((player) => ({
       id: `player-${player.id}`,
       playerId: player.id,
       label: player.name
@@ -575,6 +577,7 @@ function serializePollRoom(room) {
     source: room.source,
     blockSelfVote: !!room.blockSelfVote,
     options: room.options || [],
+    candidatePlayerIds: room.candidatePlayerIds || [],
     players: room.players || [],
     candidates,
     results,
@@ -1221,13 +1224,21 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && url.pathname === "/api/poll/sync") {
-      const { code, options, source, blockSelfVote } = await body(req);
+      const { code, options, source, blockSelfVote, candidatePlayerIds } = await body(req);
       const room = getPollRoom(code);
       const nextSource = source === "players" ? "players" : "manual";
       const nextOptions = normalizePollOptions(options);
-      const changed = room.source !== nextSource || room.options.join("\n") !== nextOptions.join("\n") || room.blockSelfVote !== !!blockSelfVote;
+      const validPlayerIds = new Set((room.players || []).map((player) => Number(player.id)));
+      const nextCandidatePlayerIds = Array.from(new Set((Array.isArray(candidatePlayerIds) ? candidatePlayerIds : room.candidatePlayerIds || [])
+        .map((id) => Number(id))
+        .filter((id) => validPlayerIds.has(id))));
+      const changed = room.source !== nextSource
+        || room.options.join("\n") !== nextOptions.join("\n")
+        || (room.candidatePlayerIds || []).join("|") !== nextCandidatePlayerIds.join("|")
+        || room.blockSelfVote !== !!blockSelfVote;
       room.source = nextSource;
       room.options = nextOptions;
+      room.candidatePlayerIds = nextCandidatePlayerIds;
       room.blockSelfVote = !!blockSelfVote;
       if (changed && room.status !== "voting") {
         room.votes = [];
@@ -1253,6 +1264,8 @@ const server = http.createServer(async (req, res) => {
         player.name = clean;
         player.updatedAt = Date.now();
       }
+      const playerIds = new Set(room.players.map((item) => Number(item.id)));
+      room.candidatePlayerIds = (room.candidatePlayerIds || []).filter((id) => playerIds.has(Number(id)));
       touch(room);
       return json(res, 200, { room: serializePollRoom(room), player });
     }

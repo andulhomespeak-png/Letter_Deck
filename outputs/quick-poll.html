@@ -62,34 +62,45 @@
 
     .topbar {
       display: grid;
-      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-columns: auto minmax(280px, 520px) auto minmax(0, 1fr) auto;
       align-items: center;
       gap: 10px;
     }
 
     .status {
-      min-width: 108px;
-      padding: 8px 14px;
-      border-radius: 22px;
-      background: rgba(255,255,255,0.82);
-      border: 1px solid var(--line);
-      box-shadow: inset 0 -10px 20px rgba(8, 125, 255, 0.06);
-      text-align: center;
+      min-width: 132px;
     }
 
-    .status-label {
-      margin: 0 0 4px;
-      color: var(--muted);
+    .mode-label {
+      margin: 0;
       font-size: 0.7rem;
       font-weight: 1000;
+      line-height: 1;
+      text-align: center;
       text-transform: uppercase;
       letter-spacing: 0.12em;
+      opacity: 0.78;
     }
 
-    .status-main {
-      margin: 0;
+    .mode-toggle {
+      width: 100%;
+      display: grid;
+      place-items: center;
+      gap: 4px;
+      min-height: 62px;
+      padding-block: 8px;
+      border-radius: 22px;
+      color: #fff;
+      background: linear-gradient(135deg, var(--green), #039b52);
+    }
+
+    .mode-value {
       font-size: clamp(1.25rem, 2vw, 2rem);
-      font-weight: 1000;
+      line-height: 1;
+    }
+
+    .mode-toggle.is-players {
+      background: linear-gradient(135deg, var(--blue), #3024d8);
     }
 
     .actions {
@@ -139,36 +150,8 @@
         radial-gradient(circle at 50% 48%, rgba(8, 125, 255, 0.14), transparent 34%);
       overflow: hidden;
       display: grid;
-      grid-template-rows: auto minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr);
       gap: 14px;
-    }
-
-    .hero-result {
-      min-height: 96px;
-      border-radius: 30px;
-      padding: 16px;
-      display: grid;
-      place-items: center;
-      text-align: center;
-      background: rgba(255,255,255,0.72);
-      border: 1px solid var(--line);
-    }
-
-    .hero-result strong {
-      display: block;
-      font-size: clamp(2rem, 6vw, 5.4rem);
-      line-height: 0.95;
-      letter-spacing: -0.05em;
-      color: var(--red);
-      text-shadow: 0 5px 0 rgba(8, 125, 255, 0.16);
-    }
-
-    .hero-result span {
-      color: var(--muted);
-      font-size: clamp(0.9rem, 1.5vw, 1.2rem);
-      font-weight: 1000;
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
     }
 
     .results {
@@ -180,9 +163,17 @@
       padding-right: 4px;
     }
 
+    .empty-results {
+      align-self: start;
+      padding: 10px 4px;
+      color: var(--muted);
+      font-size: clamp(1.25rem, 2vw, 2rem);
+      font-weight: 1000;
+    }
+
     .result-row {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-columns: minmax(0, 1fr) auto auto;
       gap: 12px;
       align-items: center;
       padding: 14px;
@@ -239,7 +230,7 @@
     .side-content {
       min-height: 0;
       display: grid;
-      grid-template-rows: minmax(0, 1fr) minmax(0, 3fr);
+      grid-template-rows: minmax(0, 1fr);
       gap: 12px;
     }
 
@@ -302,9 +293,17 @@
       gap: 8px;
     }
 
+    .options-entry {
+      align-self: stretch;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+    }
+
     textarea {
       width: 100%;
-      min-height: 0;
+      min-height: 44px;
+      max-height: 118px;
       resize: none;
       border: 1px solid var(--line);
       border-radius: 24px;
@@ -313,6 +312,43 @@
       font-weight: 900;
       background: rgba(255,255,255,0.74);
       outline: none;
+    }
+
+    .topbar textarea {
+      min-height: 44px;
+      border-radius: 18px;
+      padding: 10px 12px;
+      overflow-y: hidden;
+    }
+
+    .option-submit {
+      width: 100%;
+    }
+
+    .topbar .option-submit {
+      width: auto;
+      align-self: center;
+      min-width: 92px;
+    }
+
+    .remove-option {
+      width: 34px;
+      height: 34px;
+      min-height: 34px;
+      padding: 0;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: linear-gradient(135deg, var(--red), #a8001a);
+      box-shadow: 0 10px 20px rgba(168, 0, 26, 0.18);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .result-row:hover .remove-option,
+    .result-row:focus-within .remove-option {
+      opacity: 1;
+      pointer-events: auto;
     }
 
     .players {
@@ -331,13 +367,19 @@
       border: 1px solid var(--line);
     }
 
-    .segment {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
+    .player[draggable="true"] {
+      cursor: grab;
     }
 
-    .segment button.is-active,
+    .player[draggable="true"]:active {
+      cursor: grabbing;
+    }
+
+    .stage.is-drop-target {
+      border-color: rgba(8, 125, 255, 0.55);
+      box-shadow: inset 0 0 0 3px rgba(8, 125, 255, 0.12);
+    }
+
     .self-toggle.is-active {
       color: #fff;
       background: linear-gradient(135deg, var(--blue), #3024d8);
@@ -431,26 +473,25 @@
     <section class="main">
       <header class="topbar">
         <div class="status">
-          <p class="status-label">Status</p>
-          <p class="status-main" id="statusText">Waiting</p>
+          <button id="modeToggleBtn" class="mode-toggle" type="button">
+            <span class="mode-label">Mode</span>
+            <span class="mode-value" id="modeValue">Manual</span>
+          </button>
         </div>
+        <div class="options-entry" id="optionsPanel">
+          <textarea id="optionsInput" rows="1" spellcheck="false" placeholder="Type one option, then submit."></textarea>
+          <button class="primary option-submit" id="submitOptionBtn" type="button">Submit</button>
+        </div>
+        <button class="self-toggle is-active" id="selfVoteBtn" type="button">Block Self-Vote</button>
         <div></div>
         <div class="actions">
-          <button class="primary" id="startBtn" type="button">Start</button>
-          <button id="endBtn" type="button">End</button>
-          <button id="resetBtn" type="button">Reset</button>
+          <button class="primary" id="voteToggleBtn" type="button">Start</button>
+          <button class="danger" id="resetBtn" type="button">Reset</button>
           <button id="homeBtn" type="button">Home</button>
-          <button class="danger" id="destroyBtn" type="button">Deal</button>
         </div>
       </header>
 
       <section class="stage">
-        <div class="hero-result" id="heroResult">
-          <div>
-            <span id="heroLabel">Waiting for votes</span>
-            <strong id="heroName">Quick Poll</strong>
-          </div>
-        </div>
         <div class="results" id="results"></div>
       </section>
     </section>
@@ -464,23 +505,10 @@
         <img id="qrImage" alt="Quick Poll room QR">
         <p class="room-code" id="roomCode">-----</p>
       </div>
-      <div class="segment">
-        <button id="manualBtn" class="is-active" type="button">Manual</button>
-        <button id="playersBtn" type="button">Players</button>
-      </div>
-      <button class="self-toggle is-active" id="selfVoteBtn" type="button">Block Self-Vote</button>
       <div class="side-content">
-        <section class="panel" id="optionsPanel">
-          <div class="row">
-            <h3>Options</h3>
-            <span id="optionCount">0</span>
-          </div>
-          <textarea id="optionsInput" spellcheck="false" placeholder="Type options here. One per line."></textarea>
-        </section>
         <section class="panel">
           <div class="row">
-            <h3>Connected</h3>
-            <span id="playerCount">0</span>
+            <h3>Connected <span id="playerCount">(0)</span></h3>
           </div>
           <div class="players" id="playersList"></div>
         </section>
@@ -504,11 +532,8 @@
 
   <script>
     const storageKey = "quick-poll-room-code";
-    const statusText = document.getElementById("statusText");
-    const startBtn = document.getElementById("startBtn");
-    const endBtn = document.getElementById("endBtn");
+    const voteToggleBtn = document.getElementById("voteToggleBtn");
     const resetBtn = document.getElementById("resetBtn");
-    const destroyBtn = document.getElementById("destroyBtn");
     const homeBtn = document.getElementById("homeBtn");
     const qrToggleBtn = document.getElementById("qrToggleBtn");
     const qrBox = document.getElementById("qrBox");
@@ -519,18 +544,17 @@
     const qrLargeCode = document.getElementById("qrLargeCode");
     const qrModalCloseBtn = document.getElementById("qrModalCloseBtn");
     const sidePanel = document.getElementById("sidePanel");
-    const manualBtn = document.getElementById("manualBtn");
-    const playersBtn = document.getElementById("playersBtn");
+    const modeToggleBtn = document.getElementById("modeToggleBtn");
+    const modeValue = document.getElementById("modeValue");
     const selfVoteBtn = document.getElementById("selfVoteBtn");
     const optionsPanel = document.getElementById("optionsPanel");
     const optionsInput = document.getElementById("optionsInput");
-    const optionCount = document.getElementById("optionCount");
+    const submitOptionBtn = document.getElementById("submitOptionBtn");
     const playerCount = document.getElementById("playerCount");
     const playersList = document.getElementById("playersList");
     const modalNames = document.getElementById("modalNames");
     const results = document.getElementById("results");
-    const heroLabel = document.getElementById("heroLabel");
-    const heroName = document.getElementById("heroName");
+    const stage = document.querySelector(".stage");
 
     let room = null;
     let baseUrl = window.location.origin;
@@ -538,9 +562,8 @@
     let source = "manual";
     let blockSelfVote = true;
     let options = [];
+    let candidatePlayerIds = [];
     let pollTimer = null;
-    let syncTimer = null;
-    let editingOptions = false;
 
     async function api(path, payload = null, method = "POST") {
       const response = await fetch(path, {
@@ -563,8 +586,8 @@
       }).slice(0, 100);
     }
 
-    function getInputOptions() {
-      return normalize(optionsInput.value.split(/\r?\n/));
+    function getPendingOption() {
+      return String(optionsInput.value || "").trim();
     }
 
     function getJoinUrl() {
@@ -577,55 +600,50 @@
 
     function renderPlayers() {
       const players = room?.players || [];
-      playerCount.textContent = players.length;
-      playersList.innerHTML = players.length
-        ? players.slice().sort((a, b) => a.name.localeCompare(b.name)).map((player) => `<div class="player">${escapeHtml(player.name)}</div>`).join("")
-        : `<div class="player">Waiting for players...</div>`;
+      const candidateIds = new Set(candidatePlayerIds.map((id) => Number(id)));
+      const availablePlayers = source === "players"
+        ? players.filter((player) => !candidateIds.has(Number(player.id)))
+        : players;
+      playerCount.textContent = `(${players.length})`;
+      playersList.innerHTML = availablePlayers.length
+        ? availablePlayers.slice().sort((a, b) => a.name.localeCompare(b.name)).map((player) => (
+          `<div class="player" ${source === "players" ? `draggable="true" data-player-id="${player.id}"` : ""}>${escapeHtml(player.name)}</div>`
+        )).join("")
+        : `<div class="player">${source === "players" ? "Drag candidates back here by removing them from the center." : "Waiting for players..."}</div>`;
       modalNames.textContent = players.length ? players.map((player) => player.name).sort((a, b) => a.localeCompare(b)).join("\n") : "No players yet.";
     }
 
     function renderResults() {
       const list = room?.results || [];
-      const total = (room?.votes || []).length;
-      const leader = list[0];
-      if (room?.status === "closed" && leader && leader.votes > 0) {
-        heroLabel.textContent = "Top result";
-        heroName.textContent = leader.label;
-      } else if (room?.status === "voting") {
-        heroLabel.textContent = `${total} vote${total === 1 ? "" : "s"} submitted`;
-        heroName.textContent = leader?.votes ? leader.label : "Voting";
-      } else {
-        heroLabel.textContent = "Waiting for votes";
-        heroName.textContent = "Quick Poll";
-      }
       if (!list.length) {
-        results.innerHTML = `<div class="result-row"><div class="result-name">Add options or use players as options.</div><div class="votes">0</div><div class="bar"><span></span></div></div>`;
+        results.innerHTML = `<div class="empty-results">${source === "players" ? "Drag candidate players here." : "Add options or use players as options."}</div>`;
         return;
       }
       const maxVotes = Math.max(1, ...list.map((item) => item.votes));
       results.innerHTML = list.map((item) => {
         const width = Math.round((item.votes / maxVotes) * 100);
-        return `<div class="result-row"><div class="result-name">${escapeHtml(item.label)}</div><div class="votes">${item.votes}</div><div class="bar"><span style="--w:${width}%"></span></div></div>`;
+        const removeButton = source === "manual" || source === "players"
+          ? `<button class="remove-option" type="button" data-option-label="${escapeHtml(item.label)}" aria-label="Remove ${escapeHtml(item.label)}">X</button>`
+          : "";
+        return `<div class="result-row"><div class="result-name">${escapeHtml(item.label)}</div><div class="votes">${item.votes}</div>${removeButton}<div class="bar"><span style="--w:${width}%"></span></div></div>`;
       }).join("");
     }
 
     function render() {
-      statusText.textContent = room ? room.status[0].toUpperCase() + room.status.slice(1) : "Waiting";
       source = room?.source || source;
       blockSelfVote = room?.blockSelfVote ?? blockSelfVote;
       options = room?.options || options;
-      optionCount.textContent = source === "manual" ? options.length : (room?.players || []).length;
-      manualBtn.classList.toggle("is-active", source === "manual");
-      playersBtn.classList.toggle("is-active", source === "players");
+      candidatePlayerIds = (room?.candidatePlayerIds || candidatePlayerIds).map((id) => Number(id));
+      modeValue.textContent = source === "manual" ? "Manual" : "Players";
+      modeToggleBtn.classList.toggle("is-players", source === "players");
       selfVoteBtn.classList.toggle("hidden", source !== "players");
       selfVoteBtn.classList.toggle("is-active", blockSelfVote);
       selfVoteBtn.textContent = blockSelfVote ? "Block Self-Vote" : "Allow Self-Vote";
       optionsPanel.classList.toggle("hidden", source !== "manual");
-      if (source === "manual" && !editingOptions && optionsInput.value !== options.join("\n")) {
-        optionsInput.value = options.join("\n");
-      }
-      startBtn.disabled = !room || room.status === "voting";
-      endBtn.disabled = !room || room.status !== "voting";
+      voteToggleBtn.disabled = !room;
+      voteToggleBtn.textContent = room?.status === "voting" ? "End" : "Start";
+      voteToggleBtn.classList.toggle("primary", room?.status !== "voting");
+      voteToggleBtn.classList.toggle("danger", room?.status === "voting");
       resetBtn.disabled = !room || room.status === "voting";
       if (room) {
         localStorage.setItem(storageKey, room.code);
@@ -678,14 +696,9 @@
 
     async function syncSettings() {
       if (!room) return;
-      const data = await api("/api/poll/sync", { code: room.code, options, source, blockSelfVote });
+      const data = await api("/api/poll/sync", { code: room.code, options, source, blockSelfVote, candidatePlayerIds });
       room = data.room;
       render();
-    }
-
-    function scheduleSync() {
-      clearTimeout(syncTimer);
-      syncTimer = setTimeout(() => syncSettings().catch(() => {}), 250);
     }
 
     async function pollRoom() {
@@ -721,34 +734,106 @@
       qrModal.setAttribute("aria-hidden", "true");
     }
 
-    optionsInput.addEventListener("input", () => {
-      editingOptions = true;
-      options = getInputOptions();
-      optionCount.textContent = options.length;
-      scheduleSync();
-      renderResults();
-    });
-
-    optionsInput.addEventListener("focus", () => {
-      editingOptions = true;
-    });
-
-    optionsInput.addEventListener("blur", () => {
-      editingOptions = false;
-      options = getInputOptions();
-      scheduleSync();
-      render();
-    });
-
-    manualBtn.addEventListener("click", async () => {
+    async function submitOption() {
+      const nextOption = getPendingOption();
+      if (!nextOption) {
+        optionsInput.focus();
+        return;
+      }
       await ensureRoom();
       source = "manual";
+      options = normalize([...(options || []), nextOption]);
+      optionsInput.value = "";
+      optionsInput.style.height = "auto";
       await syncSettings();
-    });
+      optionsInput.focus();
+    }
 
-    playersBtn.addEventListener("click", async () => {
+    async function addCandidatePlayer(playerId) {
       await ensureRoom();
       source = "players";
+      const id = Number(playerId);
+      if (!id || candidatePlayerIds.includes(id)) {
+        return;
+      }
+      candidatePlayerIds = [...candidatePlayerIds, id];
+      await syncSettings();
+    }
+
+    async function removeOption(label) {
+      if (!label) {
+        return;
+      }
+      await ensureRoom();
+      if (source === "players") {
+        const player = (room?.players || []).find((item) => String(item.name || "").trim().toLowerCase() === label.toLowerCase());
+        if (player) {
+          candidatePlayerIds = candidatePlayerIds.filter((id) => Number(id) !== Number(player.id));
+        }
+      } else {
+        options = normalize((options || []).filter((option) => option.toLowerCase() !== label.toLowerCase()));
+      }
+      await syncSettings();
+    }
+
+    submitOptionBtn.addEventListener("click", () => {
+      submitOption().catch((error) => alert(error.message || "Could not add option."));
+    });
+
+    optionsInput.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" || event.shiftKey) {
+        return;
+      }
+      event.preventDefault();
+      submitOption().catch((error) => alert(error.message || "Could not add option."));
+    });
+
+    optionsInput.addEventListener("input", () => {
+      optionsInput.style.height = "auto";
+      optionsInput.style.height = `${Math.min(optionsInput.scrollHeight, 118)}px`;
+    });
+
+    results.addEventListener("click", (event) => {
+      const button = event.target.closest(".remove-option");
+      if (!button) {
+        return;
+      }
+      removeOption(button.dataset.optionLabel || "").catch((error) => alert(error.message || "Could not remove option."));
+    });
+
+    playersList.addEventListener("dragstart", (event) => {
+      const player = event.target.closest(".player[draggable='true']");
+      if (!player) {
+        return;
+      }
+      event.dataTransfer.setData("text/plain", player.dataset.playerId || "");
+      event.dataTransfer.effectAllowed = "move";
+    });
+
+    stage.addEventListener("dragover", (event) => {
+      if (source !== "players") {
+        return;
+      }
+      event.preventDefault();
+      stage.classList.add("is-drop-target");
+      event.dataTransfer.dropEffect = "move";
+    });
+
+    stage.addEventListener("dragleave", (event) => {
+      if (!stage.contains(event.relatedTarget)) {
+        stage.classList.remove("is-drop-target");
+      }
+    });
+
+    stage.addEventListener("drop", (event) => {
+      event.preventDefault();
+      stage.classList.remove("is-drop-target");
+      addCandidatePlayer(event.dataTransfer.getData("text/plain")).catch((error) => alert(error.message || "Could not add candidate."));
+    });
+
+    modeToggleBtn.addEventListener("click", async () => {
+      await ensureRoom();
+      source = source === "manual" ? "players" : "manual";
       await syncSettings();
     });
 
@@ -771,8 +856,14 @@
       render();
     });
 
-    startBtn.addEventListener("click", async () => {
+    voteToggleBtn.addEventListener("click", async () => {
       try {
+        if (room?.status === "voting") {
+          const data = await api("/api/poll/end", { code: room.code });
+          room = data.room;
+          render();
+          return;
+        }
         await ensureRoom();
         await syncSettings();
         const data = await api("/api/poll/start", { code: room.code });
@@ -784,33 +875,10 @@
       }
     });
 
-    endBtn.addEventListener("click", async () => {
-      if (!room) return;
-      const data = await api("/api/poll/end", { code: room.code });
-      room = data.room;
-      render();
-    });
-
     resetBtn.addEventListener("click", async () => {
       if (!room || !confirm("Reset votes for this poll?")) return;
       const data = await api("/api/poll/reset", { code: room.code });
       room = data.room;
-      render();
-    });
-
-    destroyBtn.addEventListener("click", async () => {
-      if (!confirm("Delete this Quick Poll room and clear the session?")) return;
-      const oldCode = room?.code;
-      if (oldCode) {
-        try { await api("/api/poll/delete-room", { code: oldCode }); } catch (_) {}
-      }
-      room = null;
-      qrVisible = false;
-      options = [];
-      source = "manual";
-      optionsInput.value = "";
-      localStorage.removeItem(storageKey);
-      closeQrModal();
       render();
     });
 

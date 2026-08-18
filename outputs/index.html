@@ -172,52 +172,10 @@
       max-height: 280px;
     }
 
-    .poll-visual {
-      width: min(94%, 360px);
-      min-height: 230px;
-      display: grid;
-      place-items: center;
-      gap: 12px;
-      padding: 18px;
-      border-radius: 34px;
-      background:
-        radial-gradient(circle at 16% 20%, rgba(8, 125, 255, 0.18), transparent 34%),
-        linear-gradient(135deg, rgba(255,255,255,0.78), rgba(255,255,255,0.42));
-      border: 1px solid rgba(255,255,255,0.82);
-      box-shadow: inset 0 -14px 26px rgba(25, 200, 117, 0.1), 0 22px 42px rgba(16, 11, 47, 0.12);
+    .poll-logo {
+      width: min(96%, 390px);
+      max-height: 280px;
     }
-
-    .poll-title {
-      margin: 0;
-      font-family: "Franklin Gothic Heavy", "Arial Black", "Trebuchet MS", sans-serif;
-      font-size: clamp(2.4rem, 5vw, 4.8rem);
-      line-height: 0.84;
-      letter-spacing: -0.06em;
-      text-align: center;
-      text-transform: uppercase;
-      color: transparent;
-      background: linear-gradient(180deg, #ffffff 0%, #ffe066 32%, #19c875 68%, #087dff 100%);
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-stroke: clamp(1px, 0.12vw, 2px) #073a9b;
-      text-shadow: 0 4px 0 rgba(255, 47, 69, 0.8), 0 16px 28px rgba(16, 11, 47, 0.2);
-    }
-
-    .poll-dots {
-      display: flex;
-      gap: 10px;
-    }
-
-    .poll-dots span {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      background: var(--blue);
-      box-shadow: 0 8px 16px rgba(16, 11, 47, 0.16);
-    }
-
-    .poll-dots span:nth-child(2) { background: var(--orange); }
-    .poll-dots span:nth-child(3) { background: var(--red); }
 
     .copy {
       z-index: 1;
@@ -286,10 +244,7 @@
       <a class="activity poll" href="/quick-poll">
         <span class="tag">Tool</span>
         <div class="visual">
-          <div class="poll-visual" aria-label="Quick Poll">
-            <p class="poll-title">Quick<br>Poll</p>
-            <div class="poll-dots" aria-hidden="true"><span></span><span></span><span></span></div>
-          </div>
+          <img class="activity-logo poll-logo" src="./quick-poll-logo.png" alt="Quick Poll">
         </div>
       </a>
     </section>
