@@ -252,6 +252,7 @@ function createPollRoom() {
     status: "waiting",
     source: "manual",
     blockSelfVote: true,
+    joinRole: "voter",
     options: [],
     candidatePlayerIds: [],
     players: [],
@@ -567,6 +568,7 @@ function serializePollRoom(room) {
   const candidates = getPollCandidates(room);
   const candidateIds = new Set(candidates.map((candidate) => candidate.id));
   const validVotes = (room.votes || []).filter((vote) => candidateIds.has(vote.candidateId));
+  const sortedPlayers = (room.players || []).slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
   const results = candidates.map((candidate) => ({
     ...candidate,
     votes: validVotes.filter((vote) => vote.candidateId === candidate.id).length
@@ -576,9 +578,10 @@ function serializePollRoom(room) {
     status: room.status,
     source: room.source,
     blockSelfVote: !!room.blockSelfVote,
+    joinRole: room.joinRole === "candidate" ? "candidate" : "voter",
     options: room.options || [],
     candidatePlayerIds: room.candidatePlayerIds || [],
-    players: room.players || [],
+    players: sortedPlayers,
     candidates,
     results,
     votes: validVotes,
@@ -1224,9 +1227,10 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && url.pathname === "/api/poll/sync") {
-      const { code, options, source, blockSelfVote, candidatePlayerIds } = await body(req);
+      const { code, options, source, blockSelfVote, candidatePlayerIds, joinRole } = await body(req);
       const room = getPollRoom(code);
       const nextSource = source === "players" ? "players" : "manual";
+      const nextJoinRole = joinRole === "candidate" ? "candidate" : "voter";
       const nextOptions = normalizePollOptions(options);
       const validPlayerIds = new Set((room.players || []).map((player) => Number(player.id)));
       const nextCandidatePlayerIds = Array.from(new Set((Array.isArray(candidatePlayerIds) ? candidatePlayerIds : room.candidatePlayerIds || [])
@@ -1235,11 +1239,13 @@ const server = http.createServer(async (req, res) => {
       const changed = room.source !== nextSource
         || room.options.join("\n") !== nextOptions.join("\n")
         || (room.candidatePlayerIds || []).join("|") !== nextCandidatePlayerIds.join("|")
-        || room.blockSelfVote !== !!blockSelfVote;
+        || room.blockSelfVote !== !!blockSelfVote
+        || room.joinRole !== nextJoinRole;
       room.source = nextSource;
       room.options = nextOptions;
       room.candidatePlayerIds = nextCandidatePlayerIds;
       room.blockSelfVote = !!blockSelfVote;
+      room.joinRole = nextJoinRole;
       if (changed && room.status !== "voting") {
         room.votes = [];
       }
@@ -1266,8 +1272,24 @@ const server = http.createServer(async (req, res) => {
       }
       const playerIds = new Set(room.players.map((item) => Number(item.id)));
       room.candidatePlayerIds = (room.candidatePlayerIds || []).filter((id) => playerIds.has(Number(id)));
+      if (room.source === "players" && room.joinRole === "candidate" && !room.candidatePlayerIds.includes(Number(player.id))) {
+        room.candidatePlayerIds.push(Number(player.id));
+      }
       touch(room);
       return json(res, 200, { room: serializePollRoom(room), player });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/poll/remove-player") {
+      const { code, playerId } = await body(req);
+      const room = getPollRoom(code);
+      const id = Number(playerId || 0);
+      const before = room.players.length;
+      room.players = room.players.filter((player) => Number(player.id) !== id);
+      if (room.players.length === before) throw new Error("Participant not found");
+      room.candidatePlayerIds = (room.candidatePlayerIds || []).filter((candidateId) => Number(candidateId) !== id);
+      room.votes = (room.votes || []).filter((vote) => Number(vote.voterId) !== id && vote.candidateId !== `player-${id}`);
+      touch(room);
+      return json(res, 200, { room: serializePollRoom(room) });
     }
 
     if (req.method === "POST" && url.pathname === "/api/poll/start") {

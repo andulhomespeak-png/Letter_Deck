@@ -62,9 +62,13 @@
 
     .topbar {
       display: grid;
-      grid-template-columns: auto minmax(280px, 520px) auto minmax(0, 1fr) auto;
+      grid-template-columns: auto minmax(240px, 430px) auto minmax(0, 1fr) auto;
       align-items: center;
       gap: 10px;
+    }
+
+    .topbar.is-players-mode {
+      grid-template-columns: auto auto minmax(0, 1fr) auto;
     }
 
     .status {
@@ -102,6 +106,133 @@
     .mode-toggle.is-players {
       background: linear-gradient(135deg, var(--blue), #3024d8);
     }
+
+    .mode-controls {
+      display: flex;
+      align-items: stretch;
+      gap: 8px;
+    }
+
+    .mode-controls .status {
+      min-width: 132px;
+    }
+
+    .self-switch {
+      min-width: 142px;
+      min-height: 62px;
+      padding: 7px 10px;
+      border-radius: 22px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-rows: auto auto;
+      align-items: center;
+      gap: 3px 8px;
+      background: rgba(255,255,255,0.92);
+      border: 1px solid var(--line);
+      box-shadow: 0 12px 26px rgba(16, 11, 47, 0.1);
+    }
+
+    .self-switch:hover,
+    .self-switch:active {
+      transform: none;
+    }
+
+    .self-switch .mode-label {
+      grid-column: 1 / -1;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .self-switch-text {
+      font-size: 0.95rem;
+      font-weight: 1000;
+      line-height: 1;
+      color: var(--green);
+      text-align: center;
+    }
+
+    .self-switch-knob {
+      width: 40px;
+      height: 22px;
+      padding: 3px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--green), #039b52);
+      transition: background 140ms ease;
+    }
+
+    .self-switch-knob::before {
+      content: "";
+      display: block;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 4px 10px rgba(16, 11, 47, 0.24);
+      transition: transform 140ms ease;
+    }
+
+    .self-switch.is-active {
+      color: var(--ink);
+      background: rgba(255,255,255,0.94);
+    }
+
+    .self-switch.is-active .self-switch-text {
+      color: var(--red);
+    }
+
+    .self-switch.is-active .self-switch-knob {
+      background: linear-gradient(135deg, var(--red), #a8001a);
+    }
+
+    .self-switch.is-active .self-switch-knob::before {
+      transform: translateX(18px);
+    }
+
+    .scan-mode {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 6px 10px;
+      align-items: center;
+      padding: 10px 12px;
+      border-radius: 22px;
+      background: rgba(255,255,255,0.72);
+      border: 1px solid var(--line);
+    }
+
+    .scan-mode-title {
+      margin: 0;
+      color: #3e3580;
+      font-size: 0.78rem;
+      font-weight: 1000;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .scan-mode-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .scan-role {
+      min-height: 38px;
+      padding: 0 12px;
+      box-shadow: none;
+      border: 1px solid var(--line);
+    }
+
+    .scan-role.is-active {
+      color: #fff;
+      background: linear-gradient(135deg, var(--blue), #3024d8);
+      border-color: transparent;
+      box-shadow: 0 12px 26px rgba(48, 36, 216, 0.18);
+    }
+
+    .scan-role.is-candidate.is-active {
+      background: linear-gradient(135deg, var(--green), #039b52);
+      box-shadow: 0 12px 26px rgba(25, 200, 117, 0.2);
+    }
+
 
     .actions {
       display: flex;
@@ -360,11 +491,37 @@
     }
 
     .player {
-      padding: 10px 12px;
+      min-height: 48px;
+      padding: 8px 9px 8px 14px;
       border-radius: 18px;
       font-weight: 1000;
-      background: rgba(255,255,255,0.76);
-      border: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.96), rgba(232,245,255,0.86)),
+        radial-gradient(circle at 8% 20%, rgba(8, 125, 255, 0.18), transparent 34%);
+      border: 1px solid rgba(8, 125, 255, 0.22);
+    }
+
+    .player-name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .remove-player {
+      width: 30px;
+      height: 30px;
+      min-height: 30px;
+      padding: 0;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: linear-gradient(135deg, var(--red), #a8001a);
+      box-shadow: 0 10px 20px rgba(168, 0, 26, 0.18);
     }
 
     .player[draggable="true"] {
@@ -375,14 +532,31 @@
       cursor: grabbing;
     }
 
-    .stage.is-drop-target {
-      border-color: rgba(8, 125, 255, 0.55);
-      box-shadow: inset 0 0 0 3px rgba(8, 125, 255, 0.12);
+    .result-row[draggable="true"] {
+      cursor: grab;
     }
 
-    .self-toggle.is-active {
-      color: #fff;
-      background: linear-gradient(135deg, var(--blue), #3024d8);
+    .result-row[draggable="true"]:active {
+      cursor: grabbing;
+    }
+
+    .stage.is-drop-target,
+    .side.is-drop-target {
+      position: relative;
+      border-radius: 22px;
+      overflow: hidden;
+    }
+
+    .stage.is-drop-target::after,
+    .side.is-drop-target::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 200;
+      border-radius: inherit;
+      background: rgba(8, 125, 255, 0.42);
+      box-shadow: inset 0 0 0 6px rgba(8, 125, 255, 0.5);
+      pointer-events: none;
     }
 
     .hidden { display: none !important; }
@@ -432,7 +606,7 @@
     .qr-modal-list {
       min-height: 0;
       display: grid;
-      grid-template-rows: auto minmax(0, 1fr);
+      grid-template-rows: auto auto minmax(0, 1fr);
       gap: 10px;
       padding: 14px;
       border-radius: 28px;
@@ -446,6 +620,68 @@
       font-weight: 1000;
       line-height: 1.55;
       white-space: pre-line;
+    }
+
+    .confirm-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 70;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(16, 11, 47, 0.52);
+      backdrop-filter: blur(16px);
+    }
+
+    .confirm-overlay.hidden {
+      display: none !important;
+    }
+
+    .confirm-modal {
+      width: min(92vw, 560px);
+      max-height: calc(100dvh - 48px);
+      overflow: auto;
+      border-radius: 32px;
+      padding: 24px;
+      display: grid;
+      gap: 16px;
+      text-align: center;
+      align-content: center;
+      background: linear-gradient(145deg, rgba(255,255,255,0.98), rgba(238,248,255,0.96));
+      border: 1px solid rgba(255,255,255,0.88);
+      box-shadow: 0 36px 80px rgba(16, 11, 47, 0.3);
+    }
+
+    .confirm-kicker {
+      margin: 0;
+      color: var(--red);
+      font-size: 0.82rem;
+      font-weight: 1000;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    .confirm-title {
+      margin: 0;
+      font-size: clamp(1.8rem, 4vw, 3rem);
+      line-height: 0.92;
+      letter-spacing: -0.06em;
+      text-transform: uppercase;
+    }
+
+    .confirm-text {
+      margin: 0;
+      color: var(--muted);
+      font-size: 1rem;
+      font-weight: 900;
+      line-height: 1.45;
+    }
+
+    .confirm-actions {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
     }
 
     @media (max-width: 900px) {
@@ -471,21 +707,28 @@
 <body>
   <main class="app">
     <section class="main">
-      <header class="topbar">
-        <div class="status">
-          <button id="modeToggleBtn" class="mode-toggle" type="button">
-            <span class="mode-label">Mode</span>
-            <span class="mode-value" id="modeValue">Manual</span>
+      <header class="topbar" id="topbar">
+        <div class="mode-controls">
+          <div class="status">
+            <button id="modeToggleBtn" class="mode-toggle" type="button">
+              <span class="mode-label">Mode</span>
+              <span class="mode-value" id="modeValue">Manual</span>
+            </button>
+          </div>
+          <button class="self-switch is-active hidden" id="selfVoteBtn" type="button" aria-pressed="true">
+            <span class="mode-label">Self-vote</span>
+            <span class="self-switch-text" id="selfVoteText">Blocked</span>
+            <span class="self-switch-knob" aria-hidden="true"></span>
           </button>
         </div>
         <div class="options-entry" id="optionsPanel">
           <textarea id="optionsInput" rows="1" spellcheck="false" placeholder="Type one option, then submit."></textarea>
           <button class="primary option-submit" id="submitOptionBtn" type="button">Submit</button>
         </div>
-        <button class="self-toggle is-active" id="selfVoteBtn" type="button">Block Self-Vote</button>
         <div></div>
         <div class="actions">
           <button class="primary" id="voteToggleBtn" type="button">Start</button>
+          <button id="clearBtn" type="button">Clear</button>
           <button class="danger" id="resetBtn" type="button">Reset</button>
           <button id="homeBtn" type="button">Home</button>
         </div>
@@ -501,12 +744,19 @@
         <h2>Players</h2>
         <button id="qrToggleBtn" type="button">Show QR</button>
       </div>
+      <section class="scan-mode" id="scanModePanel" aria-label="Scan role">
+        <p class="scan-mode-title">Scan as</p>
+        <div class="scan-mode-buttons">
+          <button class="scan-role is-active" id="scanVoterBtn" type="button">Voter</button>
+          <button class="scan-role is-candidate" id="scanCandidateBtn" type="button">Candidate</button>
+        </div>
+      </section>
       <div class="qr-box hidden" id="qrBox" role="button" tabindex="0" aria-label="Quick Poll room QR">
         <img id="qrImage" alt="Quick Poll room QR">
         <p class="room-code" id="roomCode">-----</p>
       </div>
       <div class="side-content">
-        <section class="panel">
+        <section class="panel connected-panel" id="connectedPanel">
           <div class="row">
             <h3>Connected <span id="playerCount">(0)</span></h3>
           </div>
@@ -523,16 +773,37 @@
         <p class="room-code" id="qrLargeCode">-----</p>
         <button id="qrModalCloseBtn" type="button">Close</button>
       </div>
-      <section class="qr-modal-list" aria-label="Connected players">
-        <h3>Connected Players</h3>
+      <section class="qr-modal-list" aria-label="Players">
+        <h3>Players</h3>
+        <section class="scan-mode" id="modalScanModePanel" aria-label="Modal scan role">
+          <p class="scan-mode-title">Scan as</p>
+          <div class="scan-mode-buttons">
+            <button class="scan-role is-active" id="modalScanVoterBtn" type="button">Voter</button>
+            <button class="scan-role is-candidate" id="modalScanCandidateBtn" type="button">Candidate</button>
+          </div>
+        </section>
         <div class="modal-names" id="modalNames"></div>
       </section>
+    </div>
+  </div>
+
+  <div class="confirm-overlay hidden" id="confirmOverlay">
+    <div class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <p class="confirm-kicker">Confirm</p>
+      <h2 class="confirm-title" id="confirmTitle">Are you sure?</h2>
+      <p class="confirm-text" id="confirmText">This action may affect the current poll.</p>
+      <div class="confirm-actions">
+        <button id="confirmCancelBtn" type="button">Cancel</button>
+        <button class="danger" id="confirmAcceptBtn" type="button">Continue</button>
+      </div>
     </div>
   </div>
 
   <script>
     const storageKey = "quick-poll-room-code";
     const voteToggleBtn = document.getElementById("voteToggleBtn");
+    const topbar = document.getElementById("topbar");
+    const clearBtn = document.getElementById("clearBtn");
     const resetBtn = document.getElementById("resetBtn");
     const homeBtn = document.getElementById("homeBtn");
     const qrToggleBtn = document.getElementById("qrToggleBtn");
@@ -543,14 +814,27 @@
     const qrLargeImage = document.getElementById("qrLargeImage");
     const qrLargeCode = document.getElementById("qrLargeCode");
     const qrModalCloseBtn = document.getElementById("qrModalCloseBtn");
+    const confirmOverlay = document.getElementById("confirmOverlay");
+    const confirmTitle = document.getElementById("confirmTitle");
+    const confirmText = document.getElementById("confirmText");
+    const confirmCancelBtn = document.getElementById("confirmCancelBtn");
+    const confirmAcceptBtn = document.getElementById("confirmAcceptBtn");
     const sidePanel = document.getElementById("sidePanel");
+    const scanModePanel = document.getElementById("scanModePanel");
+    const modalScanModePanel = document.getElementById("modalScanModePanel");
+    const scanVoterBtn = document.getElementById("scanVoterBtn");
+    const scanCandidateBtn = document.getElementById("scanCandidateBtn");
+    const modalScanVoterBtn = document.getElementById("modalScanVoterBtn");
+    const modalScanCandidateBtn = document.getElementById("modalScanCandidateBtn");
     const modeToggleBtn = document.getElementById("modeToggleBtn");
     const modeValue = document.getElementById("modeValue");
     const selfVoteBtn = document.getElementById("selfVoteBtn");
+    const selfVoteText = document.getElementById("selfVoteText");
     const optionsPanel = document.getElementById("optionsPanel");
     const optionsInput = document.getElementById("optionsInput");
     const submitOptionBtn = document.getElementById("submitOptionBtn");
     const playerCount = document.getElementById("playerCount");
+    const connectedPanel = document.getElementById("connectedPanel");
     const playersList = document.getElementById("playersList");
     const modalNames = document.getElementById("modalNames");
     const results = document.getElementById("results");
@@ -561,9 +845,12 @@
     let qrVisible = false;
     let source = "manual";
     let blockSelfVote = true;
+    let joinRole = "voter";
     let options = [];
     let candidatePlayerIds = [];
     let pollTimer = null;
+    let currentDragAction = "";
+    let confirmState = null;
 
     async function api(path, payload = null, method = "POST") {
       const response = await fetch(path, {
@@ -571,7 +858,13 @@
         headers: payload ? { "Content-Type": "application/json" } : undefined,
         body: payload ? JSON.stringify(payload) : undefined
       });
-      const data = await response.json();
+      const text = await response.text();
+      let data = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch (_) {
+        data = { error: text || "Request failed" };
+      }
       if (!response.ok) throw new Error(data.error || "Request failed");
       return data;
     }
@@ -607,9 +900,9 @@
       playerCount.textContent = `(${players.length})`;
       playersList.innerHTML = availablePlayers.length
         ? availablePlayers.slice().sort((a, b) => a.name.localeCompare(b.name)).map((player) => (
-          `<div class="player" ${source === "players" ? `draggable="true" data-player-id="${player.id}"` : ""}>${escapeHtml(player.name)}</div>`
+          `<div class="player" ${source === "players" ? `draggable="true" data-player-id="${player.id}"` : ""}><span class="player-name">${escapeHtml(player.name)}</span><button class="remove-player" type="button" data-player-id="${player.id}" aria-label="Remove ${escapeHtml(player.name)}">X</button></div>`
         )).join("")
-        : `<div class="player">${source === "players" ? "Drag candidates back here by removing them from the center." : "Waiting for players..."}</div>`;
+        : "";
       modalNames.textContent = players.length ? players.map((player) => player.name).sort((a, b) => a.localeCompare(b)).join("\n") : "No players yet.";
     }
 
@@ -622,28 +915,39 @@
       const maxVotes = Math.max(1, ...list.map((item) => item.votes));
       results.innerHTML = list.map((item) => {
         const width = Math.round((item.votes / maxVotes) * 100);
-        const removeButton = source === "manual" || source === "players"
+        const removeButton = source === "manual"
           ? `<button class="remove-option" type="button" data-option-label="${escapeHtml(item.label)}" aria-label="Remove ${escapeHtml(item.label)}">X</button>`
           : "";
-        return `<div class="result-row"><div class="result-name">${escapeHtml(item.label)}</div><div class="votes">${item.votes}</div>${removeButton}<div class="bar"><span style="--w:${width}%"></span></div></div>`;
+        const dragAttrs = source === "players" && item.playerId
+          ? `draggable="true" data-player-id="${item.playerId}"`
+          : "";
+        return `<div class="result-row" ${dragAttrs}><div class="result-name">${escapeHtml(item.label)}</div><div class="votes">${item.votes}</div>${removeButton}<div class="bar"><span style="--w:${width}%"></span></div></div>`;
       }).join("");
     }
 
     function render() {
       source = room?.source || source;
       blockSelfVote = room?.blockSelfVote ?? blockSelfVote;
+      joinRole = room?.joinRole || joinRole;
       options = room?.options || options;
       candidatePlayerIds = (room?.candidatePlayerIds || candidatePlayerIds).map((id) => Number(id));
       modeValue.textContent = source === "manual" ? "Manual" : "Players";
+      topbar.classList.toggle("is-players-mode", source === "players");
       modeToggleBtn.classList.toggle("is-players", source === "players");
       selfVoteBtn.classList.toggle("hidden", source !== "players");
       selfVoteBtn.classList.toggle("is-active", blockSelfVote);
-      selfVoteBtn.textContent = blockSelfVote ? "Block Self-Vote" : "Allow Self-Vote";
+      selfVoteBtn.setAttribute("aria-pressed", String(blockSelfVote));
+      selfVoteText.textContent = blockSelfVote ? "Blocked" : "Allowed";
+      scanVoterBtn.classList.toggle("is-active", joinRole === "voter");
+      scanCandidateBtn.classList.toggle("is-active", joinRole === "candidate");
+      modalScanVoterBtn.classList.toggle("is-active", joinRole === "voter");
+      modalScanCandidateBtn.classList.toggle("is-active", joinRole === "candidate");
       optionsPanel.classList.toggle("hidden", source !== "manual");
       voteToggleBtn.disabled = !room;
       voteToggleBtn.textContent = room?.status === "voting" ? "End" : "Start";
       voteToggleBtn.classList.toggle("primary", room?.status !== "voting");
       voteToggleBtn.classList.toggle("danger", room?.status === "voting");
+      clearBtn.disabled = !room || room.status === "voting";
       resetBtn.disabled = !room || room.status === "voting";
       if (room) {
         localStorage.setItem(storageKey, room.code);
@@ -657,6 +961,8 @@
       }
       sidePanel.classList.toggle("is-qr-hidden", !qrVisible);
       sidePanel.classList.toggle("is-players-source", source === "players");
+      scanModePanel.classList.toggle("hidden", !qrVisible || source !== "players");
+      modalScanModePanel.classList.toggle("hidden", source !== "players");
       qrBox.classList.toggle("hidden", !qrVisible || !room);
       qrToggleBtn.textContent = qrVisible ? "Hide QR" : "Show QR";
       renderPlayers();
@@ -696,7 +1002,7 @@
 
     async function syncSettings() {
       if (!room) return;
-      const data = await api("/api/poll/sync", { code: room.code, options, source, blockSelfVote, candidatePlayerIds });
+      const data = await api("/api/poll/sync", { code: room.code, options, source, blockSelfVote, candidatePlayerIds, joinRole });
       room = data.room;
       render();
     }
@@ -734,6 +1040,27 @@
       qrModal.setAttribute("aria-hidden", "true");
     }
 
+    function closeConfirm(result = false) {
+      if (!confirmState) {
+        return;
+      }
+      const { resolve } = confirmState;
+      confirmState = null;
+      confirmOverlay.classList.add("hidden");
+      resolve(result);
+    }
+
+    function openConfirm({ title, text, confirmLabel = "Continue" }) {
+      confirmTitle.textContent = title;
+      confirmText.textContent = text;
+      confirmAcceptBtn.textContent = confirmLabel;
+      confirmOverlay.classList.remove("hidden");
+      confirmAcceptBtn.focus();
+      return new Promise((resolve) => {
+        confirmState = { resolve };
+      });
+    }
+
     async function submitOption() {
       const nextOption = getPendingOption();
       if (!nextOption) {
@@ -760,6 +1087,15 @@
       await syncSettings();
     }
 
+    async function setJoinRole(nextRole) {
+      await ensureRoom();
+      joinRole = nextRole === "candidate" ? "candidate" : "voter";
+      if (joinRole === "candidate") {
+        source = "players";
+      }
+      await syncSettings();
+    }
+
     async function removeOption(label) {
       if (!label) {
         return;
@@ -774,6 +1110,13 @@
         options = normalize((options || []).filter((option) => option.toLowerCase() !== label.toLowerCase()));
       }
       await syncSettings();
+    }
+
+    async function removePlayer(playerId) {
+      await ensureRoom();
+      const data = await api("/api/poll/remove-player", { code: room.code, playerId: Number(playerId || 0) });
+      room = data.room;
+      render();
     }
 
     submitOptionBtn.addEventListener("click", () => {
@@ -802,16 +1145,57 @@
     });
 
     playersList.addEventListener("dragstart", (event) => {
+      if (event.target.closest(".remove-player")) {
+        event.preventDefault();
+        return;
+      }
       const player = event.target.closest(".player[draggable='true']");
       if (!player) {
         return;
       }
+      event.dataTransfer.setData("application/x-poll-action", "add");
       event.dataTransfer.setData("text/plain", player.dataset.playerId || "");
       event.dataTransfer.effectAllowed = "move";
+      currentDragAction = "add";
+    });
+
+    playersList.addEventListener("click", (event) => {
+      const button = event.target.closest(".remove-player");
+      if (!button) {
+        return;
+      }
+      const playerName = button.closest(".player")?.querySelector(".player-name")?.textContent?.trim() || "this player";
+      openConfirm({
+        title: "Remove Player?",
+        text: `Are you sure you want to remove ${playerName}?`,
+        confirmLabel: "Remove"
+      }).then((confirmed) => {
+        if (!confirmed) return;
+        removePlayer(button.dataset.playerId).catch((error) => alert(error.message || "Could not remove participant."));
+      });
+    });
+
+    results.addEventListener("dragstart", (event) => {
+      const result = event.target.closest(".result-row[draggable='true']");
+      if (!result || source !== "players") {
+        return;
+      }
+      event.dataTransfer.setData("application/x-poll-action", "remove");
+      event.dataTransfer.setData("text/plain", result.dataset.playerId || "");
+      event.dataTransfer.effectAllowed = "move";
+      currentDragAction = "remove";
+    });
+
+    document.addEventListener("dragend", () => {
+      currentDragAction = "";
+      stage.classList.remove("is-drop-target");
+      playersList.classList.remove("is-drop-target");
+      connectedPanel.classList.remove("is-drop-target");
+      sidePanel.classList.remove("is-drop-target");
     });
 
     stage.addEventListener("dragover", (event) => {
-      if (source !== "players") {
+      if (source !== "players" || currentDragAction === "remove") {
         return;
       }
       event.preventDefault();
@@ -828,13 +1212,61 @@
     stage.addEventListener("drop", (event) => {
       event.preventDefault();
       stage.classList.remove("is-drop-target");
+      if (currentDragAction === "remove") {
+        return;
+      }
       addCandidatePlayer(event.dataTransfer.getData("text/plain")).catch((error) => alert(error.message || "Could not add candidate."));
+    });
+
+    sidePanel.addEventListener("dragover", (event) => {
+      if (source !== "players" || currentDragAction !== "remove") {
+        return;
+      }
+      event.preventDefault();
+      sidePanel.classList.add("is-drop-target");
+      event.dataTransfer.dropEffect = "move";
+    });
+
+    sidePanel.addEventListener("dragleave", (event) => {
+      if (!sidePanel.contains(event.relatedTarget)) {
+        sidePanel.classList.remove("is-drop-target");
+      }
+    });
+
+    sidePanel.addEventListener("drop", (event) => {
+      event.preventDefault();
+      sidePanel.classList.remove("is-drop-target");
+      if (currentDragAction !== "remove") {
+        return;
+      }
+      const playerId = Number(event.dataTransfer.getData("text/plain") || 0);
+      if (!playerId) {
+        return;
+      }
+      candidatePlayerIds = candidatePlayerIds.filter((id) => Number(id) !== playerId);
+      syncSettings().catch((error) => alert(error.message || "Could not remove candidate."));
     });
 
     modeToggleBtn.addEventListener("click", async () => {
       await ensureRoom();
       source = source === "manual" ? "players" : "manual";
       await syncSettings();
+    });
+
+    scanVoterBtn.addEventListener("click", async () => {
+      await setJoinRole("voter");
+    });
+
+    scanCandidateBtn.addEventListener("click", async () => {
+      await setJoinRole("candidate");
+    });
+
+    modalScanVoterBtn.addEventListener("click", async () => {
+      await setJoinRole("voter");
+    });
+
+    modalScanCandidateBtn.addEventListener("click", async () => {
+      await setJoinRole("candidate");
     });
 
     selfVoteBtn.addEventListener("click", async () => {
@@ -875,10 +1307,39 @@
       }
     });
 
-    resetBtn.addEventListener("click", async () => {
-      if (!room || !confirm("Reset votes for this poll?")) return;
+    clearBtn.addEventListener("click", async () => {
+      const confirmed = await openConfirm({
+        title: "Clear Votes?",
+        text: "This clears the current results but keeps the room, players, and options.",
+        confirmLabel: "Clear"
+      });
+      if (!room || !confirmed) return;
       const data = await api("/api/poll/reset", { code: room.code });
       room = data.room;
+      render();
+    });
+
+    resetBtn.addEventListener("click", async () => {
+      const confirmed = await openConfirm({
+        title: "Reset Room?",
+        text: "This deletes the current Quick Poll room and removes all connected players.",
+        confirmLabel: "Reset"
+      });
+      if (!room || !confirmed) return;
+      const oldCode = room.code;
+      try {
+        await api("/api/poll/delete-room", { code: oldCode });
+      } catch (_) {}
+      room = null;
+      qrVisible = false;
+      source = "manual";
+      blockSelfVote = true;
+      joinRole = "voter";
+      options = [];
+      candidatePlayerIds = [];
+      optionsInput.value = "";
+      localStorage.removeItem(storageKey);
+      closeQrModal();
       render();
     });
 
@@ -891,8 +1352,22 @@
       }
     });
     qrModalCloseBtn.addEventListener("click", closeQrModal);
+    confirmCancelBtn.addEventListener("click", () => closeConfirm(false));
+    confirmAcceptBtn.addEventListener("click", () => closeConfirm(true));
+    confirmOverlay.addEventListener("click", (event) => {
+      if (event.target === confirmOverlay) {
+        closeConfirm(false);
+      }
+    });
     qrModal.addEventListener("click", (event) => {
       if (event.target === qrModal) closeQrModal();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (!confirmOverlay.classList.contains("hidden")) {
+        if (event.key === "Escape") closeConfirm(false);
+        if (event.key === "Enter") closeConfirm(true);
+      }
     });
 
     hydrateBaseUrl().then(async () => {
