@@ -70,6 +70,14 @@
       gap: 14px;
     }
 
+    .play-area {
+      min-height: 0;
+      display: none;
+      place-items: center;
+      gap: 18px;
+      align-content: center;
+    }
+
     label {
       color: var(--muted);
       font-size: 0.8rem;
@@ -116,6 +124,32 @@
     button:active { transform: translateY(1px); }
     button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
+    .spin-pad {
+      width: min(72vw, 310px);
+      aspect-ratio: 1;
+      min-height: 0;
+      border-radius: 50%;
+      color: #fff;
+      font-size: clamp(2.2rem, 13vw, 4.2rem);
+      letter-spacing: -0.05em;
+      text-transform: uppercase;
+      background: radial-gradient(circle at 34% 26%, #fff4a8 0 12%, #ffb000 34%, #ff2541 100%);
+      box-shadow: 0 26px 0 #8e0718, 0 44px 72px rgba(153, 0, 21, 0.34);
+      border: 12px solid rgba(255,255,255,0.78);
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .spin-pad:active {
+      transform: translateY(16px) scale(0.98);
+      box-shadow: 0 10px 0 #8e0718, 0 22px 36px rgba(153, 0, 21, 0.28);
+    }
+
+    .spin-pad.is-locked {
+      opacity: 0.56;
+      filter: grayscale(0.5) saturate(0.7);
+    }
+
     .message {
       min-height: 54px;
       padding: 12px 14px;
@@ -149,11 +183,15 @@
       display: none;
     }
 
+    .card.is-submitted .play-area {
+      display: grid;
+    }
+
     .card.is-submitted .message {
-      align-self: center;
-      min-height: 110px;
-      padding: 22px;
-      font-size: clamp(1.35rem, 6vw, 2rem);
+      align-self: end;
+      min-height: 64px;
+      padding: 14px;
+      font-size: clamp(1rem, 4.5vw, 1.25rem);
       line-height: 1.12;
       box-shadow: 0 18px 40px rgba(25, 200, 117, 0.16);
     }
@@ -168,10 +206,14 @@
     <form class="form" id="joinForm">
       <label for="nameInput">Enter your name or team name</label>
       <input id="nameInput" name="name" autocomplete="name" placeholder="Your name" required>
-      <button id="submitBtn" type="submit">Send</button>
+      <button id="submitBtn" type="submit">Join</button>
     </form>
 
-    <div class="message" id="message">Your name will appear on the teacher screen.</div>
+    <section class="play-area" id="playArea">
+      <button class="spin-pad is-locked" id="spinPad" type="button" aria-disabled="true">Spin</button>
+    </section>
+
+    <div class="message" id="message">Join the room and wait for the host.</div>
   </main>
 
   <script>
@@ -180,6 +222,7 @@
     const form = document.getElementById("joinForm");
     const input = document.getElementById("nameInput");
     const submitBtn = document.getElementById("submitBtn");
+    const spinPad = document.getElementById("spinPad");
     const message = document.getElementById("message");
     const card = document.querySelector(".card");
     const submittedNameKey = `name-wheel-name-${code}`;
@@ -231,7 +274,7 @@
         input.disabled = true;
         submitBtn.disabled = true;
         card.classList.add("is-submitted");
-        setMessage(`${data.name} will appear on the teacher list.`, "good");
+        setMessage(`You are connected as ${data.name}. Wait for your turn.`, "good");
         input.blur();
       } catch (error) {
         setMessage(error.message || "Could not join this wheel.", "bad");
@@ -241,10 +284,14 @@
 
     window.addEventListener("load", () => {
       if (submittedName) {
-        setMessage(`${submittedName} will appear on the teacher list.`, "good");
+        setMessage(`You are connected as ${submittedName}. Wait for your turn.`, "good");
         return;
       }
       input.focus();
+    });
+
+    spinPad.addEventListener("click", () => {
+      spinPad.blur();
     });
   </script>
 </body>

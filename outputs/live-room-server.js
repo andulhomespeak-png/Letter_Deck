@@ -270,6 +270,7 @@ function createWheelRoom() {
   const room = {
     code: makeCode(),
     names: [],
+    players: [],
     createdAt: Date.now(),
     updatedAt: Date.now()
   };
@@ -513,6 +514,7 @@ function serializeWheelRoom(room) {
   return {
     code: room.code,
     names: room.names,
+    players: (room.players || []).slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""))),
     updatedAt: room.updatedAt
   };
 }
@@ -1206,8 +1208,11 @@ const server = http.createServer(async (req, res) => {
       const room = getWheelRoom(code);
       const clean = String(name || "").trim();
       if (!clean) throw new Error("Name is required");
-      const alreadyExists = room.names.some((item) => item.toLowerCase() === clean.toLowerCase());
-      room.names = normalizeWheelNames([...room.names, clean]);
+      if (!Array.isArray(room.players)) room.players = [];
+      const alreadyExists = room.players.some((item) => String(item.name || "").trim().toLowerCase() === clean.toLowerCase());
+      if (!alreadyExists) {
+        room.players.push({ name: clean, joinedAt: Date.now() });
+      }
       touch(room);
       return json(res, 200, { room: serializeWheelRoom(room), added: !alreadyExists, name: clean });
     }

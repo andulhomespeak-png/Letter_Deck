@@ -198,6 +198,7 @@
     }
 
     .stage {
+      --stage-shift: 0px;
       min-height: 0;
       position: relative;
       border-radius: clamp(24px, 4vw, 42px);
@@ -211,6 +212,14 @@
       border: 1px dashed rgba(16, 11, 47, 0.14);
     }
 
+    .stage.is-list-visible {
+      --stage-shift: clamp(-110px, -8vw, -70px);
+    }
+
+    .stage.is-list-visible .wheel-wrap {
+      transform: translateX(var(--stage-shift));
+    }
+
     .wheel-wrap {
       position: relative;
       width: min(78vmin, 720px);
@@ -218,6 +227,7 @@
       display: grid;
       place-items: center;
       filter: drop-shadow(0 36px 42px rgba(16, 11, 47, 0.18));
+      transition: transform 220ms ease;
     }
 
     canvas {
@@ -255,7 +265,7 @@
       position: absolute;
       left: 50%;
       bottom: clamp(18px, 3vw, 34px);
-      transform: translateX(-50%);
+      transform: translateX(calc(-50% + var(--stage-shift)));
       width: min(680px, calc(100% - 30px));
       padding: clamp(14px, 2vw, 22px);
       border-radius: 28px;
@@ -265,6 +275,7 @@
       box-shadow: 0 24px 58px rgba(16, 11, 47, 0.24);
       opacity: 0;
       pointer-events: none;
+      transition: transform 220ms ease;
     }
 
     .winner-banner.show {
@@ -357,6 +368,50 @@
       background: #fff;
     }
 
+    .connected-list {
+      min-height: 0;
+      overflow-y: auto;
+      display: grid;
+      align-content: start;
+      gap: 10px;
+      padding: 2px 2px 8px;
+    }
+
+    .connected-pill {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      padding: 8px 12px;
+      border-radius: 999px;
+      color: var(--ink);
+      font-weight: 1000;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.96), rgba(238,248,255,0.88)),
+        radial-gradient(circle at 12% 20%, rgba(8, 125, 255, 0.2), transparent 36%);
+      border: 1px solid rgba(8, 125, 255, 0.18);
+      box-shadow: 0 12px 28px rgba(16, 11, 47, 0.1);
+    }
+
+    .connected-name {
+      min-width: 0;
+      width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-align: center;
+    }
+
+    .connected-empty {
+      margin: 0;
+      padding: 18px 12px;
+      color: var(--muted);
+      font-weight: 1000;
+      text-align: center;
+      border-radius: 22px;
+      background: rgba(255,255,255,0.58);
+      border: 1px dashed rgba(16, 11, 47, 0.14);
+    }
+
     textarea {
       min-height: 0;
       width: 100%;
@@ -375,6 +430,47 @@
     textarea:focus {
       border-color: rgba(8, 125, 255, 0.38);
       box-shadow: 0 0 0 4px rgba(8, 125, 255, 0.12);
+    }
+
+    .names-panel {
+      position: absolute;
+      right: clamp(12px, 2vw, 24px);
+      top: clamp(12px, 2vw, 24px);
+      bottom: clamp(12px, 2vw, 24px);
+      width: clamp(190px, 22vw, 310px);
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 8px;
+      padding: 12px;
+      border-radius: 28px;
+      background: rgba(255,255,255,0.76);
+      border: 1px solid rgba(8, 125, 255, 0.18);
+      box-shadow: 0 20px 50px rgba(16, 11, 47, 0.12);
+      opacity: 0;
+      transform: translateX(22px) scale(0.96);
+      pointer-events: none;
+      transition: opacity 180ms ease, transform 180ms ease;
+      z-index: 6;
+    }
+
+    .stage.is-list-visible .names-panel {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+      pointer-events: auto;
+    }
+
+    .names-panel h2 {
+      margin: 0;
+      color: #3e3580;
+      font-size: 0.78rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .names-panel textarea {
+      border-radius: 20px;
+      padding: 12px 13px;
+      background: rgba(255,255,255,0.94);
     }
 
     .empty {
@@ -474,9 +570,9 @@
     .hidden { display: none !important; }
 
     @keyframes winnerIn {
-      0% { opacity: 0; transform: translateX(-50%) translateY(20px) scale(0.92); }
-      65% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1.04); }
-      100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+      0% { opacity: 0; transform: translateX(calc(-50% + var(--stage-shift))) translateY(20px) scale(0.92); }
+      65% { opacity: 1; transform: translateX(calc(-50% + var(--stage-shift))) translateY(0) scale(1.04); }
+      100% { opacity: 1; transform: translateX(calc(-50% + var(--stage-shift))) translateY(0) scale(1); }
     }
 
     @keyframes qrModalIn {
@@ -491,6 +587,7 @@
       .side.is-qr-hidden { grid-template-rows: auto minmax(0, 1fr); }
       .qr-box img { width: min(100%, 150px); }
       button { min-height: 40px; }
+      .names-panel { width: clamp(170px, 20vw, 260px); }
     }
 
     @media (max-width: 760px) {
@@ -506,6 +603,22 @@
       .actions { justify-content: stretch; }
       .actions button { flex: 1; }
       .side { min-height: 520px; }
+      .stage.is-list-visible .wheel-wrap {
+        transform: none;
+      }
+      .stage.is-list-visible {
+        --stage-shift: 0px;
+      }
+      .names-panel {
+        position: relative;
+        inset: auto;
+        width: 100%;
+        min-height: 260px;
+        order: 2;
+      }
+      .stage:not(.is-list-visible) .names-panel {
+        display: none;
+      }
       .qr-modal-card {
         grid-template-columns: 1fr;
         width: min(92vw, 520px);
@@ -522,17 +635,18 @@
     <section class="main">
       <header class="topbar">
         <div class="status">
-          <p class="status-label">Names</p>
+          <p class="status-label">Entries</p>
           <p class="status-main" id="nameCount">0</p>
         </div>
         <div class="actions">
           <button class="mode-toggle" id="modeToggleBtn" type="button">Keep Pick</button>
+          <button id="listToggleBtn" type="button">Hide List</button>
           <button id="homeBtn" type="button">Home</button>
           <button class="danger" id="resetBtn" type="button">Reset</button>
         </div>
       </header>
 
-      <section class="stage">
+      <section class="stage is-list-visible" id="stage">
         <div class="wheel-wrap">
           <canvas id="wheelCanvas" width="1000" height="1000" aria-label="Name wheel"></canvas>
           <div class="wheel-ring"></div>
@@ -542,6 +656,10 @@
         <div class="winner-banner" id="winnerBanner">
           <p class="winner-label">Selected</p>
           <p class="winner-name" id="winnerName">Name</p>
+        </div>
+        <div class="names-panel" id="namesPanel">
+          <h2>Entries</h2>
+          <textarea id="namesInput" spellcheck="false" placeholder="Type or paste entries here. One per line."></textarea>
         </div>
       </section>
     </section>
@@ -555,7 +673,7 @@
         <img id="qrImage" alt="Name wheel room QR">
         <p class="room-code" id="roomCode">-----</p>
       </div>
-      <textarea id="namesInput" spellcheck="false" placeholder="Type or paste names here. One name per line."></textarea>
+      <div class="connected-list" id="connectedList" aria-label="Connected players"></div>
     </aside>
   </main>
 
@@ -568,8 +686,8 @@
           <button id="qrModalCloseBtn" type="button">Close</button>
         </div>
       </div>
-      <section class="qr-modal-list-panel" aria-label="Names sent">
-        <h3>Names Sent</h3>
+      <section class="qr-modal-list-panel" aria-label="Entries sent">
+        <h3>Entries Sent</h3>
         <div class="qr-modal-names" id="qrModalNames"></div>
       </section>
     </div>
@@ -578,11 +696,13 @@
   <script>
     const storageKey = "name-wheel-room-code";
     const colors = ["#087dff", "#ff2541", "#ff8a00", "#19c875", "#3024d8", "#ffd426", "#00b8ff", "#ff5db1"];
+    const stage = document.getElementById("stage");
     const canvas = document.getElementById("wheelCanvas");
     const ctx = canvas.getContext("2d");
     const nameCountEl = document.getElementById("nameCount");
     const spinBtn = document.getElementById("spinBtn");
     const modeToggleBtn = document.getElementById("modeToggleBtn");
+    const listToggleBtn = document.getElementById("listToggleBtn");
     const homeBtn = document.getElementById("homeBtn");
     const resetBtn = document.getElementById("resetBtn");
     const qrToggleBtn = document.getElementById("qrToggleBtn");
@@ -595,6 +715,7 @@
     const qrLargeCode = document.getElementById("qrLargeCode");
     const qrModalNames = document.getElementById("qrModalNames");
     const qrModalCloseBtn = document.getElementById("qrModalCloseBtn");
+    const connectedList = document.getElementById("connectedList");
     const namesInput = document.getElementById("namesInput");
     const winnerBanner = document.getElementById("winnerBanner");
     const winnerName = document.getElementById("winnerName");
@@ -602,14 +723,18 @@
     let room = null;
     let baseUrl = window.location.origin;
     let qrVisible = false;
+    let listVisible = true;
     let names = [];
+    let connectedPlayers = [];
     let spinningNames = null;
     let removeWinner = false;
     let pendingRemovalName = "";
     const removedNames = new Set();
     let rotation = 0;
     let spinning = false;
+    let spinStartedAt = 0;
     let spinTimeout = null;
+    let boostWindowTimer = null;
     let spinWinnerIndex = -1;
     let tickAnimationFrame = null;
     let lastTickBoundary = null;
@@ -620,6 +745,7 @@
     let namesDirty = false;
     let editIdleTimer = null;
     const spinEasing = "cubic-bezier(0.07, 0.64, 0.01, 1)";
+    const boostWindowMs = 3000;
 
     async function api(path, payload = null, method = "POST") {
       const response = await fetch(path, {
@@ -767,19 +893,34 @@
 
     function renderQrModalNames() {
       if (!names.length) {
-        qrModalNames.textContent = "No names yet.";
+        qrModalNames.textContent = "No entries yet.";
         return;
       }
       qrModalNames.textContent = names.join("\n");
     }
 
+    function renderConnectedList() {
+      if (!connectedPlayers.length) {
+        connectedList.innerHTML = `<p class="connected-empty">Connected players will appear here.</p>`;
+        return;
+      }
+      connectedList.innerHTML = connectedPlayers.map((player) => `
+        <div class="connected-pill">
+          <span class="connected-name">${escapeHtml(player.name)}</span>
+        </div>
+      `).join("");
+    }
+
     function render() {
       nameCountEl.textContent = names.length;
-      spinBtn.disabled = names.length < 2;
-      spinBtn.textContent = spinning ? "Boost" : "Spin";
+      spinBtn.disabled = names.length < 2 || (spinning && !canBoost());
+      spinBtn.textContent = spinning ? (canBoost() ? "Boost" : "Locked") : "Spin";
       modeToggleBtn.textContent = removeWinner ? "Remove Pick" : "Keep Pick";
       modeToggleBtn.classList.toggle("is-remove", removeWinner);
+      listToggleBtn.textContent = listVisible ? "Hide List" : "Show List";
+      stage.classList.toggle("is-list-visible", listVisible);
       drawWheel();
+      renderConnectedList();
 
       if (!room) {
         roomCodeEl.textContent = "-----";
@@ -825,6 +966,7 @@
         try {
           const existing = await api(`/api/wheel/room?code=${encodeURIComponent(savedCode)}`, null, "GET");
           room = existing.room;
+          connectedPlayers = room.players || [];
           mergeNames(room.names);
           return room;
         } catch (_) {
@@ -833,6 +975,7 @@
       }
       const data = await api("/api/wheel/create-room");
       room = data.room;
+      connectedPlayers = room.players || [];
       await syncNamesNow();
       return room;
     }
@@ -841,6 +984,7 @@
       if (!room) return;
       const data = await api("/api/wheel/sync", { code: room.code, names });
       room = data.room;
+      connectedPlayers = room.players || [];
       render();
     }
 
@@ -996,6 +1140,9 @@
         winnerBanner.offsetHeight;
         winnerBanner.classList.add("show");
         spinning = false;
+        spinStartedAt = 0;
+        clearTimeout(boostWindowTimer);
+        boostWindowTimer = null;
         spinningNames = null;
         spinWinnerIndex = -1;
         if (removeWinner && selectedName) {
@@ -1006,7 +1153,7 @@
     }
 
     function boostSpin() {
-      if (!spinning) return;
+      if (!canBoost()) return;
       const boostDurationMs = 5200;
       const activeNames = spinningNames || names;
       const currentAngle = getCurrentWheelAngle();
@@ -1019,6 +1166,7 @@
       rotation = currentAngle + 4 * 360 + ((desired - currentAngle + 360) % 360);
       setWheelTransition(boostDurationMs);
       canvas.style.transform = `rotate(${rotation}deg)`;
+      armBoostWindow();
       scheduleSpinFinish(boostDurationMs);
     }
 
@@ -1027,6 +1175,7 @@
       try {
         const data = await api(`/api/wheel/room?code=${encodeURIComponent(room.code)}`, null, "GET");
         room = data.room;
+        connectedPlayers = room.players || [];
         mergeNames(room.names);
       } catch (_) {
         room = null;
@@ -1046,6 +1195,7 @@
     function spin() {
       if (spinning) {
         boostSpin();
+        render();
         return;
       }
       if (namesDirty) {
@@ -1066,6 +1216,7 @@
       }
       if (names.length < 2) return;
       spinning = true;
+      armBoostWindow();
       spinningNames = names.slice();
       const spinDurationMs = 8400;
       winnerBanner.classList.remove("show");
@@ -1083,6 +1234,16 @@
       render();
       startBoundaryTicks();
       scheduleSpinFinish(spinDurationMs);
+    }
+
+    function canBoost() {
+      return spinning && spinStartedAt > 0 && performance.now() - spinStartedAt <= boostWindowMs;
+    }
+
+    function armBoostWindow() {
+      spinStartedAt = performance.now();
+      clearTimeout(boostWindowTimer);
+      boostWindowTimer = setTimeout(render, boostWindowMs + 30);
     }
 
     namesInput.addEventListener("input", () => {
@@ -1118,6 +1279,10 @@
       removeWinner = !removeWinner;
       render();
     });
+    listToggleBtn.addEventListener("click", () => {
+      listVisible = !listVisible;
+      render();
+    });
     document.addEventListener("keydown", (event) => {
       const target = event.target;
       const isTyping = target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
@@ -1140,6 +1305,7 @@
         try { await api("/api/wheel/delete-room", { code: oldCode }); } catch (_) {}
       }
       room = null;
+      connectedPlayers = [];
       qrVisible = false;
       localStorage.removeItem(storageKey);
       closeQrModal();
@@ -1181,6 +1347,7 @@
         try {
           const data = await api(`/api/wheel/room?code=${encodeURIComponent(savedCode)}`, null, "GET");
           room = data.room;
+          connectedPlayers = room.players || [];
           mergeNames(room.names);
           startPolling();
         } catch (_) {
