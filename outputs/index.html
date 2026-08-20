@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Play Hub</title>
+  <title>Friendzy</title>
   <link rel="icon" type="image/png" href="./letter-clash-favicon.png">
   <style>
     :root {
@@ -13,7 +13,6 @@
       --red: #ff2f45;
       --green: #22c66f;
       --panel: rgba(255, 255, 255, 0.88);
-      --line: rgba(16, 11, 47, 0.12);
     }
 
     * { box-sizing: border-box; }
@@ -38,10 +37,6 @@
       display: grid;
       grid-template-rows: auto 1fr;
       gap: clamp(18px, 4vw, 36px);
-    }
-
-    header {
-      display: block;
     }
 
     .intro {
@@ -116,21 +111,10 @@
       filter: blur(6px);
     }
 
-    .activity.buzzer::before {
-      background: var(--red);
-    }
-
-    .activity.wheel::before {
-      background: var(--green);
-    }
-
-    .activity.timer::before {
-      background: var(--orange);
-    }
-
-    .activity.poll::before {
-      background: var(--green);
-    }
+    .activity.buzzer::before { background: var(--red); }
+    .activity.wheel::before { background: var(--green); }
+    .activity.timer::before { background: var(--orange); }
+    .activity.poll::before { background: var(--green); }
 
     .tag {
       width: max-content;
@@ -157,50 +141,20 @@
       filter: drop-shadow(0 22px 30px rgba(7, 20, 60, 0.2));
     }
 
-    .buzzer-logo {
-      width: min(96%, 390px);
-      max-height: 280px;
-    }
-
-    .wheel-logo {
-      width: min(96%, 390px);
-      max-height: 280px;
-    }
-
-    .timer-logo {
-      width: min(96%, 390px);
-      max-height: 280px;
-    }
-
+    .buzzer-logo,
+    .wheel-logo,
+    .timer-logo,
     .poll-logo {
       width: min(96%, 390px);
       max-height: 280px;
     }
 
-    .copy {
-      z-index: 1;
-      display: flex;
-      align-items: end;
-      justify-content: space-between;
-      gap: 18px;
-    }
-
-    h2 {
-      margin: 0;
-      font-size: clamp(2.1rem, 4vw, 4rem);
-      line-height: 0.92;
-    }
-
     @media (max-width: 820px) {
-      .grid {
-        grid-template-columns: 1fr;
-      }
+      .grid { grid-template-columns: 1fr; }
     }
 
     @media (max-width: 1080px) and (min-width: 821px) {
-      .grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
   </style>
 </head>
@@ -208,7 +162,7 @@
   <main class="shell">
     <header>
       <section class="intro">
-        <h1>Play Hub</h1>
+        <h1>Friendzy</h1>
       </section>
     </header>
 
@@ -249,5 +203,7 @@
       </a>
     </section>
   </main>
+
+  <script src="./friendzy-panel.js"></script>
 </body>
 </html>

@@ -125,24 +125,28 @@
     button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
     .spin-pad {
-      width: min(72vw, 310px);
-      aspect-ratio: 1;
+      width: clamp(104px, 34vw, 148px);
+      height: clamp(104px, 34vw, 148px);
       min-height: 0;
+      padding: 0;
       border-radius: 50%;
       color: #fff;
-      font-size: clamp(2.2rem, 13vw, 4.2rem);
-      letter-spacing: -0.05em;
+      font-size: clamp(1.2rem, 5.8vw, 1.7rem);
+      letter-spacing: -0.02em;
       text-transform: uppercase;
       background: radial-gradient(circle at 34% 26%, #fff4a8 0 12%, #ffb000 34%, #ff2541 100%);
-      box-shadow: 0 26px 0 #8e0718, 0 44px 72px rgba(153, 0, 21, 0.34);
-      border: 12px solid rgba(255,255,255,0.78);
+      box-shadow:
+        inset 0 -10px 18px rgba(16, 11, 47, 0.18),
+        0 16px 30px rgba(16, 11, 47, 0.24);
+      border: 8px solid rgba(255,255,255,0.92);
       touch-action: manipulation;
       -webkit-tap-highlight-color: transparent;
+      transition: transform 28ms linear, filter 80ms ease, opacity 80ms ease;
+      will-change: transform;
     }
 
     .spin-pad:active {
-      transform: translateY(16px) scale(0.98);
-      box-shadow: 0 10px 0 #8e0718, 0 22px 36px rgba(153, 0, 21, 0.28);
+      transform: translateY(6px) scale(0.965);
     }
 
     .spin-pad.is-locked {

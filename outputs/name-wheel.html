@@ -19,6 +19,18 @@
 
     * { box-sizing: border-box; }
 
+    @property --winner-scale {
+      syntax: "<number>";
+      inherits: true;
+      initial-value: 1;
+    }
+
+    @property --winner-y {
+      syntax: "<length>";
+      inherits: true;
+      initial-value: 0px;
+    }
+
     body {
       margin: 0;
       height: 100vh;
@@ -199,6 +211,8 @@
 
     .stage {
       --stage-shift: 0px;
+      --winner-scale: 1;
+      --winner-y: 0px;
       min-height: 0;
       position: relative;
       border-radius: clamp(24px, 4vw, 42px);
@@ -213,7 +227,7 @@
     }
 
     .stage.is-list-visible {
-      --stage-shift: clamp(-110px, -8vw, -70px);
+      --stage-shift: clamp(-145px, -10vw, -92px);
     }
 
     .stage.is-list-visible .wheel-wrap {
@@ -265,7 +279,7 @@
       position: absolute;
       left: 50%;
       bottom: clamp(18px, 3vw, 34px);
-      transform: translateX(calc(-50% + var(--stage-shift)));
+      transform: translateX(calc(-50% + var(--stage-shift))) translateY(var(--winner-y)) scale(var(--winner-scale));
       width: min(680px, calc(100% - 30px));
       padding: clamp(14px, 2vw, 22px);
       border-radius: 28px;
@@ -275,11 +289,15 @@
       box-shadow: 0 24px 58px rgba(16, 11, 47, 0.24);
       opacity: 0;
       pointer-events: none;
-      transition: transform 220ms ease;
+      transition: transform 220ms ease, opacity 180ms ease;
     }
 
     .winner-banner.show {
-      animation: winnerIn 900ms cubic-bezier(0.18, 1.2, 0.28, 1) both;
+      --winner-scale: 1;
+      --winner-y: 0px;
+      opacity: 1;
+      pointer-events: auto;
+      animation: winnerPop 900ms cubic-bezier(0.18, 1.2, 0.28, 1) both;
     }
 
     .winner-label {
@@ -298,6 +316,23 @@
       font-weight: 1000;
       overflow-wrap: anywhere;
       text-shadow: 0 7px 0 rgba(0,0,0,0.12);
+    }
+
+    .winner-close {
+      position: absolute;
+      right: 12px;
+      bottom: 10px;
+      min-height: 28px;
+      padding: 0 10px;
+      color: var(--ink);
+      font-size: 0.68rem;
+      background: rgba(255,255,255,0.82);
+      border: 1px solid rgba(255,255,255,0.66);
+      box-shadow: 0 8px 18px rgba(16, 11, 47, 0.16);
+    }
+
+    .player-count {
+      color: var(--red);
     }
 
     .side {
@@ -398,7 +433,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      text-align: center;
+      text-align: left;
     }
 
     .connected-empty {
@@ -459,12 +494,34 @@
       pointer-events: auto;
     }
 
+    .names-panel-head {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
     .names-panel h2 {
       margin: 0;
+      min-width: 0;
       color: #3e3580;
       font-size: 0.78rem;
       letter-spacing: 0.14em;
       text-transform: uppercase;
+    }
+
+    .list-clear-btn {
+      min-height: 28px;
+      padding: 0 10px;
+      font-size: 0.7rem;
+      color: #fff;
+      background: linear-gradient(135deg, var(--red), #a8001a);
+      box-shadow: 0 8px 18px rgba(255, 37, 65, 0.18);
+    }
+
+    .entry-count {
+      color: var(--red);
     }
 
     .names-panel textarea {
@@ -567,17 +624,86 @@
       white-space: pre-line;
     }
 
+    .confirm-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 70;
+      display: grid;
+      place-items: center;
+      padding: clamp(16px, 4vw, 34px);
+      background: rgba(16, 11, 47, 0.36);
+      backdrop-filter: blur(14px);
+    }
+
+    .confirm-overlay.hidden {
+      display: none;
+    }
+
+    .confirm-modal {
+      width: min(92vw, 460px);
+      padding: clamp(20px, 4vw, 28px);
+      border-radius: 32px;
+      text-align: center;
+      background:
+        radial-gradient(circle at 15% 0%, rgba(255, 212, 38, 0.24), transparent 38%),
+        linear-gradient(145deg, rgba(255,255,255,0.96), rgba(238,248,255,0.92));
+      border: 1px solid rgba(255,255,255,0.78);
+      box-shadow: 0 30px 84px rgba(16, 11, 47, 0.28);
+      animation: confirmModalIn 180ms ease both;
+    }
+
+    .confirm-kicker {
+      margin: 0 0 8px;
+      color: var(--red);
+      font-size: 0.76rem;
+      font-weight: 1000;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .confirm-title {
+      margin: 0;
+      color: var(--ink);
+      font-size: clamp(1.7rem, 4vw, 2.4rem);
+      line-height: 0.95;
+      letter-spacing: -0.04em;
+    }
+
+    .confirm-text {
+      margin: 12px 0 18px;
+      color: var(--muted);
+      font-weight: 900;
+      line-height: 1.4;
+    }
+
+    .confirm-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .confirm-actions .ghost {
+      color: var(--ink);
+      background: rgba(255,255,255,0.94);
+      border: 1px solid var(--line);
+    }
+
     .hidden { display: none !important; }
 
-    @keyframes winnerIn {
-      0% { opacity: 0; transform: translateX(calc(-50% + var(--stage-shift))) translateY(20px) scale(0.92); }
-      65% { opacity: 1; transform: translateX(calc(-50% + var(--stage-shift))) translateY(0) scale(1.04); }
-      100% { opacity: 1; transform: translateX(calc(-50% + var(--stage-shift))) translateY(0) scale(1); }
+    @keyframes winnerPop {
+      0% { --winner-y: 20px; --winner-scale: 0.92; opacity: 0; }
+      65% { --winner-y: 0px; --winner-scale: 1.04; opacity: 1; }
+      100% { --winner-y: 0px; --winner-scale: 1; opacity: 1; }
     }
 
     @keyframes qrModalIn {
       0% { opacity: 0; transform: translate(-50%, -50%) scale(0.92); }
       100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    }
+
+    @keyframes confirmModalIn {
+      0% { opacity: 0; transform: scale(0.92); }
+      100% { opacity: 1; transform: scale(1); }
     }
 
     @media (max-height: 760px) and (min-width: 761px) {
@@ -588,6 +714,7 @@
       .qr-box img { width: min(100%, 150px); }
       button { min-height: 40px; }
       .names-panel { width: clamp(170px, 20vw, 260px); }
+      .stage.is-list-visible { --stage-shift: clamp(-150px, -11vw, -105px); }
     }
 
     @media (max-width: 760px) {
@@ -656,9 +783,13 @@
         <div class="winner-banner" id="winnerBanner">
           <p class="winner-label">Selected</p>
           <p class="winner-name" id="winnerName">Name</p>
+          <button class="winner-close" id="winnerCloseBtn" type="button">Close</button>
         </div>
         <div class="names-panel" id="namesPanel">
-          <h2>Entries</h2>
+          <div class="names-panel-head">
+            <h2>Entries <span class="entry-count" id="entryCount">(0)</span></h2>
+            <button class="list-clear-btn" id="clearEntriesBtn" type="button">Clear</button>
+          </div>
           <textarea id="namesInput" spellcheck="false" placeholder="Type or paste entries here. One per line."></textarea>
         </div>
       </section>
@@ -666,7 +797,7 @@
 
     <aside class="side is-qr-hidden" id="sidePanel">
       <div class="side-head">
-        <h2>Players</h2>
+        <h2>Players <span class="player-count" id="playerCount">(0)</span></h2>
         <button class="qr-toggle" id="qrToggleBtn" type="button">Show QR</button>
       </div>
       <div class="qr-box hidden" id="qrBox" role="button" tabindex="0" aria-label="Name wheel room QR">
@@ -686,10 +817,22 @@
           <button id="qrModalCloseBtn" type="button">Close</button>
         </div>
       </div>
-      <section class="qr-modal-list-panel" aria-label="Entries sent">
-        <h3>Entries Sent</h3>
+      <section class="qr-modal-list-panel" aria-label="Connected players">
+        <h3>Connected Players</h3>
         <div class="qr-modal-names" id="qrModalNames"></div>
       </section>
+    </div>
+  </div>
+
+  <div class="confirm-overlay hidden" id="confirmOverlay">
+    <div class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <p class="confirm-kicker">Confirm</p>
+      <h2 class="confirm-title" id="confirmTitle">Are you sure?</h2>
+      <p class="confirm-text" id="confirmText">This action cannot be undone.</p>
+      <div class="confirm-actions">
+        <button class="ghost" id="confirmCancelBtn" type="button">Cancel</button>
+        <button class="danger" id="confirmAcceptBtn" type="button">Continue</button>
+      </div>
     </div>
   </div>
 
@@ -700,9 +843,11 @@
     const canvas = document.getElementById("wheelCanvas");
     const ctx = canvas.getContext("2d");
     const nameCountEl = document.getElementById("nameCount");
+    const entryCountEl = document.getElementById("entryCount");
     const spinBtn = document.getElementById("spinBtn");
     const modeToggleBtn = document.getElementById("modeToggleBtn");
     const listToggleBtn = document.getElementById("listToggleBtn");
+    const clearEntriesBtn = document.getElementById("clearEntriesBtn");
     const homeBtn = document.getElementById("homeBtn");
     const resetBtn = document.getElementById("resetBtn");
     const qrToggleBtn = document.getElementById("qrToggleBtn");
@@ -716,9 +861,16 @@
     const qrModalNames = document.getElementById("qrModalNames");
     const qrModalCloseBtn = document.getElementById("qrModalCloseBtn");
     const connectedList = document.getElementById("connectedList");
+    const confirmOverlay = document.getElementById("confirmOverlay");
+    const confirmTitle = document.getElementById("confirmTitle");
+    const confirmText = document.getElementById("confirmText");
+    const confirmCancelBtn = document.getElementById("confirmCancelBtn");
+    const confirmAcceptBtn = document.getElementById("confirmAcceptBtn");
     const namesInput = document.getElementById("namesInput");
     const winnerBanner = document.getElementById("winnerBanner");
     const winnerName = document.getElementById("winnerName");
+    const winnerCloseBtn = document.getElementById("winnerCloseBtn");
+    const playerCountEl = document.getElementById("playerCount");
 
     let room = null;
     let baseUrl = window.location.origin;
@@ -744,6 +896,7 @@
     let editingNames = false;
     let namesDirty = false;
     let editIdleTimer = null;
+    let confirmState = null;
     const spinEasing = "cubic-bezier(0.07, 0.64, 0.01, 1)";
     const boostWindowMs = 3000;
 
@@ -795,10 +948,9 @@
       if (editingNames) {
         return;
       }
-      const filteredRemoteNames = (remoteNames || [])
+      const nextNames = normalize(remoteNames || [])
         .filter((name) => !removedNames.has(String(name || "").trim().toLowerCase()));
-      const nextNames = normalize([...getInputNames(), ...filteredRemoteNames]);
-      setNames(nextNames, !editingNames);
+      setNames(nextNames, true);
     }
 
     function drawWheel() {
@@ -891,28 +1043,31 @@
       return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(getJoinUrl())}`;
     }
 
-    function renderQrModalNames() {
-      if (!names.length) {
-        qrModalNames.textContent = "No entries yet.";
-        return;
-      }
-      qrModalNames.textContent = names.join("\n");
-    }
-
-    function renderConnectedList() {
+    function renderPlayerPills(target) {
       if (!connectedPlayers.length) {
-        connectedList.innerHTML = `<p class="connected-empty">Connected players will appear here.</p>`;
+        target.innerHTML = `<p class="connected-empty">Connected players will appear here.</p>`;
         return;
       }
-      connectedList.innerHTML = connectedPlayers.map((player) => `
+      target.innerHTML = connectedPlayers.map((player) => `
         <div class="connected-pill">
           <span class="connected-name">${escapeHtml(player.name)}</span>
         </div>
       `).join("");
     }
 
+    function renderQrModalNames() {
+      renderPlayerPills(qrModalNames);
+    }
+
+    function renderConnectedList() {
+      renderPlayerPills(connectedList);
+    }
+
     function render() {
       nameCountEl.textContent = names.length;
+      entryCountEl.textContent = `(${names.length})`;
+      playerCountEl.textContent = `(${connectedPlayers.length})`;
+      clearEntriesBtn.disabled = !names.length || spinning;
       spinBtn.disabled = names.length < 2 || (spinning && !canBoost());
       spinBtn.textContent = spinning ? (canBoost() ? "Boost" : "Locked") : "Spin";
       modeToggleBtn.textContent = removeWinner ? "Remove Pick" : "Keep Pick";
@@ -951,6 +1106,25 @@
       qrModal.setAttribute("aria-hidden", "true");
     }
 
+    function closeConfirm(result) {
+      if (!confirmState) return;
+      const { resolve } = confirmState;
+      confirmState = null;
+      confirmOverlay.classList.add("hidden");
+      resolve(result);
+    }
+
+    function openConfirm({ title, text, confirmLabel = "Continue" }) {
+      confirmTitle.textContent = title;
+      confirmText.textContent = text;
+      confirmAcceptBtn.textContent = confirmLabel;
+      confirmOverlay.classList.remove("hidden");
+      confirmAcceptBtn.focus();
+      return new Promise((resolve) => {
+        confirmState = { resolve };
+      });
+    }
+
     async function hydrateBaseUrl() {
       try {
         const data = await api("/api/live/server-info", null, "GET");
@@ -985,6 +1159,11 @@
       const data = await api("/api/wheel/sync", { code: room.code, names });
       room = data.room;
       connectedPlayers = room.players || [];
+      if (!editingNames) {
+        setNames(room.names || [], true);
+      } else {
+        names = room.names || [];
+      }
       render();
     }
 
@@ -1279,9 +1458,37 @@
       removeWinner = !removeWinner;
       render();
     });
+    winnerCloseBtn.addEventListener("click", () => {
+      winnerBanner.classList.remove("show");
+    });
     listToggleBtn.addEventListener("click", () => {
       listVisible = !listVisible;
       render();
+    });
+    clearEntriesBtn.addEventListener("click", async () => {
+      if (!names.length || spinning) return;
+      const confirmed = await openConfirm({
+        title: "Clear entries?",
+        text: "This will remove every entry from the wheel. Connected players will stay in the room.",
+        confirmLabel: "Clear"
+      });
+      if (!confirmed) return;
+      names = [];
+      namesInput.value = "";
+      pendingRemovalName = "";
+      removedNames.clear();
+      namesDirty = false;
+      editingNames = false;
+      winnerBanner.classList.remove("show");
+      syncNamesNow().catch(() => scheduleSync());
+      render();
+    });
+    confirmCancelBtn.addEventListener("click", () => closeConfirm(false));
+    confirmAcceptBtn.addEventListener("click", () => closeConfirm(true));
+    confirmOverlay.addEventListener("click", (event) => {
+      if (event.target === confirmOverlay) {
+        closeConfirm(false);
+      }
     });
     document.addEventListener("keydown", (event) => {
       const target = event.target;
@@ -1357,5 +1564,6 @@
       }
     });
   </script>
+  <script src="./friendzy-panel.js"></script>
 </body>
 </html>

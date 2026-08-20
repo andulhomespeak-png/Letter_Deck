@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Friendzy Student</title>
+  <link rel="icon" type="image/png" href="./letter-clash-favicon.png">
+  <style>
+    :root {
+      --ink: #100b2f;
+      --muted: rgba(16, 11, 47, 0.62);
+      --blue: #0b82ff;
+      --red: #ff2f45;
+      --orange: #ff7a00;
+      --green: #22c66f;
+      --panel: rgba(255, 255, 255, 0.9);
+      --line: rgba(16, 11, 47, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100svh;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 18% 14%, rgba(11, 130, 255, 0.32), transparent 34%),
+        radial-gradient(circle at 86% 20%, rgba(255, 122, 0, 0.28), transparent 32%),
+        radial-gradient(circle at 50% 92%, rgba(34, 198, 111, 0.22), transparent 34%),
+        linear-gradient(145deg, #fff3d2, #eaf7ff 48%, #ffe1e8);
+      display: grid;
+      place-items: center;
+      padding: max(16px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom));
+    }
+
+    .card {
+      width: min(100%, 460px);
+      min-height: min(720px, calc(100svh - 32px));
+      padding: clamp(22px, 6vw, 32px);
+      border-radius: 34px;
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,0.76);
+      box-shadow: 0 28px 80px rgba(16, 11, 47, 0.18);
+      backdrop-filter: blur(18px);
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 18px;
+      overflow: hidden;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: "Franklin Gothic Heavy", "Arial Black", "Trebuchet MS", sans-serif;
+      font-size: clamp(2.8rem, 16vw, 5.2rem);
+      line-height: 0.86;
+      letter-spacing: -0.055em;
+      text-align: center;
+      text-transform: uppercase;
+      color: transparent;
+      background: linear-gradient(180deg, #fffdf2 0%, #ffe066 34%, #ff8a00 70%, #ff2f45 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-stroke: 1.5px #073a9b;
+      text-shadow: 0 4px 0 #0b82ff, 0 12px 24px rgba(16, 11, 47, 0.2);
+    }
+
+    .join {
+      align-self: center;
+      display: grid;
+      gap: 14px;
+    }
+
+    label {
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 1000;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    input,
+    button {
+      width: 100%;
+      min-height: 58px;
+      border: 0;
+      border-radius: 999px;
+      padding: 0 18px;
+      font: inherit;
+      font-weight: 1000;
+    }
+
+    input {
+      color: var(--ink);
+      background: #fff;
+      font-size: 1.15rem;
+      box-shadow: inset 0 0 0 1px var(--line);
+      outline: 0;
+    }
+
+    input:focus {
+      box-shadow: inset 0 0 0 1px rgba(11, 130, 255, 0.36), 0 0 0 4px rgba(11, 130, 255, 0.12);
+    }
+
+    button {
+      color: #fff;
+      background: linear-gradient(135deg, var(--blue), #3024d8);
+      box-shadow: 0 16px 36px rgba(48, 36, 216, 0.24);
+      cursor: pointer;
+      transition: transform 80ms ease, opacity 120ms ease;
+    }
+
+    button:active { transform: translateY(3px) scale(0.99); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .standby {
+      align-self: center;
+      display: none;
+      gap: 14px;
+      text-align: center;
+    }
+
+    .card.is-connected .join { display: none; }
+    .card.is-connected .standby { display: grid; }
+
+    .connected-name {
+      margin: 0;
+      font-size: clamp(2.1rem, 10vw, 4rem);
+      line-height: 0.95;
+      font-weight: 1000;
+      overflow-wrap: anywhere;
+    }
+
+    .message {
+      min-height: 58px;
+      padding: 13px 15px;
+      border-radius: 22px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      color: var(--muted);
+      font-weight: 1000;
+      background: rgba(255,255,255,0.68);
+      border: 1px solid var(--line);
+    }
+
+    .message.good {
+      color: #075f35;
+      background: rgba(220, 255, 238, 0.86);
+      border-color: rgba(34, 198, 111, 0.28);
+    }
+
+    .message.bad {
+      color: #8f0618;
+      background: rgba(255, 226, 231, 0.86);
+      border-color: rgba(255, 47, 69, 0.28);
+    }
+  </style>
+</head>
+<body>
+  <main class="card" id="card">
+    <h1>Friendzy</h1>
+
+    <form class="join" id="joinForm">
+      <label for="nameInput">Enter your name or team name</label>
+      <input id="nameInput" name="name" autocomplete="name" placeholder="Your name" required>
+      <button id="joinBtn" type="submit">Join</button>
+    </form>
+
+    <section class="standby" id="standby">
+      <p class="connected-name" id="connectedName">Player</p>
+      <div class="message good">You are connected. Wait for the next activity.</div>
+    </section>
+
+    <div class="message" id="message">Join the classroom session.</div>
+  </main>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const code = String(params.get("code") || "").toUpperCase();
+    const deviceKey = "friendzy-device-id";
+    const playerKey = `friendzy-player-${code}`;
+    const nameKey = `friendzy-name-${code}`;
+    const card = document.getElementById("card");
+    const joinForm = document.getElementById("joinForm");
+    const nameInput = document.getElementById("nameInput");
+    const joinBtn = document.getElementById("joinBtn");
+    const connectedName = document.getElementById("connectedName");
+    const message = document.getElementById("message");
+    let pollTimer = null;
+
+    let deviceId = localStorage.getItem(deviceKey);
+    if (!deviceId) {
+      deviceId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem(deviceKey, deviceId);
+    }
+
+    let playerName = localStorage.getItem(nameKey) || "";
+    if (playerName) {
+      nameInput.value = playerName;
+      showConnected(playerName);
+    }
+
+    function setMessage(text, tone = "") {
+      message.textContent = text;
+      message.className = `message ${tone}`.trim();
+    }
+
+    function showConnected(name) {
+      playerName = name;
+      connectedName.textContent = name;
+      card.classList.add("is-connected");
+      setMessage(`Connected to room ${code}.`, "good");
+      startPolling();
+    }
+
+    function goToBuzzer(toolCode) {
+      if (!toolCode || !playerName) return;
+      const target = `./buzzer-student.html?code=${encodeURIComponent(toolCode)}&name=${encodeURIComponent(playerName)}&classroom=${encodeURIComponent(code)}&auto=1`;
+      window.location.href = target;
+    }
+
+    function handleRoomUpdate(nextRoom) {
+      const activeTool = String(nextRoom?.activeTool || "standby");
+      const activeToolCode = String(nextRoom?.activeToolCode || "");
+      if (activeTool === "buzzer" && activeToolCode) {
+        goToBuzzer(activeToolCode);
+      }
+    }
+
+    async function pollClassroom() {
+      if (!code || !playerName) return;
+      try {
+        const data = await api(`/api/classroom/room?code=${encodeURIComponent(code)}`, null, "GET");
+        handleRoomUpdate(data.room);
+      } catch (_) {
+        setMessage("This classroom session is no longer available. Scan the QR again.", "bad");
+      } finally {
+        pollTimer = setTimeout(pollClassroom, 900);
+      }
+    }
+
+    function startPolling() {
+      if (pollTimer || !code || !playerName) return;
+      pollClassroom();
+    }
+
+    async function api(path, payload = null, method = "POST") {
+      const response = await fetch(path, {
+        method,
+        headers: payload ? { "Content-Type": "application/json" } : undefined,
+        body: payload ? JSON.stringify(payload) : undefined
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Request failed");
+      return data;
+    }
+
+    joinForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const name = nameInput.value.trim();
+      if (!code) {
+        setMessage("Missing room code. Scan the QR again.", "bad");
+        return;
+      }
+      if (!name) {
+        setMessage("Type your name first.", "bad");
+        nameInput.focus();
+        return;
+      }
+      joinBtn.disabled = true;
+      try {
+        const data = await api("/api/classroom/join", { code, name, deviceId });
+        localStorage.setItem(playerKey, String(data.player.id));
+        localStorage.setItem(nameKey, data.player.name);
+        showConnected(data.player.name);
+        handleRoomUpdate(data.room);
+        nameInput.blur();
+      } catch (error) {
+        setMessage(error.message || "Could not join this session.", "bad");
+        joinBtn.disabled = false;
+      }
+    });
+
+    window.addEventListener("load", () => {
+      if (!playerName) nameInput.focus();
+    });
+  </script>
+</body>
+</html>

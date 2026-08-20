@@ -19,6 +19,7 @@ const NAME_WHEEL_HTML = path.join(ROOT, "name-wheel.html");
 const NAME_WHEEL_STUDENT_HTML = path.join(ROOT, "name-wheel-student.html");
 const QUICK_POLL_HTML = path.join(ROOT, "quick-poll.html");
 const QUICK_POLL_STUDENT_HTML = path.join(ROOT, "quick-poll-student.html");
+const STUDENT_HUB_HTML = path.join(ROOT, "student-hub.html");
 const WORDS_JS = path.join(ROOT, "english-words.js");
 const ROOM_TTL_MS = 60 * 60 * 1000;
 
@@ -28,6 +29,7 @@ const buzzerRooms = new Map();
 const buzzerSockets = new Map();
 const wheelRooms = new Map();
 const pollRooms = new Map();
+const classroomRooms = new Map();
 
 function loadDictionary() {
   const source = fs.readFileSync(WORDS_JS, "utf8");
@@ -242,8 +244,22 @@ function makeCode() {
   let code = "";
   do {
     code = Array.from({ length: 5 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-  } while (rooms.has(code) || buzzerRooms.has(code) || wheelRooms.has(code) || pollRooms.has(code));
+  } while (rooms.has(code) || buzzerRooms.has(code) || wheelRooms.has(code) || pollRooms.has(code) || classroomRooms.has(code));
   return code;
+}
+
+function createClassroomRoom() {
+  const room = {
+    code: makeCode(),
+    activeTool: "standby",
+    activeToolCode: "",
+    players: [],
+    nextPlayerId: 1,
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+  classroomRooms.set(room.code, room);
+  return room;
 }
 
 function createPollRoom() {
@@ -352,6 +368,12 @@ function cleanupRooms() {
     }
     pollRooms.delete(code);
   });
+  classroomRooms.forEach((room, code) => {
+    if (now - Number(room.updatedAt || 0) < ROOM_TTL_MS) {
+      return;
+    }
+    classroomRooms.delete(code);
+  });
 }
 
 function getRoom(code) {
@@ -375,6 +397,12 @@ function getWheelRoom(code) {
 function getPollRoom(code) {
   const room = pollRooms.get(String(code || "").toUpperCase());
   if (!room) throw new Error("Poll room not found");
+  return room;
+}
+
+function getClassroomRoom(code) {
+  const room = classroomRooms.get(String(code || "").toUpperCase());
+  if (!room) throw new Error("Classroom room not found");
   return room;
 }
 
@@ -510,7 +538,19 @@ function serializeBuzzerRoom(room) {
   };
 }
 
+function serializeClassroomRoom(room) {
+  return {
+    code: room.code,
+    activeTool: room.activeTool || "standby",
+    activeToolCode: room.activeToolCode || "",
+    players: (room.players || []).slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""))),
+    updatedAt: room.updatedAt
+  };
+}
+
 function serializeWheelRoom(room) {
+  const playerNames = new Set((room.players || []).map((player) => String(player.name || "").trim().toLowerCase()).filter(Boolean));
+  room.names = normalizeWheelNames(room.names).filter((name) => !playerNames.has(String(name || "").trim().toLowerCase()));
   return {
     code: room.code,
     names: room.names,
@@ -740,6 +780,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/timer") return html(res, TIMER_HTML);
     if (req.method === "GET" && url.pathname === "/name-wheel") return html(res, NAME_WHEEL_HTML);
     if (req.method === "GET" && url.pathname === "/quick-poll") return html(res, QUICK_POLL_HTML);
+    if (req.method === "GET" && url.pathname === "/student-hub.html") return html(res, STUDENT_HUB_HTML);
     if (req.method === "GET" && url.pathname === "/buzzer-student.html") return html(res, BUZZER_STUDENT_HTML);
     if (req.method === "GET" && url.pathname === "/name-wheel-student.html") return html(res, NAME_WHEEL_STUDENT_HTML);
     if (req.method === "GET" && url.pathname === "/quick-poll-student.html") return html(res, QUICK_POLL_STUDENT_HTML);
@@ -772,6 +813,53 @@ const server = http.createServer(async (req, res) => {
         word,
         definition: await lookupDefinition(word)
       });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/classroom/create-room") {
+      return json(res, 200, { room: serializeClassroomRoom(createClassroomRoom()) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/classroom/delete-room") {
+      const { code } = await body(req);
+      classroomRooms.delete(String(code || "").toUpperCase());
+      return json(res, 200, { ok: true });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/classroom/room") {
+      return json(res, 200, { room: serializeClassroomRoom(getClassroomRoom(url.searchParams.get("code"))) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/classroom/set-tool") {
+      const { code, activeTool, activeToolCode } = await body(req);
+      const room = getClassroomRoom(code);
+      const cleanTool = String(activeTool || "standby").trim().toLowerCase();
+      const allowedTools = new Set(["standby", "buzzer", "letter-clash", "wheel", "quick-poll", "timer"]);
+      room.activeTool = allowedTools.has(cleanTool) ? cleanTool : "standby";
+      room.activeToolCode = room.activeTool === "standby" ? "" : String(activeToolCode || "").trim().toUpperCase();
+      touch(room);
+      return json(res, 200, { room: serializeClassroomRoom(room) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/classroom/join") {
+      const { code, name, deviceId } = await body(req);
+      const room = getClassroomRoom(code);
+      const cleanName = String(name || "").trim();
+      const cleanDeviceId = String(deviceId || "").trim();
+      if (!cleanName) throw new Error("Name is required");
+      if (!cleanDeviceId) throw new Error("Device ID is required");
+      let player = room.players.find((item) => item.deviceId === cleanDeviceId);
+      const duplicate = room.players.find((item) => item !== player && String(item.name || "").trim().toLowerCase() === cleanName.toLowerCase());
+      if (duplicate) throw new Error("That name is already connected");
+      if (!player) {
+        player = { id: room.nextPlayerId || 1, name: cleanName, deviceId: cleanDeviceId, joinedAt: Date.now(), updatedAt: Date.now() };
+        room.nextPlayerId = Number(room.nextPlayerId || 1) + 1;
+        room.players.push(player);
+      } else {
+        player.name = cleanName;
+        player.updatedAt = Date.now();
+      }
+      touch(room);
+      return json(res, 200, { room: serializeClassroomRoom(room), player });
     }
 
     if (req.method === "POST" && url.pathname === "/api/live/create-room") {
@@ -1058,6 +1146,37 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { player, room: serializeBuzzerRoom(room) });
     }
 
+    if (req.method === "POST" && url.pathname === "/api/buzzer/import-classroom") {
+      const { code, classroomCode } = await body(req);
+      const room = getBuzzerRoom(code);
+      const classroom = getClassroomRoom(classroomCode);
+      let changed = false;
+      (classroom.players || []).forEach((sourcePlayer) => {
+        const clean = String(sourcePlayer.name || "").trim();
+        if (!clean) return;
+        let player = room.players.find((item) => String(item.name || "").trim().toLowerCase() === clean.toLowerCase());
+        if (!player) {
+          player = {
+            id: `buzzer-player-${room.nextPlayerId++}`,
+            name: clean,
+            score: 0,
+            joinedAt: sourcePlayer.joinedAt || Date.now(),
+            classroomPlayerId: sourcePlayer.id
+          };
+          room.players.push(player);
+          changed = true;
+        } else if (!Number.isFinite(Number(player.score))) {
+          player.score = 0;
+          changed = true;
+        }
+      });
+      if (changed) {
+        touch(room);
+        broadcastBuzzerRoom(room);
+      }
+      return json(res, 200, { room: serializeBuzzerRoom(room) });
+    }
+
     if (req.method === "POST" && url.pathname === "/api/buzzer/start") {
       const { code } = await body(req);
       const room = getBuzzerRoom(code);
@@ -1198,7 +1317,8 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/api/wheel/sync") {
       const { code, names } = await body(req);
       const room = getWheelRoom(code);
-      room.names = normalizeWheelNames(names);
+      const playerNames = new Set((room.players || []).map((player) => String(player.name || "").trim().toLowerCase()).filter(Boolean));
+      room.names = normalizeWheelNames(names).filter((name) => !playerNames.has(String(name || "").trim().toLowerCase()));
       touch(room);
       return json(res, 200, { room: serializeWheelRoom(room) });
     }
@@ -1213,6 +1333,7 @@ const server = http.createServer(async (req, res) => {
       if (!alreadyExists) {
         room.players.push({ name: clean, joinedAt: Date.now() });
       }
+      room.names = normalizeWheelNames(room.names).filter((item) => item.toLowerCase() !== clean.toLowerCase());
       touch(room);
       return json(res, 200, { room: serializeWheelRoom(room), added: !alreadyExists, name: clean });
     }

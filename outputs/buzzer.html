@@ -38,12 +38,11 @@
       height: 100dvh;
       padding: clamp(8px, 1.3vw, 16px);
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(290px, 370px);
-      gap: clamp(8px, 1.3vw, 16px);
+      grid-template-columns: minmax(0, 1fr);
     }
 
     .main,
-    .side {
+    .scoreboard {
       min-height: 0;
       border: 1px solid rgba(255,255,255,0.75);
       border-radius: clamp(24px, 3vw, 34px);
@@ -55,7 +54,7 @@
     .main {
       padding: clamp(12px, 1.7vw, 22px);
       display: grid;
-      grid-template-rows: auto 1fr;
+      grid-template-rows: auto minmax(0, 1fr) minmax(88px, 20vh);
       gap: clamp(8px, 1.4vw, 16px);
       overflow: clip;
     }
@@ -342,31 +341,33 @@
       margin-bottom: -4px;
     }
 
-    .side {
-      padding: clamp(12px, 1.4vw, 18px);
+    .scoreboard {
+      padding: clamp(10px, 1.2vw, 14px);
       display: grid;
-      grid-template-rows: auto auto minmax(0, 1fr);
-      gap: clamp(8px, 1.2vw, 14px);
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 8px;
       overflow: hidden;
     }
 
-    .side.is-qr-hidden {
-      grid-template-rows: auto minmax(0, 1fr);
-    }
-
-    .side-head {
+    .scoreboard-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 10px;
     }
 
-    .side h2 {
+    .scoreboard h2 {
       margin: 0;
       font-size: 1rem;
       text-transform: uppercase;
       letter-spacing: 0.18em;
       color: #3e3580;
+    }
+
+    .scoreboard-note {
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 1000;
     }
 
     .qr-toggle {
@@ -594,8 +595,9 @@
       overflow-y: auto;
       overscroll-behavior: contain;
       scrollbar-gutter: stable;
-      display: flex;
-      flex-direction: column;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      align-content: start;
       gap: 8px;
       padding-right: 3px;
     }
@@ -696,7 +698,7 @@
 
     @media (max-width: 1180px) and (min-width: 761px) {
       .app {
-        grid-template-columns: minmax(0, 1fr) minmax(270px, 340px);
+        grid-template-columns: minmax(0, 1fr);
       }
 
       .topbar {
@@ -792,14 +794,6 @@
         width: min(430px, 38vw, 40vh);
       }
 
-      .qr-box {
-        padding: 10px;
-      }
-
-      .room-code {
-        font-size: 1.6rem;
-      }
-
       .player {
         min-height: 36px;
         padding-block: 6px;
@@ -872,10 +866,6 @@
         overflow: auto;
       }
 
-      .side {
-        min-height: min(520px, 82vh);
-      }
-
       .qr-fullscreen-card {
         grid-template-columns: 1fr;
         width: min(92vw, 520px);
@@ -941,37 +931,16 @@
           </div>
         </div>
       </div>
-    </section>
 
-    <aside class="side" id="sidePanel">
-      <div class="side-head">
-        <h2>Players</h2>
-        <button class="qr-toggle" id="qrToggleBtn" type="button">Show QR</button>
-      </div>
-      <div class="qr-box" id="qrBox" role="button" tabindex="0" aria-label="Show QR fullscreen">
-        <img id="qrImage" alt="Buzzer room QR">
-        <div class="room-code" id="roomCode">-----</div>
-      </div>
-      <div class="players" id="players"></div>
-    </aside>
-  </main>
-
-  <div class="qr-fullscreen hidden" id="qrOverlay" aria-hidden="true">
-    <div class="qr-fullscreen-card">
-      <div class="qr-fullscreen-main">
-        <img id="qrLargeImage" alt="Large buzzer room QR">
-        <p class="qr-fullscreen-code" id="qrLargeCode">-----</p>
-        <div class="qr-fullscreen-actions">
-          <button class="live" id="qrLiveBtn" type="button">Live</button>
-          <button id="qrCloseBtn" type="button">Close</button>
+      <section class="scoreboard" aria-label="Buzzer scoreboard">
+        <div class="scoreboard-head">
+          <h2>Players</h2>
+          <span class="scoreboard-note">Scoreboard</span>
         </div>
-      </div>
-      <section class="qr-fullscreen-people" aria-label="Connected players">
-        <h3>Connected</h3>
-        <div class="qr-fullscreen-list" id="qrPeopleList"></div>
+        <div class="players" id="players"></div>
       </section>
-    </div>
-  </div>
+    </section>
+  </main>
 
   <div class="confirm-overlay hidden" id="confirmOverlay" aria-hidden="true">
     <div class="confirm-card" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
@@ -985,16 +954,6 @@
   </div>
 
   <script>
-    const roomCodeEl = document.getElementById("roomCode");
-    const sidePanel = document.getElementById("sidePanel");
-    const qrBox = document.getElementById("qrBox");
-    const qrImage = document.getElementById("qrImage");
-    const qrOverlay = document.getElementById("qrOverlay");
-    const qrLargeImage = document.getElementById("qrLargeImage");
-    const qrLargeCode = document.getElementById("qrLargeCode");
-    const qrLiveBtn = document.getElementById("qrLiveBtn");
-    const qrCloseBtn = document.getElementById("qrCloseBtn");
-    const qrPeopleList = document.getElementById("qrPeopleList");
     const confirmOverlay = document.getElementById("confirmOverlay");
     const confirmTitle = document.getElementById("confirmTitle");
     const confirmText = document.getElementById("confirmText");
@@ -1009,7 +968,6 @@
     const holdBtn = document.getElementById("holdBtn");
     const resetBtn = document.getElementById("resetBtn");
     const homeBtn = document.getElementById("homeBtn");
-    const qrToggleBtn = document.getElementById("qrToggleBtn");
     const scorerToggleBtn = document.getElementById("scorerToggleBtn");
     const awardPointBtn = document.getElementById("awardPointBtn");
     const passTurnBtn = document.getElementById("passTurnBtn");
@@ -1021,13 +979,15 @@
     const customPointsInput = document.getElementById("customPointsInput");
 
     const storageKey = "letter-clash-buzzer-room-code";
+    const classroomStorageKey = "friendzy-classroom-code";
     let buzzerBaseUrl = window.location.origin;
     let room = null;
     let socket = null;
     let pollTimer = null;
+    let classroomImportTimer = null;
     let lastWinnerId = "";
     let wakeLock = null;
-    let qrPanelVisible = false;
+    let classroomImportInFlight = false;
     let scorerEnabled = true;
     let pointValue = 50;
     const turnAlarmSound = new Audio("buzzer-turn-alarm.wav");
@@ -1097,20 +1057,10 @@
       return data;
     }
 
-    function getJoinUrl() {
-      if (!room) return "";
-      return `${buzzerBaseUrl}/buzzer-student.html?code=${encodeURIComponent(room.code)}`;
-    }
-
     function getSocketUrl() {
       if (!room) return "";
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       return `${protocol}//${window.location.host}/ws/buzzer?code=${encodeURIComponent(room.code)}`;
-    }
-
-    function getQrSrc(size = 420) {
-      if (!room) return "";
-      return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(getJoinUrl())}`;
     }
 
     function unlockAudio() {
@@ -1198,17 +1148,11 @@
         return;
       }
       localStorage.setItem(storageKey, room.code);
-      roomCodeEl.textContent = room.code;
-      qrImage.src = getQrSrc(420);
       liveBtn.disabled = !room.players.length || room.status === "live";
       holdBtn.disabled = false;
       holdBtn.textContent = room.buzzerHeld ? "Held" : "Hold";
       holdBtn.classList.toggle("is-active", !!room.buzzerHeld);
       resetBtn.disabled = false;
-      qrLiveBtn.disabled = !room.players.length || room.status === "live";
-      sidePanel.classList.toggle("is-qr-hidden", !qrPanelVisible);
-      qrBox.classList.toggle("hidden", !qrPanelVisible);
-      qrToggleBtn.textContent = qrPanelVisible ? "Hide QR" : "Show QR";
       pointsPanel.classList.toggle("hidden", !scorerEnabled);
       scoreActions.classList.toggle("hidden", !scorerEnabled);
       noScoreNextBtn.classList.toggle("hidden", scorerEnabled);
@@ -1252,6 +1196,7 @@
           </div>
         `).join("")
         : `<div class="empty">Waiting for players...</div>`;
+      return;
       qrPeopleList.innerHTML = sortedPlayers.length
         ? sortedPlayers.map((player) => `
           <div class="qr-fullscreen-person ${lockedOutPlayers.includes(player.id) ? "is-locked" : ""}">
@@ -1263,20 +1208,11 @@
     }
 
     function renderNoRoom() {
-      qrPanelVisible = false;
-      roomCodeEl.textContent = "-----";
-      qrImage.removeAttribute("src");
-      qrLargeImage.removeAttribute("src");
-      qrLargeCode.textContent = "-----";
       liveBtn.disabled = true;
       holdBtn.disabled = true;
       holdBtn.textContent = "Hold";
       holdBtn.classList.remove("is-active");
       resetBtn.disabled = true;
-      qrLiveBtn.disabled = true;
-      sidePanel.classList.add("is-qr-hidden");
-      qrBox.classList.add("hidden");
-      qrToggleBtn.textContent = "Show QR";
       pointsPanel.classList.toggle("hidden", !scorerEnabled);
       scoreActions.classList.toggle("hidden", !scorerEnabled);
       noScoreNextBtn.classList.add("hidden");
@@ -1286,9 +1222,7 @@
       lastWinnerId = "";
       winnerCard.classList.add("hidden");
       idleState.classList.remove("hidden");
-      playersEl.innerHTML = `<div class="empty">Press Show QR to create a room.</div>`;
-      qrPeopleList.innerHTML = `<div class="empty">No room yet.</div>`;
-      closeQrOverlay();
+      playersEl.innerHTML = `<div class="empty">Open Friendzy to connect players.</div>`;
     }
 
     function disconnectRoom() {
@@ -1341,6 +1275,7 @@
       try {
         const data = await api(`/api/buzzer/room?code=${encodeURIComponent(room.code)}`, null, "GET");
         room = data.room;
+        importClassroomPlayers().catch(() => {});
         render();
       } catch (_) {
         disconnectRoom();
@@ -1372,12 +1307,55 @@
       }
       render();
       connectSocket();
+      importClassroomPlayers().catch(() => {});
+      setClassroomTool("buzzer", room.code).catch(() => {});
       return room;
+    }
+
+    async function importClassroomPlayers() {
+      if (!room || classroomImportInFlight) return;
+      const classroomCode = localStorage.getItem(classroomStorageKey);
+      if (!classroomCode) return;
+      classroomImportInFlight = true;
+      try {
+        const data = await api("/api/buzzer/import-classroom", {
+          code: room.code,
+          classroomCode
+        });
+        room = data.room;
+        setClassroomTool("buzzer", room.code).catch(() => {});
+        render();
+      } catch (_) {
+      } finally {
+        classroomImportInFlight = false;
+      }
+    }
+
+    async function setClassroomTool(activeTool = "buzzer", activeToolCode = room?.code || "") {
+      const classroomCode = localStorage.getItem(classroomStorageKey);
+      if (!classroomCode) return;
+      try {
+        await api("/api/classroom/set-tool", {
+          code: classroomCode,
+          activeTool,
+          activeToolCode
+        });
+      } catch (_) {}
+    }
+
+    function startClassroomImportTimer() {
+      clearInterval(classroomImportTimer);
+      classroomImportTimer = setInterval(() => {
+        if (!room && localStorage.getItem(classroomStorageKey)) {
+          ensureRoom().catch(() => {});
+          return;
+        }
+        importClassroomPlayers().catch(() => {});
+      }, 1600);
     }
 
     async function initRoom() {
       room = null;
-      qrPanelVisible = false;
       render();
     }
 
@@ -1385,8 +1363,6 @@
       if (!room) return;
       const data = await api("/api/buzzer/start", { code: room.code });
       room = data.room;
-      qrPanelVisible = false;
-      closeQrOverlay();
       render();
     }
 
@@ -1419,10 +1395,10 @@
       disconnectRoom();
       room = null;
       localStorage.removeItem(storageKey);
+      setClassroomTool("standby", "").catch(() => {});
       try {
         await api("/api/buzzer/delete-room", { code: oldCode });
       } catch (_) {}
-      qrPanelVisible = false;
       render();
     });
 
@@ -1470,54 +1446,9 @@
       setPointValue(customPointsInput.value, "custom");
     });
 
-    qrToggleBtn.addEventListener("click", async () => {
-      if (!room) {
-        await ensureRoom();
-        qrPanelVisible = true;
-        render();
-        return;
-      }
-      qrPanelVisible = !qrPanelVisible;
-      render();
-    });
-
     scorerToggleBtn.addEventListener("click", () => {
       scorerEnabled = !scorerEnabled;
       render();
-    });
-
-    function openQrOverlay() {
-      if (!room) return;
-      unlockAudio();
-      qrLargeImage.src = getQrSrc(760);
-      qrLargeCode.textContent = room.code;
-      qrOverlay.classList.remove("hidden");
-      qrOverlay.setAttribute("aria-hidden", "false");
-    }
-
-    function closeQrOverlay() {
-      qrOverlay.classList.add("hidden");
-      qrOverlay.setAttribute("aria-hidden", "true");
-    }
-
-    qrBox.addEventListener("click", openQrOverlay);
-    qrBox.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        openQrOverlay();
-      }
-    });
-    qrLiveBtn.addEventListener("click", () => {
-      startLive().catch(() => {});
-    });
-    qrCloseBtn.addEventListener("click", closeQrOverlay);
-    qrOverlay.addEventListener("click", (event) => {
-      if (event.target === qrOverlay) closeQrOverlay();
-    });
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && !qrOverlay.classList.contains("hidden")) {
-        closeQrOverlay();
-      }
     });
 
     document.addEventListener("pointerdown", unlockAudio, { once: true });
@@ -1547,12 +1478,6 @@
       removePlayerById(button.dataset.playerId).catch(() => {});
     });
 
-    qrPeopleList.addEventListener("click", async (event) => {
-      const button = event.target.closest("[data-player-id]");
-      if (!button) return;
-      removePlayerById(button.dataset.playerId).catch(() => {});
-    });
-
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") {
         requestWakeLock();
@@ -1563,12 +1488,19 @@
     });
 
     hydrateBuzzerBaseUrl()
-      .then(() => initRoom())
+      .then(async () => {
+        await initRoom();
+        if (localStorage.getItem(classroomStorageKey)) {
+          await ensureRoom();
+        }
+      })
       .catch((error) => {
         statusMain.textContent = error.message || "Could not create buzzer room.";
       });
     requestWakeLock();
     setPointValue(50, "preset");
+    startClassroomImportTimer();
   </script>
+  <script src="./friendzy-panel.js"></script>
 </body>
 </html>

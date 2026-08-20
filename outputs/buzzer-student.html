@@ -331,6 +331,9 @@
   <script>
     const params = new URLSearchParams(window.location.search);
     const code = String(params.get("code") || "").toUpperCase();
+    const autoName = String(params.get("name") || "").trim();
+    const classroomCode = String(params.get("classroom") || "").toUpperCase();
+    const shouldAutoJoin = params.get("auto") === "1";
     const joinView = document.getElementById("joinView");
     const gameView = document.getElementById("gameView");
     const nameInput = document.getElementById("nameInput");
@@ -353,6 +356,10 @@
     let wakeLock = null;
 
     function leaveDeadRoom(message = "This room was reset. Scan the new QR to join again.") {
+      if (classroomCode) {
+        window.location.href = `./student-hub.html?code=${encodeURIComponent(classroomCode)}`;
+        return;
+      }
       if (socket) {
         try {
           socket.close();
@@ -606,6 +613,15 @@
       nameInput.disabled = true;
       joinBtn.disabled = true;
       joinError.textContent = "Missing room code.";
+    } else if (autoName) {
+      nameInput.value = autoName;
+      if (shouldAutoJoin) {
+        joinBtn.disabled = true;
+        joinRoom().catch((error) => {
+          joinBtn.disabled = false;
+          joinError.textContent = error.message || "Could not join room.";
+        });
+      }
     }
   </script>
 </body>
