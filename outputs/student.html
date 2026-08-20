@@ -862,6 +862,9 @@
   <script>
     const params = new URLSearchParams(location.search);
     const code = (params.get("code") || "").toUpperCase();
+    const autoName = String(params.get("name") || "").trim();
+    const classroomCode = String(params.get("classroom") || "").toUpperCase();
+    const shouldAutoJoin = params.get("auto") === "1";
     const colors = [0, 1, 2, 3, 4];
     const joinView = document.getElementById("joinView");
     const waitingView = document.getElementById("waitingView");
@@ -911,6 +914,7 @@
     let confirmState = null;
     let claimTimer = null;
     let lastClaimOverlayId = "";
+    let classroomPollTimer = null;
     const letterPoints = {
       A: 1, E: 1, I: 1, O: 1, N: 1, R: 1, T: 1, L: 1, S: 1, U: 1,
       D: 2, G: 2,
@@ -934,6 +938,29 @@
         throw error;
       }
       return data;
+    }
+
+    function returnToClassroomHub() {
+      if (!classroomCode) return;
+      window.location.href = `./student-hub.html?code=${encodeURIComponent(classroomCode)}`;
+    }
+
+    async function pollClassroomRoute() {
+      if (!classroomCode) return;
+      try {
+        const data = await api(`/api/classroom/room?code=${encodeURIComponent(classroomCode)}`, null, "GET");
+        const activeTool = String(data.room?.activeTool || "standby");
+        const activeToolCode = String(data.room?.activeToolCode || "");
+        if (activeTool !== "letter-clash" || activeToolCode !== code) {
+          returnToClassroomHub();
+          return;
+        }
+      } catch (_) {
+        returnToClassroomHub();
+        return;
+      } finally {
+        classroomPollTimer = setTimeout(pollClassroomRoute, 1000);
+      }
     }
 
     function getRoomSocketUrl() {
@@ -1416,6 +1443,21 @@
         throw error;
       }
     });
+
+    if (autoName) {
+      teamName.value = autoName;
+      if (shouldAutoJoin) {
+        joinRoom(false).catch(async (error) => {
+          if (error?.data?.reconnectable) {
+            await joinRoom(true);
+          }
+        });
+      }
+    }
+    if (classroomCode) {
+      clearTimeout(classroomPollTimer);
+      classroomPollTimer = setTimeout(pollClassroomRoute, 900);
+    }
 
     async function submitWord() {
       if (!player || !room) return;

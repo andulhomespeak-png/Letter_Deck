@@ -214,9 +214,9 @@
       startPolling();
     }
 
-    function goToBuzzer(toolCode) {
+    function goToTool(toolCode, path) {
       if (!toolCode || !playerName) return;
-      const target = `./buzzer-student.html?code=${encodeURIComponent(toolCode)}&name=${encodeURIComponent(playerName)}&classroom=${encodeURIComponent(code)}&auto=1`;
+      const target = `./${path}?code=${encodeURIComponent(toolCode)}&name=${encodeURIComponent(playerName)}&classroom=${encodeURIComponent(code)}&auto=1`;
       window.location.href = target;
     }
 
@@ -224,7 +224,13 @@
       const activeTool = String(nextRoom?.activeTool || "standby");
       const activeToolCode = String(nextRoom?.activeToolCode || "");
       if (activeTool === "buzzer" && activeToolCode) {
-        goToBuzzer(activeToolCode);
+        goToTool(activeToolCode, "buzzer-student.html");
+      } else if (activeTool === "letter-clash" && activeToolCode) {
+        goToTool(activeToolCode, "student.html");
+      } else if (activeTool === "wheel" && activeToolCode) {
+        goToTool(activeToolCode, "name-wheel-student.html");
+      } else if (activeTool === "quick-poll" && activeToolCode) {
+        goToTool(activeToolCode, "quick-poll-student.html");
       }
     }
 

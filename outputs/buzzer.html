@@ -38,7 +38,8 @@
       height: 100dvh;
       padding: clamp(8px, 1.3vw, 16px);
       display: grid;
-      grid-template-columns: minmax(0, 1fr);
+      grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+      gap: clamp(8px, 1.3vw, 16px);
     }
 
     .main,
@@ -54,7 +55,7 @@
     .main {
       padding: clamp(12px, 1.7vw, 22px);
       display: grid;
-      grid-template-rows: auto minmax(0, 1fr) minmax(88px, 20vh);
+      grid-template-rows: auto minmax(0, 1fr);
       gap: clamp(8px, 1.4vw, 16px);
       overflow: clip;
     }
@@ -341,35 +342,6 @@
       margin-bottom: -4px;
     }
 
-    .scoreboard {
-      padding: clamp(10px, 1.2vw, 14px);
-      display: grid;
-      grid-template-rows: auto minmax(0, 1fr);
-      gap: 8px;
-      overflow: hidden;
-    }
-
-    .scoreboard-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-    }
-
-    .scoreboard h2 {
-      margin: 0;
-      font-size: 1rem;
-      text-transform: uppercase;
-      letter-spacing: 0.18em;
-      color: #3e3580;
-    }
-
-    .scoreboard-note {
-      color: var(--muted);
-      font-size: 0.82rem;
-      font-weight: 1000;
-    }
-
     .qr-toggle {
       min-height: 36px;
       padding: 0 12px;
@@ -590,6 +562,35 @@
       letter-spacing: 0.08em;
     }
 
+    .scoreboard {
+      padding: clamp(12px, 1.5vw, 18px);
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 10px;
+      overflow: hidden;
+    }
+
+    .scoreboard-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .scoreboard h2 {
+      margin: 0;
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: #3e3580;
+    }
+
+    .scoreboard-note {
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 1000;
+    }
+
     .players {
       min-height: 0;
       overflow-y: auto;
@@ -698,7 +699,7 @@
 
     @media (max-width: 1180px) and (min-width: 761px) {
       .app {
-        grid-template-columns: minmax(0, 1fr);
+        grid-template-columns: minmax(0, 1fr) minmax(260px, 330px);
       }
 
       .topbar {
@@ -733,10 +734,6 @@
     }
 
     @media (max-height: 760px) and (min-width: 761px) {
-      .app {
-        grid-template-columns: minmax(0, 1fr) minmax(260px, 330px);
-      }
-
       .topbar {
         gap: 8px;
       }
@@ -862,6 +859,10 @@
         overflow-y: auto;
       }
 
+      .scoreboard {
+        min-height: 320px;
+      }
+
       body {
         overflow: auto;
       }
@@ -905,7 +906,6 @@
         <div class="actions">
           <button id="liveBtn" class="live" type="button">Live</button>
           <button id="holdBtn" class="hold" type="button">Hold</button>
-          <button id="resetBtn" class="danger" type="button">Reset</button>
           <button id="homeBtn" type="button">Home</button>
         </div>
       </div>
@@ -932,14 +932,15 @@
         </div>
       </div>
 
-      <section class="scoreboard" aria-label="Buzzer scoreboard">
-        <div class="scoreboard-head">
-          <h2>Players</h2>
-          <span class="scoreboard-note">Scoreboard</span>
-        </div>
-        <div class="players" id="players"></div>
-      </section>
     </section>
+
+    <aside class="scoreboard" aria-label="Buzzer ranking">
+      <div class="scoreboard-head">
+        <h2>Players</h2>
+        <span class="scoreboard-note">Ranking</span>
+      </div>
+      <div class="players" id="players"></div>
+    </aside>
   </main>
 
   <div class="confirm-overlay hidden" id="confirmOverlay" aria-hidden="true">
@@ -1152,7 +1153,7 @@
       holdBtn.disabled = false;
       holdBtn.textContent = room.buzzerHeld ? "Held" : "Hold";
       holdBtn.classList.toggle("is-active", !!room.buzzerHeld);
-      resetBtn.disabled = false;
+      if (resetBtn) resetBtn.disabled = false;
       pointsPanel.classList.toggle("hidden", !scorerEnabled);
       scoreActions.classList.toggle("hidden", !scorerEnabled);
       noScoreNextBtn.classList.toggle("hidden", scorerEnabled);
@@ -1212,7 +1213,7 @@
       holdBtn.disabled = true;
       holdBtn.textContent = "Hold";
       holdBtn.classList.remove("is-active");
-      resetBtn.disabled = true;
+      if (resetBtn) resetBtn.disabled = true;
       pointsPanel.classList.toggle("hidden", !scorerEnabled);
       scoreActions.classList.toggle("hidden", !scorerEnabled);
       noScoreNextBtn.classList.add("hidden");
@@ -1383,7 +1384,7 @@
       render();
     });
 
-    resetBtn.addEventListener("click", async () => {
+    resetBtn?.addEventListener("click", async () => {
       if (!room) return;
       const confirmed = await askConfirm({
         title: "Reset Room?",
@@ -1403,7 +1404,7 @@
     });
 
     homeBtn.addEventListener("click", () => {
-      window.location.href = "./";
+      setClassroomTool("standby", "").finally(() => { window.location.href = "./"; });
     });
 
     async function resolveCurrentTurn(delta) {

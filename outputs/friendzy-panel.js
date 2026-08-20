@@ -471,6 +471,53 @@
     renderPlayers(largePlayers);
   }
 
+  function isHomePage() {
+    const path = window.location.pathname.replace(/\/+$/, "") || "/";
+    return path === "/" || path.endsWith("/index.html");
+  }
+
+  async function setStandbyIfHome() {
+    if (!room || !isHomePage()) return;
+    try {
+      await api("/api/classroom/set-tool", { code: room.code, activeTool: "standby", activeToolCode: "" });
+      room.activeTool = "standby";
+      room.activeToolCode = "";
+      render();
+    } catch (_) {}
+  }
+
+  function getCurrentToolState() {
+    const path = window.location.pathname.replace(/\/+$/, "") || "/";
+    if (path.endsWith("/buzzer")) {
+      return { activeTool: "buzzer", activeToolCode: localStorage.getItem("letter-clash-buzzer-room-code") || "" };
+    }
+    if (path.endsWith("/letter-clash") || path.endsWith("/letter-card-game.html")) {
+      return { activeTool: "letter-clash", activeToolCode: localStorage.getItem("letter-clash-live-room-code") || "" };
+    }
+    if (path.endsWith("/name-wheel")) {
+      return { activeTool: "wheel", activeToolCode: localStorage.getItem("name-wheel-room-code") || "" };
+    }
+    if (path.endsWith("/quick-poll")) {
+      return { activeTool: "quick-poll", activeToolCode: localStorage.getItem("quick-poll-room-code") || "" };
+    }
+    if (isHomePage()) {
+      return { activeTool: "standby", activeToolCode: "" };
+    }
+    return null;
+  }
+
+  async function syncCurrentToolState() {
+    if (!room) return;
+    const state = getCurrentToolState();
+    if (!state) return;
+    try {
+      await api("/api/classroom/set-tool", { code: room.code, ...state });
+      room.activeTool = state.activeTool;
+      room.activeToolCode = state.activeToolCode;
+      render();
+    } catch (_) {}
+  }
+
   async function ensureRoom() {
     const savedCode = localStorage.getItem(storageKey);
     if (savedCode) {
@@ -537,7 +584,7 @@
     if (event.target === large) closeLarge();
   });
   refreshBtn.addEventListener("click", () => {
-    ensureRoom().then(() => pollRoom()).catch(() => {});
+    ensureRoom().then(syncCurrentToolState).then(() => pollRoom()).catch(() => {});
   });
   qrToggle.addEventListener("click", () => {
     qrVisible = !qrVisible;
@@ -564,6 +611,7 @@
 
   hydrateBaseUrl()
     .then(ensureRoom)
+    .then(syncCurrentToolState)
     .then(() => {
       clearTimeout(pollTimer);
       pollRoom();

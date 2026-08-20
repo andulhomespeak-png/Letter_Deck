@@ -349,13 +349,9 @@
     .side {
       padding: clamp(14px, 1.8vw, 22px);
       display: grid;
-      grid-template-rows: auto auto auto minmax(0, 1fr);
+      grid-template-rows: auto minmax(0, 1fr);
       gap: 12px;
       overflow: hidden;
-    }
-
-    .side.is-qr-hidden {
-      grid-template-rows: auto auto minmax(0, 1fr);
     }
 
     .side-content {
@@ -375,6 +371,10 @@
       justify-content: space-between;
       align-items: center;
       gap: 10px;
+    }
+
+    .side-head {
+      justify-content: flex-start;
     }
 
     h2,
@@ -729,7 +729,6 @@
         <div class="actions">
           <button class="primary" id="voteToggleBtn" type="button">Start</button>
           <button id="clearBtn" type="button">Clear</button>
-          <button class="danger" id="resetBtn" type="button">Reset</button>
           <button id="homeBtn" type="button">Home</button>
         </div>
       </header>
@@ -742,24 +741,9 @@
     <aside class="side is-qr-hidden" id="sidePanel">
       <div class="side-head">
         <h2>Players</h2>
-        <button id="qrToggleBtn" type="button">Show QR</button>
-      </div>
-      <section class="scan-mode" id="scanModePanel" aria-label="Scan role">
-        <p class="scan-mode-title">Scan as</p>
-        <div class="scan-mode-buttons">
-          <button class="scan-role is-active" id="scanVoterBtn" type="button">Voter</button>
-          <button class="scan-role is-candidate" id="scanCandidateBtn" type="button">Candidate</button>
-        </div>
-      </section>
-      <div class="qr-box hidden" id="qrBox" role="button" tabindex="0" aria-label="Quick Poll room QR">
-        <img id="qrImage" alt="Quick Poll room QR">
-        <p class="room-code" id="roomCode">-----</p>
       </div>
       <div class="side-content">
         <section class="panel connected-panel" id="connectedPanel">
-          <div class="row">
-            <h3>Connected <span id="playerCount">(0)</span></h3>
-          </div>
           <div class="players" id="playersList"></div>
         </section>
       </div>
@@ -801,6 +785,7 @@
 
   <script>
     const storageKey = "quick-poll-room-code";
+    const classroomStorageKey = "friendzy-classroom-code";
     const voteToggleBtn = document.getElementById("voteToggleBtn");
     const topbar = document.getElementById("topbar");
     const clearBtn = document.getElementById("clearBtn");
@@ -897,7 +882,7 @@
       const availablePlayers = source === "players"
         ? players.filter((player) => !candidateIds.has(Number(player.id)))
         : players;
-      playerCount.textContent = `(${players.length})`;
+      if (playerCount) playerCount.textContent = `(${players.length})`;
       playersList.innerHTML = availablePlayers.length
         ? availablePlayers.slice().sort((a, b) => a.name.localeCompare(b.name)).map((player) => (
           `<div class="player" ${source === "players" ? `draggable="true" data-player-id="${player.id}"` : ""}><span class="player-name">${escapeHtml(player.name)}</span><button class="remove-player" type="button" data-player-id="${player.id}" aria-label="Remove ${escapeHtml(player.name)}">X</button></div>`
@@ -938,8 +923,8 @@
       selfVoteBtn.classList.toggle("is-active", blockSelfVote);
       selfVoteBtn.setAttribute("aria-pressed", String(blockSelfVote));
       selfVoteText.textContent = blockSelfVote ? "Blocked" : "Allowed";
-      scanVoterBtn.classList.toggle("is-active", joinRole === "voter");
-      scanCandidateBtn.classList.toggle("is-active", joinRole === "candidate");
+      if (scanVoterBtn) scanVoterBtn.classList.toggle("is-active", joinRole === "voter");
+      if (scanCandidateBtn) scanCandidateBtn.classList.toggle("is-active", joinRole === "candidate");
       modalScanVoterBtn.classList.toggle("is-active", joinRole === "voter");
       modalScanCandidateBtn.classList.toggle("is-active", joinRole === "candidate");
       optionsPanel.classList.toggle("hidden", source !== "manual");
@@ -948,23 +933,22 @@
       voteToggleBtn.classList.toggle("primary", room?.status !== "voting");
       voteToggleBtn.classList.toggle("danger", room?.status === "voting");
       clearBtn.disabled = !room || room.status === "voting";
-      resetBtn.disabled = !room || room.status === "voting";
+      if (resetBtn) resetBtn.disabled = !room || room.status === "voting";
       if (room) {
         localStorage.setItem(storageKey, room.code);
-        roomCodeEl.textContent = room.code;
+        if (roomCodeEl) roomCodeEl.textContent = room.code;
         qrLargeCode.textContent = room.code;
-        qrImage.src = getQrSrc(420);
+        if (qrImage) qrImage.src = getQrSrc(420);
         qrLargeImage.src = getQrSrc(720);
       } else {
-        roomCodeEl.textContent = "-----";
-        qrImage.removeAttribute("src");
+        if (roomCodeEl) roomCodeEl.textContent = "-----";
+        if (qrImage) qrImage.removeAttribute("src");
       }
-      sidePanel.classList.toggle("is-qr-hidden", !qrVisible);
       sidePanel.classList.toggle("is-players-source", source === "players");
-      scanModePanel.classList.toggle("hidden", !qrVisible || source !== "players");
+      if (scanModePanel) scanModePanel.classList.toggle("hidden", true);
       modalScanModePanel.classList.toggle("hidden", source !== "players");
-      qrBox.classList.toggle("hidden", !qrVisible || !room);
-      qrToggleBtn.textContent = qrVisible ? "Hide QR" : "Show QR";
+      if (qrBox) qrBox.classList.toggle("hidden", true);
+      if (qrToggleBtn) qrToggleBtn.textContent = qrVisible ? "Hide QR" : "Show QR";
       renderPlayers();
       renderResults();
     }
@@ -988,6 +972,7 @@
         try {
           const data = await api(`/api/poll/room?code=${encodeURIComponent(savedCode)}`, null, "GET");
           room = data.room;
+          setClassroomTool("quick-poll", room.code).catch(() => {});
           render();
           return room;
         } catch (_) {
@@ -997,7 +982,16 @@
       const data = await api("/api/poll/create-room");
       room = data.room;
       await syncSettings();
+      setClassroomTool("quick-poll", room.code).catch(() => {});
       return room;
+    }
+
+    async function setClassroomTool(activeTool = "quick-poll", activeToolCode = room?.code || "") {
+      const classroomCode = localStorage.getItem(classroomStorageKey);
+      if (!classroomCode) return;
+      try {
+        await api("/api/classroom/set-tool", { code: classroomCode, activeTool, activeToolCode });
+      } catch (_) {}
     }
 
     async function syncSettings() {
@@ -1253,11 +1247,11 @@
       await syncSettings();
     });
 
-    scanVoterBtn.addEventListener("click", async () => {
+    scanVoterBtn?.addEventListener("click", async () => {
       await setJoinRole("voter");
     });
 
-    scanCandidateBtn.addEventListener("click", async () => {
+    scanCandidateBtn?.addEventListener("click", async () => {
       await setJoinRole("candidate");
     });
 
@@ -1275,7 +1269,7 @@
       await syncSettings();
     });
 
-    qrToggleBtn.addEventListener("click", async () => {
+    qrToggleBtn?.addEventListener("click", async () => {
       if (!qrVisible) {
         await ensureRoom();
         qrVisible = true;
@@ -1319,7 +1313,7 @@
       render();
     });
 
-    resetBtn.addEventListener("click", async () => {
+    resetBtn?.addEventListener("click", async () => {
       const confirmed = await openConfirm({
         title: "Reset Room?",
         text: "This deletes the current Quick Poll room and removes all connected players.",
@@ -1343,9 +1337,11 @@
       render();
     });
 
-    homeBtn.addEventListener("click", () => { window.location.href = "./"; });
-    qrBox.addEventListener("click", openQrModal);
-    qrBox.addEventListener("keydown", (event) => {
+    homeBtn.addEventListener("click", () => {
+      setClassroomTool("standby", "").finally(() => { window.location.href = "./"; });
+    });
+    qrBox?.addEventListener("click", openQrModal);
+    qrBox?.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
         openQrModal();
@@ -1377,12 +1373,17 @@
         try {
           const data = await api(`/api/poll/room?code=${encodeURIComponent(savedCode)}`, null, "GET");
           room = data.room;
+          setClassroomTool("quick-poll", room.code).catch(() => {});
           render();
           startPolling();
         } catch (_) {
           localStorage.removeItem(storageKey);
           render();
         }
+      }
+      if (!room && localStorage.getItem(classroomStorageKey)) {
+        await ensureRoom();
+        startPolling();
       }
     });
   </script>

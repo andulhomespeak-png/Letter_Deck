@@ -1531,7 +1531,6 @@
           <button class="ghost" id="homeBtn">Home</button>
           <button class="ghost" id="soundBtn">Music</button>
           <button class="ghost" id="sfxBtn">SFX</button>
-          <button class="danger" id="resetBtn">Reset</button>
         </div>
       </header>
 
@@ -1543,11 +1542,6 @@
         <aside class="panel sidebar">
           <div class="side-head">
             <h2 class="side-title">Players</h2>
-            <button class="ghost side-qr-toggle" id="sideQrToggleBtn" type="button" aria-expanded="false">Show QR</button>
-          </div>
-          <div class="side-qr-card hidden" id="sideQrCard" role="button" tabindex="0" aria-label="Open QR code">
-            <img id="sideQrImage" alt="Room QR preview">
-            <div class="side-qr-room" id="sideQrRoomText"></div>
           </div>
           <div class="team-list" id="teamList"></div>
         </aside>
@@ -1709,6 +1703,7 @@
     let successHistory = [];
     let sideQrVisible = false;
     const liveRoomStorageKey = "letter-clash-live-room-code";
+    const classroomStorageKey = "friendzy-classroom-code";
     const maxActiveLetters = 8;
     const winningScore = 750;
     const letterPoints = {
@@ -2382,6 +2377,14 @@
       render();
     }
 
+    async function setClassroomTool(activeTool = "letter-clash", activeToolCode = liveRoom?.code || "") {
+      const classroomCode = window.localStorage.getItem(classroomStorageKey);
+      if (!classroomCode) return;
+      try {
+        await liveApi("/api/classroom/set-tool", { code: classroomCode, activeTool, activeToolCode });
+      } catch (_) {}
+    }
+
     function connectLiveSocket() {
       if (!liveEnabled || !liveRoom) {
         return;
@@ -2502,6 +2505,7 @@
       if (!liveSocketActive) {
         pollLiveRoom();
       }
+      setClassroomTool("letter-clash", liveRoom.code).catch(() => {});
       return liveRoom;
     }
 
@@ -2844,7 +2848,7 @@
       if (liveEnabled && !liveRoom) {
         const empty = document.createElement("div");
         empty.className = "team-card waiting-card";
-        empty.innerHTML = `<div class="team-name">Press Show QR to create a room.</div>`;
+        empty.innerHTML = `<div class="team-name">Open Friendzy to connect players.</div>`;
         teamList.appendChild(empty);
         return;
       }
@@ -2978,26 +2982,26 @@
       sfxBtn.classList.toggle("is-on", sfxEnabled);
       startLiveBtn.classList.toggle("is-on", liveRoom?.status === "live");
       qrLiveBtn.classList.toggle("is-on", liveRoom?.status === "live");
-      sideQrToggleBtn.setAttribute("aria-expanded", String(sideQrVisible));
-      sideQrToggleBtn.textContent = sideQrVisible ? "Hide QR" : "Show QR";
-      sideQrCard.classList.toggle("hidden", !sideQrVisible);
+      if (sideQrToggleBtn) sideQrToggleBtn.setAttribute("aria-expanded", String(sideQrVisible));
+      if (sideQrToggleBtn) sideQrToggleBtn.textContent = sideQrVisible ? "Hide QR" : "Open QR";
+      if (sideQrCard) sideQrCard.classList.toggle("hidden", !sideQrVisible);
       const hasConnectedPlayers = Number(liveRoom?.teams?.length || 0) > 0;
       useLettersBtn.disabled = activeLetters.length === 0 || isGameFinished();
-      startLiveBtn.disabled = isGameFinished() || !liveRoom || !hasConnectedPlayers;
+      startLiveBtn.disabled = isGameFinished() || (liveRoom && !hasConnectedPlayers);
       qrLiveBtn.disabled = isGameFinished() || liveRoom?.status === "live" || !hasConnectedPlayers;
       if (liveEnabled && liveRoom) {
         const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=420x420&data=${encodeURIComponent(getLiveJoinUrl())}`;
         qrRoomText.textContent = `Room ${liveRoom.code}`;
         qrUrlText.textContent = getLiveJoinUrl();
         qrImage.src = qrSrc;
-        sideQrRoomText.textContent = `Room ${liveRoom.code}`;
-        sideQrImage.src = qrSrc;
+        if (sideQrRoomText) sideQrRoomText.textContent = `Room ${liveRoom.code}`;
+        if (sideQrImage) sideQrImage.src = qrSrc;
       } else {
         qrRoomText.textContent = "";
         qrUrlText.textContent = "";
         qrImage.removeAttribute("src");
-        sideQrRoomText.textContent = "";
-        sideQrImage.removeAttribute("src");
+        if (sideQrRoomText) sideQrRoomText.textContent = "";
+        if (sideQrImage) sideQrImage.removeAttribute("src");
       }
     }
 
@@ -3022,7 +3026,11 @@
     });
     startLiveBtn.addEventListener("click", async () => {
       if (!liveRoom) {
-        setMessage("Press Show QR to create a room first.", "bad");
+        await ensureLiveRoom();
+      }
+      const hasConnectedPlayers = Number(liveRoom?.teams?.length || 0) > 0;
+      if (!hasConnectedPlayers) {
+        setMessage("Connect at least 1 player before going live.", "bad");
         playErrorSound();
         return;
       }
@@ -3056,9 +3064,11 @@
       }
     });
     homeBtn.addEventListener("click", () => {
-      window.location.href = liveEnabled ? "/" : "./index.html";
+      setClassroomTool("standby", "").finally(() => {
+        window.location.href = liveEnabled ? "/" : "./index.html";
+      });
     });
-    sideQrToggleBtn.addEventListener("click", async () => {
+    sideQrToggleBtn?.addEventListener("click", async () => {
       if (!liveEnabled) {
         setMessage("Open this page through the local server first.", "bad");
         return;
@@ -3072,10 +3082,10 @@
       sideQrVisible = !sideQrVisible;
       render();
     });
-    sideQrCard.addEventListener("click", () => {
+    sideQrCard?.addEventListener("click", () => {
       openQrModal().catch(() => {});
     });
-    sideQrCard.addEventListener("keydown", (event) => {
+    sideQrCard?.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
         openQrModal().catch(() => {});
@@ -3134,10 +3144,10 @@
       event.preventDefault();
       event.returnValue = "";
     });
-    resetBtn.addEventListener("click", async () => {
+    resetBtn?.addEventListener("click", async () => {
       const confirmed = await openConfirm({
         title: "Reset Game?",
-        text: "This will delete the current live room. A new room will be created only when you press Show QR again.",
+        text: "This will delete the current live room. A new room will be created from Friendzy when players connect again.",
         confirmLabel: "Reset"
       });
       if (confirmed) {
@@ -3159,6 +3169,12 @@
     requestWakeLock().catch(() => {});
     hydrateLiveBaseUrl()
       .then(() => initLiveRoom())
+      .then(() => {
+        if (window.localStorage.getItem(classroomStorageKey)) {
+          return ensureLiveRoom();
+        }
+        return null;
+      })
       .catch(() => {});
   </script>
   <script src="./friendzy-panel.js"></script>

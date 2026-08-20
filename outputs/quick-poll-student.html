@@ -221,6 +221,9 @@
   <script>
     const params = new URLSearchParams(window.location.search);
     const code = String(params.get("code") || "").toUpperCase();
+    const autoName = String(params.get("name") || "").trim();
+    const classroomCode = String(params.get("classroom") || "").toUpperCase();
+    const shouldAutoJoin = params.get("auto") === "1";
     const playerKey = `quick-poll-player-${code}`;
     const nameKey = `quick-poll-name-${code}`;
     const voteKey = `quick-poll-vote-${code}`;
@@ -239,10 +242,13 @@
     let votedPollId = Number(localStorage.getItem(voteKey) || 0);
     let awaitingReconnect = !!playerName;
     let removedByTeacher = false;
+    let classroomPollTimer = null;
 
     if (playerName) {
       nameInput.value = playerName;
       savedNameText.textContent = playerName;
+    } else if (autoName) {
+      nameInput.value = autoName;
     }
 
     function setMessage(text, tone = "") {
@@ -263,6 +269,29 @@
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Request failed");
       return data;
+    }
+
+    function returnToClassroomHub() {
+      if (!classroomCode) return;
+      window.location.href = `./student-hub.html?code=${encodeURIComponent(classroomCode)}`;
+    }
+
+    async function pollClassroomRoute() {
+      if (!classroomCode) return;
+      try {
+        const data = await api(`/api/classroom/room?code=${encodeURIComponent(classroomCode)}`, null, "GET");
+        const activeTool = String(data.room?.activeTool || "standby");
+        const activeToolCode = String(data.room?.activeToolCode || "");
+        if (activeTool !== "quick-poll" || activeToolCode !== code) {
+          returnToClassroomHub();
+          return;
+        }
+      } catch (_) {
+        returnToClassroomHub();
+        return;
+      } finally {
+        classroomPollTimer = setTimeout(pollClassroomRoute, 1000);
+      }
     }
 
     function render() {
@@ -358,6 +387,14 @@
     continueBtn.addEventListener("click", () => {
       joinPoll(playerName || nameInput.value.trim());
     });
+
+    if (!playerName && autoName && shouldAutoJoin) {
+      joinPoll(autoName);
+    }
+    if (classroomCode) {
+      clearTimeout(classroomPollTimer);
+      classroomPollTimer = setTimeout(pollClassroomRoute, 900);
+    }
 
     async function vote(candidateId) {
       if (!room || !playerId) return;

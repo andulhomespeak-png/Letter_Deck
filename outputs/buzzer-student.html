@@ -354,6 +354,7 @@
     let pollTimer = null;
     let lastRoundSubmitted = 0;
     let wakeLock = null;
+    let classroomPollTimer = null;
 
     function leaveDeadRoom(message = "This room was reset. Scan the new QR to join again.") {
       if (classroomCode) {
@@ -387,6 +388,29 @@
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Request failed");
       return data;
+    }
+
+    function returnToClassroomHub() {
+      if (!classroomCode) return;
+      window.location.href = `./student-hub.html?code=${encodeURIComponent(classroomCode)}`;
+    }
+
+    async function pollClassroomRoute() {
+      if (!classroomCode) return;
+      try {
+        const data = await api(`/api/classroom/room?code=${encodeURIComponent(classroomCode)}`, null, "GET");
+        const activeTool = String(data.room?.activeTool || "standby");
+        const activeToolCode = String(data.room?.activeToolCode || "");
+        if (activeTool !== "buzzer" || activeToolCode !== code) {
+          returnToClassroomHub();
+          return;
+        }
+      } catch (_) {
+        returnToClassroomHub();
+        return;
+      } finally {
+        classroomPollTimer = setTimeout(pollClassroomRoute, 1000);
+      }
     }
 
     function getSocketUrl() {
@@ -622,6 +646,10 @@
           joinError.textContent = error.message || "Could not join room.";
         });
       }
+    }
+    if (classroomCode) {
+      clearTimeout(classroomPollTimer);
+      classroomPollTimer = setTimeout(pollClassroomRoute, 900);
     }
   </script>
 </body>

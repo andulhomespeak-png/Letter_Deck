@@ -50,12 +50,10 @@
       height: 100dvh;
       padding: clamp(8px, 1.3vw, 16px);
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(310px, 390px);
-      gap: clamp(8px, 1.3vw, 16px);
+      grid-template-columns: minmax(0, 1fr);
     }
 
-    .main,
-    .side {
+    .main {
       min-height: 0;
       border: 1px solid rgba(255,255,255,0.75);
       border-radius: clamp(24px, 3vw, 34px);
@@ -333,33 +331,6 @@
 
     .player-count {
       color: var(--red);
-    }
-
-    .side {
-      padding: clamp(12px, 1.4vw, 18px);
-      display: grid;
-      grid-template-rows: auto auto minmax(0, 1fr);
-      gap: 12px;
-      overflow: hidden;
-    }
-
-    .side.is-qr-hidden {
-      grid-template-rows: auto minmax(0, 1fr);
-    }
-
-    .side-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-    }
-
-    .side h2 {
-      margin: 0;
-      color: #3e3580;
-      font-size: 1rem;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
     }
 
     .qr-toggle {
@@ -709,8 +680,6 @@
     @media (max-height: 760px) and (min-width: 761px) {
       .wheel-wrap { width: min(70vmin, 610px); }
       .winner-name { font-size: clamp(1.9rem, 5vw, 4rem); }
-      .side { grid-template-rows: auto auto minmax(0, 1fr); }
-      .side.is-qr-hidden { grid-template-rows: auto minmax(0, 1fr); }
       .qr-box img { width: min(100%, 150px); }
       button { min-height: 40px; }
       .names-panel { width: clamp(170px, 20vw, 260px); }
@@ -729,7 +698,6 @@
       .status { justify-self: stretch; }
       .actions { justify-content: stretch; }
       .actions button { flex: 1; }
-      .side { min-height: 520px; }
       .stage.is-list-visible .wheel-wrap {
         transform: none;
       }
@@ -769,7 +737,6 @@
           <button class="mode-toggle" id="modeToggleBtn" type="button">Keep Pick</button>
           <button id="listToggleBtn" type="button">Hide List</button>
           <button id="homeBtn" type="button">Home</button>
-          <button class="danger" id="resetBtn" type="button">Reset</button>
         </div>
       </header>
 
@@ -795,17 +762,15 @@
       </section>
     </section>
 
-    <aside class="side is-qr-hidden" id="sidePanel">
-      <div class="side-head">
-        <h2>Players <span class="player-count" id="playerCount">(0)</span></h2>
-        <button class="qr-toggle" id="qrToggleBtn" type="button">Show QR</button>
+    <div class="hidden" id="sidePanel" aria-hidden="true">
+      <span id="playerCount">(0)</span>
+      <button id="qrToggleBtn" type="button">Show QR</button>
+      <div id="qrBox" role="button" tabindex="-1">
+        <img id="qrImage" alt="">
+        <p id="roomCode">-----</p>
       </div>
-      <div class="qr-box hidden" id="qrBox" role="button" tabindex="0" aria-label="Name wheel room QR">
-        <img id="qrImage" alt="Name wheel room QR">
-        <p class="room-code" id="roomCode">-----</p>
-      </div>
-      <div class="connected-list" id="connectedList" aria-label="Connected players"></div>
-    </aside>
+      <div id="connectedList"></div>
+    </div>
   </main>
 
   <div class="qr-modal hidden" id="qrModal" aria-hidden="true">
@@ -838,6 +803,7 @@
 
   <script>
     const storageKey = "name-wheel-room-code";
+    const classroomStorageKey = "friendzy-classroom-code";
     const colors = ["#087dff", "#ff2541", "#ff8a00", "#19c875", "#3024d8", "#ffd426", "#00b8ff", "#ff5db1"];
     const stage = document.getElementById("stage");
     const canvas = document.getElementById("wheelCanvas");
@@ -1142,6 +1108,7 @@
           room = existing.room;
           connectedPlayers = room.players || [];
           mergeNames(room.names);
+          setClassroomTool("wheel", room.code).catch(() => {});
           return room;
         } catch (_) {
           localStorage.removeItem(storageKey);
@@ -1151,7 +1118,16 @@
       room = data.room;
       connectedPlayers = room.players || [];
       await syncNamesNow();
+      setClassroomTool("wheel", room.code).catch(() => {});
       return room;
+    }
+
+    async function setClassroomTool(activeTool = "wheel", activeToolCode = room?.code || "") {
+      const classroomCode = localStorage.getItem(classroomStorageKey);
+      if (!classroomCode) return;
+      try {
+        await api("/api/classroom/set-tool", { code: classroomCode, activeTool, activeToolCode });
+      } catch (_) {}
     }
 
     async function syncNamesNow() {
@@ -1498,9 +1474,11 @@
       spinBtn.blur();
       spin();
     });
-    homeBtn.addEventListener("click", () => { window.location.href = "./"; });
+    homeBtn.addEventListener("click", () => {
+      setClassroomTool("standby", "").finally(() => { window.location.href = "./"; });
+    });
 
-    resetBtn.addEventListener("click", async () => {
+    resetBtn?.addEventListener("click", async () => {
       if (!confirm("Reset this wheel and clear all names?")) return;
       const oldCode = room?.code;
       names = [];
@@ -1556,11 +1534,16 @@
           room = data.room;
           connectedPlayers = room.players || [];
           mergeNames(room.names);
+          setClassroomTool("wheel", room.code).catch(() => {});
           startPolling();
         } catch (_) {
           localStorage.removeItem(storageKey);
           render();
         }
+      }
+      if (!room && localStorage.getItem(classroomStorageKey)) {
+        await ensureRoom();
+        startPolling();
       }
     });
   </script>

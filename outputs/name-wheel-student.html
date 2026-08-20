@@ -223,6 +223,9 @@
   <script>
     const params = new URLSearchParams(window.location.search);
     const code = String(params.get("code") || "").toUpperCase();
+    const autoName = String(params.get("name") || "").trim();
+    const classroomCode = String(params.get("classroom") || "").toUpperCase();
+    const shouldAutoJoin = params.get("auto") === "1";
     const form = document.getElementById("joinForm");
     const input = document.getElementById("nameInput");
     const submitBtn = document.getElementById("submitBtn");
@@ -231,6 +234,7 @@
     const card = document.querySelector(".card");
     const submittedNameKey = `name-wheel-name-${code}`;
     let submittedName = localStorage.getItem(submittedNameKey) || "";
+    let classroomPollTimer = null;
 
     if (submittedName) {
       input.value = submittedName;
@@ -255,9 +259,30 @@
       return data;
     }
 
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const name = input.value.trim();
+    function returnToClassroomHub() {
+      if (!classroomCode) return;
+      window.location.href = `./student-hub.html?code=${encodeURIComponent(classroomCode)}`;
+    }
+
+    async function pollClassroomRoute() {
+      if (!classroomCode) return;
+      try {
+        const data = await api(`/api/classroom/room?code=${encodeURIComponent(classroomCode)}`, null, "GET");
+        const activeTool = String(data.room?.activeTool || "standby");
+        const activeToolCode = String(data.room?.activeToolCode || "");
+        if (activeTool !== "wheel" || activeToolCode !== code) {
+          returnToClassroomHub();
+          return;
+        }
+      } catch (_) {
+        returnToClassroomHub();
+        return;
+      } finally {
+        classroomPollTimer = setTimeout(pollClassroomRoute, 1000);
+      }
+    }
+
+    async function submitName(name) {
       if (!code) {
         setMessage("Missing room code. Scan the QR again.", "bad");
         return;
@@ -284,6 +309,11 @@
         setMessage(error.message || "Could not join this wheel.", "bad");
         submitBtn.disabled = false;
       }
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      submitName(input.value.trim());
     });
 
     window.addEventListener("load", () => {
@@ -293,6 +323,17 @@
       }
       input.focus();
     });
+
+    if (!submittedName && autoName) {
+      input.value = autoName;
+      if (shouldAutoJoin) {
+        submitName(autoName);
+      }
+    }
+    if (classroomCode) {
+      clearTimeout(classroomPollTimer);
+      classroomPollTimer = setTimeout(pollClassroomRoute, 900);
+    }
 
     spinPad.addEventListener("click", () => {
       spinPad.blur();
