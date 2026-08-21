@@ -1456,8 +1456,14 @@
     }
     if (classroomCode) {
       clearTimeout(classroomPollTimer);
-      classroomPollTimer = setTimeout(pollClassroomRoute, 900);
+      pollClassroomRoute();
     }
+
+    window.addEventListener("pageshow", (event) => {
+      if (!classroomCode || !event.persisted) return;
+      clearTimeout(classroomPollTimer);
+      pollClassroomRoute();
+    });
 
     async function submitWord() {
       if (!player || !room) return;

@@ -162,6 +162,26 @@
       background: rgba(255,255,255,0.44);
     }
 
+    .nomination {
+      display: grid;
+      gap: 12px;
+      align-content: center;
+      padding: 8px 0;
+    }
+
+    .nomination-button {
+      min-height: 84px;
+      border-radius: 28px;
+      font-size: clamp(1.35rem, 8vw, 2.15rem);
+      background: linear-gradient(135deg, var(--blue), #3024d8);
+      box-shadow: 0 20px 44px rgba(8, 125, 255, 0.26);
+    }
+
+    .nomination-button.is-sent {
+      background: linear-gradient(135deg, var(--green), #039b52);
+      box-shadow: 0 20px 44px rgba(25, 200, 117, 0.24);
+    }
+
     .message {
       min-height: 54px;
       padding: 12px 14px;
@@ -215,6 +235,10 @@
 
     <section class="options" id="options"></section>
 
+    <section class="nomination hidden" id="nominationPanel">
+      <button class="nomination-button" id="nominateBtn" type="button">Nominate me</button>
+    </section>
+
     <div class="message" id="message">Join the room and wait for the teacher to start.</div>
   </main>
 
@@ -234,13 +258,15 @@
     const nameInput = document.getElementById("nameInput");
     const joinBtn = document.getElementById("joinBtn");
     const optionsEl = document.getElementById("options");
+    const nominationPanel = document.getElementById("nominationPanel");
+    const nominateBtn = document.getElementById("nominateBtn");
     const message = document.getElementById("message");
 
     let room = null;
     let playerId = Number(localStorage.getItem(playerKey) || 0);
     let playerName = localStorage.getItem(nameKey) || "";
     let votedPollId = Number(localStorage.getItem(voteKey) || 0);
-    let awaitingReconnect = !!playerName;
+    let awaitingReconnect = false;
     let removedByTeacher = false;
     let classroomPollTimer = null;
 
@@ -301,6 +327,7 @@
       }
       if (!playerId) {
         optionsEl.innerHTML = "";
+        nominationPanel.classList.add("hidden");
         if (!awaitingReconnect && !removedByTeacher) {
           joinForm.classList.remove("hidden");
           reconnectPanel.classList.add("hidden");
@@ -310,6 +337,7 @@
       }
       if (awaitingReconnect) {
         optionsEl.innerHTML = "";
+        nominationPanel.classList.add("hidden");
         joinForm.classList.add("hidden");
         reconnectPanel.classList.remove("hidden");
         hideMessage();
@@ -321,11 +349,23 @@
       const pollId = Number(room?.pollId || 0);
       const alreadyVoted = votedPollId === pollId;
       const candidates = room?.candidates || [];
+      const nomineeIds = (room?.nomineePlayerIds || []).map((id) => Number(id));
+      const isNominated = nomineeIds.includes(Number(playerId));
       if (status !== "voting") {
         optionsEl.innerHTML = "";
+        const canNominate = !!room?.nominationMode;
+        nominationPanel.classList.toggle("hidden", !canNominate);
+        nominateBtn.disabled = isNominated;
+        nominateBtn.classList.toggle("is-sent", isNominated);
+        nominateBtn.textContent = isNominated ? "Nomination sent" : "Nominate me";
+        if (canNominate) {
+          setMessage(isNominated ? "Your nomination was sent. Wait for the teacher's decision." : "You can nominate yourself as a candidate.", isNominated ? "good" : "");
+          return;
+        }
         setMessage(status === "closed" ? "Voting is closed. Watch the teacher screen." : `You are connected as ${playerName}. Wait for the teacher to start.`, status === "closed" ? "good" : "");
         return;
       }
+      nominationPanel.classList.add("hidden");
       if (alreadyVoted) {
         optionsEl.innerHTML = "";
         setMessage("Vote submitted. Watch the teacher screen.", "good");
@@ -333,7 +373,7 @@
       }
       setMessage("Choose one option.", "");
       optionsEl.innerHTML = candidates.map((candidate) => {
-        const isSelf = room.source === "players" && room.blockSelfVote && candidate.playerId === playerId;
+        const isSelf = room.blockSelfVote && candidate.playerId === playerId;
         return `<button class="option ${isSelf ? "is-self" : ""}" data-id="${candidate.id}" ${isSelf ? "disabled" : ""} type="button">${escapeHtml(candidate.label)}</button>`;
       }).join("");
       optionsEl.querySelectorAll(".option").forEach((button) => {
@@ -388,13 +428,33 @@
       joinPoll(playerName || nameInput.value.trim());
     });
 
+    nominateBtn.addEventListener("click", async () => {
+      if (!room || !playerId) return;
+      nominateBtn.disabled = true;
+      try {
+        const data = await api("/api/poll/nominate", { code, playerId });
+        room = data.room;
+        setMessage("Your nomination was sent. Wait for the teacher's decision.", "good");
+        render();
+      } catch (error) {
+        setMessage(error.message || "Could not send your nomination.", "bad");
+        render();
+      }
+    });
+
     if (!playerName && autoName && shouldAutoJoin) {
       joinPoll(autoName);
     }
     if (classroomCode) {
       clearTimeout(classroomPollTimer);
-      classroomPollTimer = setTimeout(pollClassroomRoute, 900);
+      pollClassroomRoute();
     }
+
+    window.addEventListener("pageshow", (event) => {
+      if (!classroomCode || !event.persisted) return;
+      clearTimeout(classroomPollTimer);
+      pollClassroomRoute();
+    });
 
     async function vote(candidateId) {
       if (!room || !playerId) return;

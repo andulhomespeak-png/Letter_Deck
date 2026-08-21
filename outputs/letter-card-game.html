@@ -1531,6 +1531,7 @@
           <button class="ghost" id="homeBtn">Home</button>
           <button class="ghost" id="soundBtn">Music</button>
           <button class="ghost" id="sfxBtn">SFX</button>
+          <button class="danger" id="clearGameBtn">Clear</button>
         </div>
       </header>
 
@@ -1595,10 +1596,11 @@
     <div class="podium-modal">
       <p class="podium-kicker">Game Over</p>
       <h2 class="podium-title">Top 3</h2>
-      <p class="podium-subtitle" id="podiumSubtitle">First team to 750 points wins.</p>
+      <p class="podium-subtitle" id="podiumSubtitle">First team to 500 points wins.</p>
       <div class="podium-stage" id="podiumStage"></div>
       <div class="podium-actions">
         <button class="secondary" id="podiumReportBtn" type="button">Report</button>
+        <button class="secondary" id="podiumCloseBtn" type="button">Close</button>
         <button class="accent" id="podiumResetBtn" type="button">Play Again</button>
       </div>
     </div>
@@ -1650,6 +1652,7 @@
     const useLettersBtn = document.getElementById("useLettersBtn");
     const startLiveBtn = document.getElementById("startLiveBtn");
     const homeBtn = document.getElementById("homeBtn");
+    const clearGameBtn = document.getElementById("clearGameBtn");
     const resetBtn = document.getElementById("resetBtn");
     const teamList = document.getElementById("teamList");
     const soundBtn = document.getElementById("soundBtn");
@@ -1677,6 +1680,7 @@
     const podiumStage = document.getElementById("podiumStage");
     const podiumSubtitle = document.getElementById("podiumSubtitle");
     const podiumReportBtn = document.getElementById("podiumReportBtn");
+    const podiumCloseBtn = document.getElementById("podiumCloseBtn");
     const podiumResetBtn = document.getElementById("podiumResetBtn");
     const reportOverlay = document.getElementById("reportOverlay");
     const reportSubtitle = document.getElementById("reportSubtitle");
@@ -1690,6 +1694,7 @@
     let musicEnabled = true;
     let sfxEnabled = true;
     let confirmState = null;
+    let allowConfirmedNavigation = false;
     let audioPrimed = false;
     let liveBannerFeedbackId = "";
     let infoMessageHtml = "";
@@ -1705,7 +1710,7 @@
     const liveRoomStorageKey = "letter-clash-live-room-code";
     const classroomStorageKey = "friendzy-classroom-code";
     const maxActiveLetters = 8;
-    const winningScore = 750;
+    const winningScore = 500;
     const letterPoints = {
       A: 1, E: 1, I: 1, O: 1, N: 1, R: 1, T: 1, L: 1, S: 1, U: 1,
       D: 2, G: 2,
@@ -3063,8 +3068,15 @@
         }).catch(() => {});
       }
     });
-    homeBtn.addEventListener("click", () => {
+    homeBtn.addEventListener("click", async () => {
+      const confirmed = await openConfirm({
+        title: "Go Home?",
+        text: "Connected students will return to the Friendzy standby screen.",
+        confirmLabel: "Home"
+      });
+      if (!confirmed) return;
       setClassroomTool("standby", "").finally(() => {
+        allowConfirmedNavigation = true;
         window.location.href = liveEnabled ? "/" : "./index.html";
       });
     });
@@ -3108,6 +3120,19 @@
     });
     closeReportBtn.addEventListener("click", closeReport);
     podiumReportBtn.addEventListener("click", openReport);
+    podiumCloseBtn.addEventListener("click", () => {
+      podiumOverlay.classList.remove("is-visible");
+    });
+    clearGameBtn.addEventListener("click", async () => {
+      const confirmed = await openConfirm({
+        title: "Clear Game?",
+        text: "This clears letters, scores, podium, and accepted words, but keeps connected players in the room.",
+        confirmLabel: "Clear"
+      });
+      if (confirmed) {
+        resetGame();
+      }
+    });
     reportOverlay.addEventListener("click", (event) => {
       if (event.target === reportOverlay) {
         closeReport();
@@ -3134,6 +3159,9 @@
     document.addEventListener("pointerdown", primeAudio, { once: true });
     document.addEventListener("touchstart", primeAudio, { once: true });
     window.addEventListener("beforeunload", (event) => {
+      if (allowConfirmedNavigation) {
+        return;
+      }
       releaseWakeLock();
       const hasLiveRoom = !!liveRoom?.code;
       const hasConnectedPlayers = Number(liveRoom?.teams?.length || 0) > 0;

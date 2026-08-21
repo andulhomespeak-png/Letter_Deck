@@ -1,4 +1,19 @@
 (function () {
+  const teacherOnlyPaths = new Set([
+    "/",
+    "/index.html",
+    "/buzzer",
+    "/buzzer.html",
+    "/letter-clash",
+    "/letter-card-game.html",
+    "/name-wheel",
+    "/name-wheel.html",
+    "/quick-poll",
+    "/quick-poll.html",
+    "/timer",
+    "/timer.html"
+  ]);
+  if (!teacherOnlyPaths.has(window.location.pathname)) return;
   if (window.__friendzyPanelLoaded) return;
   window.__friendzyPanelLoaded = true;
 
@@ -15,14 +30,16 @@
       top: 50%;
       z-index: 9000;
       transform: translateY(-50%);
-      min-height: 48px;
-      padding: 0 12px 0 14px;
+      width: 44px;
+      min-height: 44px;
+      padding: 0;
       border: 1px solid rgba(255,255,255,0.72);
       border-right: 0;
-      border-radius: 999px 0 0 999px;
+      border-radius: 18px 0 0 18px;
       display: grid;
+      grid-template-columns: 44px 0;
       align-items: center;
-      gap: 2px;
+      overflow: hidden;
       color: #100b2f;
       background: linear-gradient(135deg, rgba(255,255,255,0.92), rgba(238,248,255,0.86));
       box-shadow: 0 14px 38px rgba(16, 11, 47, 0.18);
@@ -30,12 +47,46 @@
       font: 1000 0.78rem "Trebuchet MS", "Segoe UI", sans-serif;
       letter-spacing: 0.04em;
       cursor: pointer;
-      transition: transform 140ms ease, box-shadow 140ms ease;
+      transition: width 160ms ease, transform 140ms ease, box-shadow 140ms ease;
     }
 
     .friendzy-tab:hover {
+      width: 138px;
       transform: translateY(-50%) translateX(-3px);
       box-shadow: 0 18px 46px rgba(11, 130, 255, 0.2);
+    }
+
+    .friendzy-mark {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: linear-gradient(135deg, #087dff, #3024d8);
+      font-size: 1.25rem;
+      line-height: 1;
+      text-shadow: 0 2px 8px rgba(16, 11, 47, 0.28);
+    }
+
+    .friendzy-tab-info {
+      min-width: 94px;
+      padding: 0 10px 0 8px;
+      display: grid;
+      align-content: center;
+      gap: 1px;
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 120ms ease;
+    }
+
+    .friendzy-tab:hover .friendzy-tab-info {
+      opacity: 1;
+    }
+
+    .friendzy-tab strong {
+      font-size: 0.74rem;
+      line-height: 1;
+      text-transform: uppercase;
     }
 
     .friendzy-tab small {
@@ -183,11 +234,35 @@
       border-radius: 999px;
       display: flex;
       align-items: center;
+      justify-content: space-between;
+      gap: 10px;
       color: #100b2f;
       font-weight: 1000;
       background: linear-gradient(135deg, rgba(255,255,255,0.96), rgba(238,248,255,0.88));
       border: 1px solid rgba(11, 130, 255, 0.18);
       box-shadow: 0 12px 28px rgba(16, 11, 47, 0.1);
+    }
+
+    .friendzy-name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .friendzy-remove {
+      width: 28px;
+      min-width: 28px;
+      min-height: 28px;
+      height: 28px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      color: #fff;
+      background: linear-gradient(135deg, #ff2f45, #a8001a);
+      box-shadow: none;
+      font: 1000 0.9rem "Trebuchet MS", "Segoe UI", sans-serif;
+      cursor: pointer;
     }
 
     .friendzy-empty {
@@ -311,16 +386,7 @@
 
     @media (max-width: 640px) {
       .friendzy-tab {
-        top: auto;
-        right: 50%;
-        bottom: 10px;
-        transform: translateX(50%);
-        border-radius: 999px;
-        border-right: 1px solid rgba(255,255,255,0.72);
-      }
-
-      .friendzy-tab:hover {
-        transform: translateX(50%) translateY(-2px);
+        display: none;
       }
 
       .friendzy-drawer {
@@ -344,8 +410,11 @@
   const root = document.createElement("div");
   root.innerHTML = `
     <button class="friendzy-tab" id="friendzyTab" type="button">
-      Friendzy
-      <small id="friendzyTabCount">0 connected</small>
+      <span class="friendzy-mark" aria-hidden="true">F</span>
+      <span class="friendzy-tab-info">
+        <strong>Friendzy</strong>
+        <small id="friendzyTabCount">0 connected</small>
+      </span>
     </button>
     <div class="friendzy-backdrop hidden" id="friendzyBackdrop"></div>
     <aside class="friendzy-drawer hidden" id="friendzyDrawer" aria-label="Friendzy connection panel">
@@ -445,7 +514,12 @@
   function renderPlayers(target) {
     const players = room?.players || [];
     target.innerHTML = players.length
-      ? players.map((player) => `<div class="friendzy-pill">${escapeHtml(player.name)}</div>`).join("")
+      ? players.map((player) => `
+        <div class="friendzy-pill">
+          <span class="friendzy-name">${escapeHtml(player.name)}</span>
+          <button class="friendzy-remove" type="button" data-friendzy-remove="${escapeHtml(player.id)}" aria-label="Remove ${escapeHtml(player.name)}">x</button>
+        </div>
+      `).join("")
       : `<p class="friendzy-empty">Connected players will appear here.</p>`;
   }
 
@@ -598,6 +672,21 @@
     room = null;
     await ensureRoom();
     render();
+  });
+  document.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-friendzy-remove]");
+    if (!button || !room) return;
+    const playerId = Number(button.dataset.friendzyRemove || 0);
+    if (!playerId) return;
+    const player = (room.players || []).find((item) => Number(item.id) === playerId);
+    if (!player || !confirm(`Remove ${player.name} from Friendzy?`)) return;
+    try {
+      const data = await api("/api/classroom/remove-player", { code: room.code, playerId });
+      room = data.room;
+      render();
+    } catch (error) {
+      alert(error.message || "Could not remove player.");
+    }
   });
   qrImage.addEventListener("error", () => {
     qrImage.classList.add("is-hidden");

@@ -271,6 +271,8 @@ function createPollRoom() {
     joinRole: "voter",
     options: [],
     candidatePlayerIds: [],
+    nominationMode: false,
+    nomineePlayerIds: [],
     players: [],
     votes: [],
     nextPlayerId: 1,
@@ -592,18 +594,17 @@ function normalizePollOptions(values) {
 }
 
 function getPollCandidates(room) {
-  if (room.source === "players") {
-    const candidateIds = new Set((room.candidatePlayerIds || []).map((id) => Number(id)));
-    return (room.players || []).filter((player) => candidateIds.has(Number(player.id))).map((player) => ({
+  const candidateIds = new Set((room.candidatePlayerIds || []).map((id) => Number(id)));
+  const playerCandidates = (room.players || []).filter((player) => candidateIds.has(Number(player.id))).map((player) => ({
       id: `player-${player.id}`,
       playerId: player.id,
       label: player.name
-    }));
-  }
-  return (room.options || []).map((label, index) => ({
+  }));
+  const optionCandidates = (room.options || []).map((label, index) => ({
     id: `option-${index}`,
     label
   }));
+  return [...optionCandidates, ...playerCandidates];
 }
 
 function serializePollRoom(room) {
@@ -623,6 +624,8 @@ function serializePollRoom(room) {
     joinRole: room.joinRole === "candidate" ? "candidate" : "voter",
     options: room.options || [],
     candidatePlayerIds: room.candidatePlayerIds || [],
+    nominationMode: !!room.nominationMode,
+    nomineePlayerIds: room.nomineePlayerIds || [],
     players: sortedPlayers,
     candidates,
     results,
@@ -860,6 +863,17 @@ const server = http.createServer(async (req, res) => {
       }
       touch(room);
       return json(res, 200, { room: serializeClassroomRoom(room), player });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/classroom/remove-player") {
+      const { code, playerId } = await body(req);
+      const room = getClassroomRoom(code);
+      const id = Number(playerId || 0);
+      const before = room.players.length;
+      room.players = room.players.filter((player) => Number(player.id) !== id);
+      if (room.players.length === before) throw new Error("Participant not found");
+      touch(room);
+      return json(res, 200, { room: serializeClassroomRoom(room) });
     }
 
     if (req.method === "POST" && url.pathname === "/api/live/create-room") {
@@ -1353,13 +1367,16 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && url.pathname === "/api/poll/sync") {
-      const { code, options, source, blockSelfVote, candidatePlayerIds, joinRole } = await body(req);
+      const { code, options, source, blockSelfVote, candidatePlayerIds, joinRole, nominationMode, nomineePlayerIds } = await body(req);
       const room = getPollRoom(code);
-      const nextSource = source === "players" ? "players" : "manual";
+      const nextSource = ["manual", "players", "mixed"].includes(source) ? source : "mixed";
       const nextJoinRole = joinRole === "candidate" ? "candidate" : "voter";
       const nextOptions = normalizePollOptions(options);
       const validPlayerIds = new Set((room.players || []).map((player) => Number(player.id)));
       const nextCandidatePlayerIds = Array.from(new Set((Array.isArray(candidatePlayerIds) ? candidatePlayerIds : room.candidatePlayerIds || [])
+        .map((id) => Number(id))
+        .filter((id) => validPlayerIds.has(id))));
+      const nextNomineePlayerIds = Array.from(new Set((Array.isArray(nomineePlayerIds) ? nomineePlayerIds : room.nomineePlayerIds || [])
         .map((id) => Number(id))
         .filter((id) => validPlayerIds.has(id))));
       const changed = room.source !== nextSource
@@ -1372,6 +1389,8 @@ const server = http.createServer(async (req, res) => {
       room.candidatePlayerIds = nextCandidatePlayerIds;
       room.blockSelfVote = !!blockSelfVote;
       room.joinRole = nextJoinRole;
+      room.nominationMode = !!nominationMode;
+      room.nomineePlayerIds = nextNomineePlayerIds;
       if (changed && room.status !== "voting") {
         room.votes = [];
       }
@@ -1398,11 +1417,23 @@ const server = http.createServer(async (req, res) => {
       }
       const playerIds = new Set(room.players.map((item) => Number(item.id)));
       room.candidatePlayerIds = (room.candidatePlayerIds || []).filter((id) => playerIds.has(Number(id)));
-      if (room.source === "players" && room.joinRole === "candidate" && !room.candidatePlayerIds.includes(Number(player.id))) {
-        room.candidatePlayerIds.push(Number(player.id));
-      }
+      room.nomineePlayerIds = (room.nomineePlayerIds || []).filter((id) => playerIds.has(Number(id)));
       touch(room);
       return json(res, 200, { room: serializePollRoom(room), player });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/poll/nominate") {
+      const { code, playerId } = await body(req);
+      const room = getPollRoom(code);
+      if (!room.nominationMode) throw new Error("Nominations are not open.");
+      const id = Number(playerId || 0);
+      const player = room.players.find((item) => Number(item.id) === id);
+      if (!player) throw new Error("Join the poll before nominating yourself.");
+      const nominees = new Set((room.nomineePlayerIds || []).map((item) => Number(item)));
+      nominees.add(id);
+      room.nomineePlayerIds = Array.from(nominees);
+      touch(room);
+      return json(res, 200, { room: serializePollRoom(room) });
     }
 
     if (req.method === "POST" && url.pathname === "/api/poll/remove-player") {
@@ -1413,6 +1444,7 @@ const server = http.createServer(async (req, res) => {
       room.players = room.players.filter((player) => Number(player.id) !== id);
       if (room.players.length === before) throw new Error("Participant not found");
       room.candidatePlayerIds = (room.candidatePlayerIds || []).filter((candidateId) => Number(candidateId) !== id);
+      room.nomineePlayerIds = (room.nomineePlayerIds || []).filter((nomineeId) => Number(nomineeId) !== id);
       room.votes = (room.votes || []).filter((vote) => Number(vote.voterId) !== id && vote.candidateId !== `player-${id}`);
       touch(room);
       return json(res, 200, { room: serializePollRoom(room) });
@@ -1458,7 +1490,7 @@ const server = http.createServer(async (req, res) => {
       if (room.votes.some((vote) => vote.voterId === voter.id)) throw new Error("You already voted.");
       const candidate = getPollCandidates(room).find((item) => item.id === String(candidateId || ""));
       if (!candidate) throw new Error("Option not found.");
-      if (room.source === "players" && room.blockSelfVote && candidate.playerId === voter.id) {
+      if (room.blockSelfVote && candidate.playerId === voter.id) {
         throw new Error("You cannot vote for yourself.");
       }
       room.votes.push({ voterId: voter.id, voterName: voter.name, candidateId: candidate.id, candidateLabel: candidate.label, createdAt: Date.now() });

@@ -221,6 +221,16 @@
     }
 
     function handleRoomUpdate(nextRoom) {
+      const savedPlayerId = Number(localStorage.getItem(playerKey) || 0);
+      if (savedPlayerId && !((nextRoom?.players || []).some((player) => Number(player.id) === savedPlayerId))) {
+        localStorage.removeItem(playerKey);
+        localStorage.removeItem(nameKey);
+        playerName = "";
+        card.classList.remove("is-connected");
+        joinBtn.disabled = false;
+        setMessage("You were removed from this session. Join again when ready.", "bad");
+        return;
+      }
       const activeTool = String(nextRoom?.activeTool || "standby");
       const activeToolCode = String(nextRoom?.activeToolCode || "");
       if (activeTool === "buzzer" && activeToolCode) {
