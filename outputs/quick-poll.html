@@ -836,7 +836,7 @@
     function renderPlayers() {
       const players = room?.players || [];
       const candidateIds = new Set(candidatePlayerIds.map((id) => Number(id)));
-      const nomineeIds = new Set(nomineePlayerIds.map((id) => Number(id)));
+      const nomineeIds = nominationMode ? new Set(nomineePlayerIds.map((id) => Number(id))) : new Set();
       if (playerCount) playerCount.textContent = `(${players.length})`;
       playersList.innerHTML = players.length
         ? players.slice().sort((a, b) => {
@@ -1186,6 +1186,9 @@
       await ensureRoom();
       source = "mixed";
       nominationMode = !nominationMode;
+      if (!nominationMode) {
+        nomineePlayerIds = [];
+      }
       await syncSettings();
       startPolling();
     });

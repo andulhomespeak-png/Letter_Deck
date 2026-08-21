@@ -50,7 +50,7 @@ const letterPoints = {
   J: 8, X: 8,
   Q: 10, Z: 10
 };
-const winningScore = 750;
+const winningScore = 500;
 const stealBonusPerLetter = 2;
 const definitionCache = new Map();
 
@@ -1430,10 +1430,13 @@ const server = http.createServer(async (req, res) => {
       const player = room.players.find((item) => Number(item.id) === id);
       if (!player) throw new Error("Join the poll before nominating yourself.");
       const nominees = new Set((room.nomineePlayerIds || []).map((item) => Number(item)));
+      if (nominees.has(id)) {
+        return json(res, 200, { room: serializePollRoom(room), alreadyNominated: true });
+      }
       nominees.add(id);
       room.nomineePlayerIds = Array.from(nominees);
       touch(room);
-      return json(res, 200, { room: serializePollRoom(room) });
+      return json(res, 200, { room: serializePollRoom(room), alreadyNominated: false });
     }
 
     if (req.method === "POST" && url.pathname === "/api/poll/remove-player") {

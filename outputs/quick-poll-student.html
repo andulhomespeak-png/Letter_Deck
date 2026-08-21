@@ -320,6 +320,12 @@
       }
     }
 
+    function resetNominationButton() {
+      nominateBtn.disabled = false;
+      nominateBtn.classList.remove("is-sent");
+      nominateBtn.textContent = "Nominate me";
+    }
+
     function render() {
       if (!code) {
         setMessage("Missing room code. Scan the QR again.", "bad");
@@ -328,6 +334,7 @@
       if (!playerId) {
         optionsEl.innerHTML = "";
         nominationPanel.classList.add("hidden");
+        resetNominationButton();
         if (!awaitingReconnect && !removedByTeacher) {
           joinForm.classList.remove("hidden");
           reconnectPanel.classList.add("hidden");
@@ -338,6 +345,7 @@
       if (awaitingReconnect) {
         optionsEl.innerHTML = "";
         nominationPanel.classList.add("hidden");
+        resetNominationButton();
         joinForm.classList.add("hidden");
         reconnectPanel.classList.remove("hidden");
         hideMessage();
@@ -362,10 +370,12 @@
           setMessage(isNominated ? "Your nomination was sent. Wait for the teacher's decision." : "You can nominate yourself as a candidate.", isNominated ? "good" : "");
           return;
         }
+        resetNominationButton();
         setMessage(status === "closed" ? "Voting is closed. Watch the teacher screen." : `You are connected as ${playerName}. Wait for the teacher to start.`, status === "closed" ? "good" : "");
         return;
       }
       nominationPanel.classList.add("hidden");
+      resetNominationButton();
       if (alreadyVoted) {
         optionsEl.innerHTML = "";
         setMessage("Vote submitted. Watch the teacher screen.", "good");
