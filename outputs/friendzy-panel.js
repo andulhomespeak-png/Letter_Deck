@@ -10,6 +10,8 @@
     "/name-wheel.html",
     "/quick-poll",
     "/quick-poll.html",
+    "/bingo",
+    "/bingo.html",
     "/timer",
     "/timer.html"
   ]);
@@ -573,6 +575,9 @@
     }
     if (path.endsWith("/quick-poll")) {
       return { activeTool: "quick-poll", activeToolCode: localStorage.getItem("quick-poll-room-code") || "" };
+    }
+    if (path.endsWith("/bingo")) {
+      return { activeTool: "bingo", activeToolCode: localStorage.getItem("bingo-room-code") || "" };
     }
     if (isHomePage()) {
       return { activeTool: "standby", activeToolCode: "" };

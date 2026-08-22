@@ -19,8 +19,11 @@ const NAME_WHEEL_HTML = path.join(ROOT, "name-wheel.html");
 const NAME_WHEEL_STUDENT_HTML = path.join(ROOT, "name-wheel-student.html");
 const QUICK_POLL_HTML = path.join(ROOT, "quick-poll.html");
 const QUICK_POLL_STUDENT_HTML = path.join(ROOT, "quick-poll-student.html");
+const BINGO_HTML = path.join(ROOT, "bingo.html");
+const BINGO_STUDENT_HTML = path.join(ROOT, "bingo-student.html");
 const STUDENT_HUB_HTML = path.join(ROOT, "student-hub.html");
 const WORDS_JS = path.join(ROOT, "english-words.js");
+const LEARNED_WORDS_JSON = path.join(ROOT, "learned-words.json");
 const ROOM_TTL_MS = 60 * 60 * 1000;
 
 const rooms = new Map();
@@ -29,6 +32,7 @@ const buzzerRooms = new Map();
 const buzzerSockets = new Map();
 const wheelRooms = new Map();
 const pollRooms = new Map();
+const bingoRooms = new Map();
 const classroomRooms = new Map();
 
 function loadDictionary() {
@@ -40,7 +44,43 @@ function loadDictionary() {
   return new Set(raw.split("\n"));
 }
 
+function normalizeLearnedWord(value) {
+  const word = String(value || "").trim().toLowerCase();
+  return /^[a-z]{2,}$/.test(word) ? word : "";
+}
+
+function loadLearnedWords() {
+  try {
+    if (!fs.existsSync(LEARNED_WORDS_JSON)) {
+      return new Set();
+    }
+    const values = JSON.parse(fs.readFileSync(LEARNED_WORDS_JSON, "utf8"));
+    return new Set((Array.isArray(values) ? values : []).map(normalizeLearnedWord).filter(Boolean));
+  } catch (_) {
+    return new Set();
+  }
+}
+
+function saveLearnedWords() {
+  try {
+    const values = Array.from(learnedWords).sort();
+    fs.writeFileSync(LEARNED_WORDS_JSON, `${JSON.stringify(values, null, 2)}\n`, "utf8");
+  } catch (_) {}
+}
+
+function rememberDictionaryWord(rawWord) {
+  const word = normalizeLearnedWord(rawWord);
+  if (!word || dictionary.has(word)) {
+    return;
+  }
+  dictionary.add(word);
+  learnedWords.add(word);
+  saveLearnedWords();
+}
+
 const dictionary = loadDictionary();
+const learnedWords = loadLearnedWords();
+learnedWords.forEach((word) => dictionary.add(word));
 const letterPoints = {
   A: 1, E: 1, I: 1, O: 1, N: 1, R: 1, T: 1, L: 1, S: 1, U: 1,
   D: 2, G: 2,
@@ -177,6 +217,23 @@ async function lookupDefinition(rawWord) {
   return "";
 }
 
+async function validateDictionaryWord(rawWord) {
+  const word = normalizeLearnedWord(rawWord);
+  if (!word) {
+    return { ok: false, definition: "", learned: false };
+  }
+  if (dictionary.has(word)) {
+    return { ok: true, definition: definitionCache.get(word) || "", learned: false };
+  }
+  const definition = await lookupDefinition(word);
+  if (!definition) {
+    return { ok: false, definition: "", learned: false };
+  }
+  rememberDictionaryWord(word);
+  definitionCache.set(word, definition);
+  return { ok: true, definition, learned: true };
+}
+
 function json(res, status, payload) {
   res.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
@@ -244,7 +301,7 @@ function makeCode() {
   let code = "";
   do {
     code = Array.from({ length: 5 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-  } while (rooms.has(code) || buzzerRooms.has(code) || wheelRooms.has(code) || pollRooms.has(code) || classroomRooms.has(code));
+  } while (rooms.has(code) || buzzerRooms.has(code) || wheelRooms.has(code) || pollRooms.has(code) || bingoRooms.has(code) || classroomRooms.has(code));
   return code;
 }
 
@@ -293,6 +350,24 @@ function createWheelRoom() {
     updatedAt: Date.now()
   };
   wheelRooms.set(room.code, room);
+  return room;
+}
+
+function createBingoRoom() {
+  const room = {
+    code: makeCode(),
+    status: "setup",
+    words: [],
+    calledWords: [],
+    players: [],
+    cards: {},
+    pendingClaim: null,
+    winner: null,
+    nextPlayerId: 1,
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+  bingoRooms.set(room.code, room);
   return room;
 }
 
@@ -370,6 +445,12 @@ function cleanupRooms() {
     }
     pollRooms.delete(code);
   });
+  bingoRooms.forEach((room, code) => {
+    if (now - Number(room.updatedAt || 0) < ROOM_TTL_MS) {
+      return;
+    }
+    bingoRooms.delete(code);
+  });
   classroomRooms.forEach((room, code) => {
     if (now - Number(room.updatedAt || 0) < ROOM_TTL_MS) {
       return;
@@ -399,6 +480,12 @@ function getWheelRoom(code) {
 function getPollRoom(code) {
   const room = pollRooms.get(String(code || "").toUpperCase());
   if (!room) throw new Error("Poll room not found");
+  return room;
+}
+
+function getBingoRoom(code) {
+  const room = bingoRooms.get(String(code || "").toUpperCase());
+  if (!room) throw new Error("Bingo room not found");
   return room;
 }
 
@@ -593,6 +680,114 @@ function normalizePollOptions(values) {
     .slice(0, 100);
 }
 
+function normalizeBingoWords(values) {
+  const seen = new Set();
+  return (Array.isArray(values) ? values : [])
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .filter((value) => {
+      const key = value.toLowerCase();
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 300);
+}
+
+function shuffleValues(values) {
+  const items = values.slice();
+  for (let index = items.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [items[index], items[swapIndex]] = [items[swapIndex], items[index]];
+  }
+  return items;
+}
+
+function makeBingoCard(words) {
+  const sortedWords = words.slice().sort((a, b) => String(a || "").localeCompare(String(b || "")));
+  const columnTargets = [5, 5, 4, 5, 5];
+  const columnWords = columnTargets.map((target, column) => {
+    const start = Math.floor((sortedWords.length * column) / 5);
+    const end = Math.floor((sortedWords.length * (column + 1)) / 5);
+    return shuffleValues(sortedWords.slice(start, end))
+      .slice(0, target)
+      .sort((a, b) => String(a || "").localeCompare(String(b || "")));
+  });
+  const cells = Array.from({ length: 25 }, () => ({ word: "", marked: false, free: false }));
+  for (let column = 0; column < 5; column += 1) {
+    let wordIndex = 0;
+    for (let row = 0; row < 5; row += 1) {
+      const cellIndex = row * 5 + column;
+      if (cellIndex === 12) {
+        cells[cellIndex] = { word: "FREE", marked: true, free: true };
+      } else {
+        cells[cellIndex] = { word: columnWords[column][wordIndex] || "", marked: false, free: false };
+        wordIndex += 1;
+      }
+    }
+  }
+  return { size: 5, cells };
+}
+
+function getBingoLine(card, calledWords = []) {
+  const cells = card?.cells || [];
+  if (cells.length !== 25) {
+    return [];
+  }
+  const called = new Set((calledWords || []).map((word) => String(word || "").trim().toLowerCase()));
+  const marked = (index) => {
+    const cell = cells[index] || {};
+    if (cell.free) return true;
+    return !!cell.marked && called.has(String(cell.word || "").trim().toLowerCase());
+  };
+  for (let row = 0; row < 5; row += 1) {
+    const line = [0, 1, 2, 3, 4].map((offset) => row * 5 + offset);
+    if (line.every(marked)) return line;
+  }
+  for (let column = 0; column < 5; column += 1) {
+    const line = [0, 1, 2, 3, 4].map((offset) => offset * 5 + column);
+    if (line.every(marked)) return line;
+  }
+  const diagonalA = [0, 6, 12, 18, 24];
+  if (diagonalA.every(marked)) return diagonalA;
+  const diagonalB = [4, 8, 12, 16, 20];
+  if (diagonalB.every(marked)) return diagonalB;
+  return [];
+}
+
+function getBingoClaimResult(card, calledWords = []) {
+  const cells = card?.cells || [];
+  const called = new Set((calledWords || []).map((word) => String(word || "").trim().toLowerCase()));
+  const marked = (index) => {
+    const cell = cells[index] || {};
+    if (cell.free) return true;
+    return !!cell.marked && called.has(String(cell.word || "").trim().toLowerCase());
+  };
+  if (cells.length === 25 && cells.every((cell, index) => marked(index))) {
+    return { isValid: true, line: cells.map((_, index) => index), pattern: "full-card" };
+  }
+  const line = getBingoLine(card, calledWords);
+  return { isValid: !!line.length, line, pattern: line.length ? "line" : "" };
+}
+
+function hasBingo(card, calledWords = []) {
+  return getBingoClaimResult(card, calledWords).isValid;
+}
+
+function ensureBingoCard(room, playerId) {
+  const id = String(playerId || "");
+  if (!room.cards) room.cards = {};
+  if (!room.cards[id]) {
+    if ((room.words || []).length < 24) {
+      return null;
+    }
+    room.cards[id] = makeBingoCard(room.words);
+  }
+  return room.cards[id];
+}
+
 function getPollCandidates(room) {
   const candidateIds = new Set((room.candidatePlayerIds || []).map((id) => Number(id)));
   const playerCandidates = (room.players || []).filter((player) => candidateIds.has(Number(player.id))).map((player) => ({
@@ -605,6 +800,22 @@ function getPollCandidates(room) {
     label
   }));
   return [...optionCandidates, ...playerCandidates];
+}
+
+function serializeBingoRoom(room, playerId = "") {
+  const sortedPlayers = (room.players || []).slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+  const id = String(playerId || "");
+  return {
+    code: room.code,
+    status: room.status,
+    words: room.words || [],
+    calledWords: room.calledWords || [],
+    players: sortedPlayers,
+    pendingClaim: room.pendingClaim || null,
+    winner: room.winner || null,
+    card: id ? (room.cards?.[id] || null) : null,
+    updatedAt: room.updatedAt
+  };
 }
 
 function serializePollRoom(room) {
@@ -728,7 +939,7 @@ function consumeLetters(activeLetters, consumedLetters) {
   });
 }
 
-function evaluateSubmission(room, submission) {
+async function evaluateSubmission(room, submission) {
   const rawWord = String(submission.word || "").trim().toLowerCase();
   const word = rawWord.toUpperCase();
   if (room.letters.length < 2) {
@@ -740,8 +951,9 @@ function evaluateSubmission(room, submission) {
   if (!/^[a-z]+$/.test(rawWord)) {
     return { ok: false, message: "Use only letters A-Z." };
   }
-  if (!dictionary.has(rawWord)) {
-    return { ok: false, message: `"${rawWord}" is not in the local dictionary.` };
+  const dictionaryResult = await validateDictionaryWord(rawWord);
+  if (!dictionaryResult.ok) {
+    return { ok: false, message: `"${rawWord}" is not in the dictionary.` };
   }
   const usage = getWordTableUsage(room.letters, word);
   if (!usage) {
@@ -750,7 +962,7 @@ function evaluateSubmission(room, submission) {
       message: `"${rawWord}" is real, but it must start and end with ${room.letters.join(" / ")}.`
     };
   }
-  return { ok: true, rawWord, word, usage };
+  return { ok: true, rawWord, word, usage, definition: dictionaryResult.definition || "", learned: !!dictionaryResult.learned };
 }
 
 function getLocalIp() {
@@ -783,10 +995,12 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/timer") return html(res, TIMER_HTML);
     if (req.method === "GET" && url.pathname === "/name-wheel") return html(res, NAME_WHEEL_HTML);
     if (req.method === "GET" && url.pathname === "/quick-poll") return html(res, QUICK_POLL_HTML);
+    if (req.method === "GET" && url.pathname === "/bingo") return html(res, BINGO_HTML);
     if (req.method === "GET" && url.pathname === "/student-hub.html") return html(res, STUDENT_HUB_HTML);
     if (req.method === "GET" && url.pathname === "/buzzer-student.html") return html(res, BUZZER_STUDENT_HTML);
     if (req.method === "GET" && url.pathname === "/name-wheel-student.html") return html(res, NAME_WHEEL_STUDENT_HTML);
     if (req.method === "GET" && url.pathname === "/quick-poll-student.html") return html(res, QUICK_POLL_STUDENT_HTML);
+    if (req.method === "GET" && url.pathname === "/bingo-student.html") return html(res, BINGO_STUDENT_HTML);
     if (req.method === "GET" && url.pathname === "/student.html") return html(res, STUDENT_HTML);
     if (req.method === "GET" && url.pathname === "/english-words.js") {
       res.writeHead(200, { "Content-Type": "application/javascript; charset=utf-8", "Cache-Control": "no-store" });
@@ -836,7 +1050,7 @@ const server = http.createServer(async (req, res) => {
       const { code, activeTool, activeToolCode } = await body(req);
       const room = getClassroomRoom(code);
       const cleanTool = String(activeTool || "standby").trim().toLowerCase();
-      const allowedTools = new Set(["standby", "buzzer", "letter-clash", "wheel", "quick-poll", "timer"]);
+      const allowedTools = new Set(["standby", "buzzer", "letter-clash", "wheel", "quick-poll", "bingo", "timer"]);
       room.activeTool = allowedTools.has(cleanTool) ? cleanTool : "standby";
       room.activeToolCode = room.activeTool === "standby" ? "" : String(activeToolCode || "").trim().toUpperCase();
       touch(room);
@@ -1008,7 +1222,7 @@ const server = http.createServer(async (req, res) => {
         broadcastRoom(room);
         return json(res, 200, { ok: false, stale: true, room: serialize(room) });
       }
-      const evaluation = evaluateSubmission(room, submission);
+      const evaluation = await evaluateSubmission(room, submission);
 
       if (!evaluation.ok) {
         room.lastFeedback = {
@@ -1062,8 +1276,8 @@ const server = http.createServer(async (req, res) => {
         lettersScore: scoreBreakdown.lettersScore,
         lengthBonus: scoreBreakdown.lengthBonus,
         stealBonus: scoreBreakdown.stealBonus,
-        definition: "",
-        definitionState: "pending"
+        definition: evaluation.definition || "",
+        definitionState: evaluation.definition ? "ready" : "pending"
       };
       room.acceptedWords = room.acceptedWords || [];
       room.acceptedWords.unshift({
@@ -1072,8 +1286,8 @@ const server = http.createServer(async (req, res) => {
         teamName: team.name,
         word: evaluation.rawWord,
         points: scoreBreakdown.total,
-        definition: "",
-        definitionState: "pending",
+        definition: evaluation.definition || "",
+        definitionState: evaluation.definition ? "ready" : "pending",
         acceptedAt: Date.now()
       });
       room.acceptedWords = room.acceptedWords.slice(0, 300);
@@ -1094,7 +1308,9 @@ const server = http.createServer(async (req, res) => {
       room.submissions = [];
       touch(room);
       broadcastRoom(room);
-      enrichAcceptedWord(room.code, submission.id, evaluation.rawWord).catch(() => {});
+      if (!evaluation.definition) {
+        enrichAcceptedWord(room.code, submission.id, evaluation.rawWord).catch(() => {});
+      }
       return json(res, 200, { ok: true, room: serialize(room) });
     }
 
@@ -1350,6 +1566,176 @@ const server = http.createServer(async (req, res) => {
       room.names = normalizeWheelNames(room.names).filter((item) => item.toLowerCase() !== clean.toLowerCase());
       touch(room);
       return json(res, 200, { room: serializeWheelRoom(room), added: !alreadyExists, name: clean });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/bingo/create-room") {
+      return json(res, 200, { room: serializeBingoRoom(createBingoRoom()) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/bingo/delete-room") {
+      const { code } = await body(req);
+      bingoRooms.delete(String(code || "").toUpperCase());
+      return json(res, 200, { ok: true });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/bingo/room") {
+      return json(res, 200, {
+        room: serializeBingoRoom(getBingoRoom(url.searchParams.get("code")), url.searchParams.get("playerId"))
+      });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/bingo/sync") {
+      const { code, words } = await body(req);
+      const room = getBingoRoom(code);
+      const nextWords = normalizeBingoWords(words);
+      const changed = (room.words || []).join("\n").toLowerCase() !== nextWords.join("\n").toLowerCase();
+      room.words = nextWords;
+      if (changed && room.status === "setup") {
+        room.cards = {};
+        room.calledWords = [];
+        room.pendingClaim = null;
+        room.winner = null;
+      }
+      touch(room);
+      return json(res, 200, { room: serializeBingoRoom(room) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/bingo/join") {
+      const { code, name, playerId } = await body(req);
+      const room = getBingoRoom(code);
+      const clean = String(name || "").trim();
+      if (!clean) throw new Error("Name is required");
+      const requestedId = Number(playerId || 0);
+      let player = room.players.find((item) => Number(item.id) === requestedId);
+      const duplicate = room.players.find((item) => item !== player && String(item.name || "").trim().toLowerCase() === clean.toLowerCase());
+      if (duplicate) throw new Error("A participant with this name is already connected.");
+      if (!player) {
+        player = { id: room.nextPlayerId || 1, name: clean, joinedAt: Date.now(), updatedAt: Date.now() };
+        room.nextPlayerId = Number(player.id) + 1;
+        room.players.push(player);
+      } else {
+        player.name = clean;
+        player.updatedAt = Date.now();
+      }
+      ensureBingoCard(room, player.id);
+      touch(room);
+      return json(res, 200, { room: serializeBingoRoom(room, player.id), player });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/bingo/start") {
+      const { code } = await body(req);
+      const room = getBingoRoom(code);
+      if ((room.words || []).length < 24) throw new Error("Add at least 24 vocabulary words.");
+      if (!(room.players || []).length) throw new Error("Add participants before starting Bingo.");
+      room.players.forEach((player) => ensureBingoCard(room, player.id));
+      room.status = "live";
+      room.calledWords = [];
+      room.pendingClaim = null;
+      room.winner = null;
+      Object.values(room.cards || {}).forEach((card) => {
+        (card.cells || []).forEach((cell) => {
+          cell.marked = !!cell.free;
+        });
+      });
+      touch(room);
+      return json(res, 200, { room: serializeBingoRoom(room) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/bingo/reset") {
+      const { code } = await body(req);
+      const room = getBingoRoom(code);
+      room.status = "setup";
+      room.calledWords = [];
+      room.cards = {};
+      room.pendingClaim = null;
+      room.winner = null;
+      touch(room);
+      return json(res, 200, { room: serializeBingoRoom(room) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/bingo/call") {
+      const { code } = await body(req);
+      const room = getBingoRoom(code);
+      if (room.status !== "live") throw new Error("Start Bingo first.");
+      const called = new Set((room.calledWords || []).map((word) => String(word || "").toLowerCase()));
+      const remaining = (room.words || []).filter((word) => !called.has(String(word || "").toLowerCase()));
+      if (!remaining.length) throw new Error("All words have been called.");
+      const word = remaining[Math.floor(Math.random() * remaining.length)];
+      room.calledWords = [word, ...(room.calledWords || [])].slice(0, 300);
+      touch(room);
+      return json(res, 200, { room: serializeBingoRoom(room), word });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/bingo/mark") {
+      const { code, playerId, word } = await body(req);
+      const room = getBingoRoom(code);
+      if (room.status !== "live") throw new Error("Bingo is not accepting marks right now.");
+      const card = ensureBingoCard(room, playerId);
+      if (!card) throw new Error("Bingo card is not ready.");
+      const clean = String(word || "").trim();
+      const cell = (card.cells || []).find((item) => String(item.word || "").trim().toLowerCase() === clean.toLowerCase());
+      if (!cell) throw new Error("Word not found on your card.");
+      if (!cell.free) {
+        cell.marked = !cell.marked;
+      }
+      touch(room);
+      return json(res, 200, { room: serializeBingoRoom(room, playerId) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/bingo/claim") {
+      const { code, playerId } = await body(req);
+      const room = getBingoRoom(code);
+      if (room.status !== "live") throw new Error("Bingo is not accepting claims right now.");
+      const player = room.players.find((item) => Number(item.id) === Number(playerId || 0));
+      if (!player) throw new Error("Participant not found.");
+      const card = ensureBingoCard(room, player.id);
+      const result = getBingoClaimResult(card, room.calledWords);
+      room.status = "checking";
+      room.pendingClaim = {
+        playerId: player.id,
+        name: player.name,
+        card,
+        line: result.line,
+        pattern: result.pattern,
+        isValid: result.isValid,
+        reviewed: false,
+        claimedAt: Date.now()
+      };
+      touch(room);
+      return json(res, 200, { room: serializeBingoRoom(room, player.id), pendingClaim: room.pendingClaim });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/bingo/review-claim") {
+      const { code } = await body(req);
+      const room = getBingoRoom(code);
+      if (!room.pendingClaim) throw new Error("No Bingo claim is waiting.");
+      room.pendingClaim.reviewed = true;
+      touch(room);
+      return json(res, 200, { room: serializeBingoRoom(room) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/bingo/resolve-claim") {
+      const { code, valid } = await body(req);
+      const room = getBingoRoom(code);
+      const claim = room.pendingClaim;
+      if (!claim) throw new Error("No Bingo claim is waiting.");
+      if (valid) {
+        if (!claim.isValid) throw new Error("This card does not have a valid Bingo.");
+        room.status = "finished";
+        room.winner = {
+          playerId: claim.playerId,
+          name: claim.name,
+          line: claim.line,
+          pattern: claim.pattern,
+          claimedAt: claim.claimedAt,
+          confirmedAt: Date.now()
+        };
+      } else {
+        room.status = "live";
+      }
+      room.pendingClaim = null;
+      touch(room);
+      return json(res, 200, { room: serializeBingoRoom(room) });
     }
 
     if (req.method === "POST" && url.pathname === "/api/poll/create-room") {

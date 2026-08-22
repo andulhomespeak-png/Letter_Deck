@@ -1,0 +1,1327 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vocabulary Bingo</title>
+  <link rel="icon" type="image/png" href="./letter-clash-favicon.png">
+  <style>
+    :root {
+      --ink: #100b2f;
+      --muted: rgba(16, 11, 47, 0.62);
+      --line: rgba(16, 11, 47, 0.12);
+      --blue: #087dff;
+      --red: #ff2541;
+      --green: #19c875;
+      --orange: #ff8a00;
+      --panel: rgba(255, 255, 255, 0.88);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 16% 16%, rgba(8, 125, 255, 0.34), transparent 28%),
+        radial-gradient(circle at 82% 18%, rgba(255, 138, 0, 0.3), transparent 30%),
+        radial-gradient(circle at 52% 90%, rgba(25, 200, 117, 0.22), transparent 34%),
+        linear-gradient(135deg, #fff4cf 0%, #eef8ff 46%, #ffe2e8 100%);
+    }
+
+    .app {
+      height: 100vh;
+      height: 100dvh;
+      padding: clamp(8px, 1.3vw, 16px);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(250px, 330px);
+      gap: clamp(8px, 1.3vw, 16px);
+    }
+
+    .main,
+    .side {
+      min-height: 0;
+      border: 1px solid rgba(255,255,255,0.75);
+      border-radius: clamp(24px, 3vw, 34px);
+      background: var(--panel);
+      box-shadow: 0 26px 78px rgba(16, 11, 47, 0.16);
+      backdrop-filter: blur(18px);
+    }
+
+    .main {
+      padding: clamp(12px, 1.6vw, 22px);
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: clamp(10px, 1.5vw, 16px);
+      overflow: hidden;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: minmax(180px, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .status-pill {
+      width: max-content;
+      padding: 9px 13px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.9);
+      border: 1px solid var(--line);
+      font-weight: 1000;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: end;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      min-height: 44px;
+      padding: 0 16px;
+      font: inherit;
+      font-weight: 1000;
+      color: var(--ink);
+      background: rgba(255,255,255,0.94);
+      box-shadow: 0 12px 26px rgba(16, 11, 47, 0.12);
+      cursor: pointer;
+      transition: transform 120ms ease, opacity 120ms ease;
+    }
+
+    button:hover { transform: translateY(-2px); }
+    button:active { transform: translateY(1px); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+    .primary {
+      color: #fff;
+      background: linear-gradient(135deg, var(--green), #039b52);
+      box-shadow: 0 14px 32px rgba(25, 200, 117, 0.22);
+    }
+
+    .danger {
+      color: #fff;
+      background: linear-gradient(135deg, var(--red), #a8001a);
+    }
+
+    .auto-call-btn.is-active {
+      color: #fff;
+      background: linear-gradient(135deg, var(--blue), #3024d8);
+      box-shadow: 0 14px 32px rgba(8, 125, 255, 0.22);
+    }
+
+    .auto-interval {
+      min-height: 44px;
+      padding: 0 10px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--muted);
+      background: rgba(255,255,255,0.86);
+      border: 1px solid var(--line);
+      box-shadow: 0 12px 26px rgba(16, 11, 47, 0.08);
+      font-size: 0.78rem;
+      font-weight: 1000;
+      white-space: nowrap;
+    }
+
+    .auto-interval input {
+      width: 46px;
+      min-height: 28px;
+      border: 1px solid rgba(8,125,255,0.2);
+      border-radius: 999px;
+      padding: 0 6px;
+      color: var(--ink);
+      background: #fff;
+      font: inherit;
+      font-size: 0.9rem;
+      text-align: center;
+      outline: 0;
+    }
+
+    .stage {
+      --list-width: clamp(210px, 22vw, 330px);
+      --list-gap: clamp(12px, 1.6vw, 22px);
+      min-height: 0;
+      position: relative;
+      border-radius: clamp(24px, 4vw, 42px);
+      display: grid;
+      place-items: center;
+      padding: clamp(10px, 1.6vw, 22px);
+      overflow: clip;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.62), rgba(255,255,255,0.18)),
+        radial-gradient(circle at 50% 48%, rgba(8, 125, 255, 0.14), transparent 34%);
+      border: 1px dashed rgba(16, 11, 47, 0.14);
+    }
+
+    .stage.is-list-visible .call-stage {
+      width: min(980px, calc(100% - var(--list-width) - var(--list-gap)));
+      margin-right: calc(var(--list-width) + var(--list-gap));
+    }
+
+    .word-bank,
+    .call-stage {
+      min-height: 0;
+      border-radius: 28px;
+      background: rgba(255,255,255,0.72);
+      border: 1px solid var(--line);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
+      padding: clamp(12px, 1.4vw, 18px);
+    }
+
+    .word-bank {
+      position: absolute;
+      right: clamp(12px, 2vw, 24px);
+      top: clamp(12px, 2vw, 24px);
+      bottom: clamp(12px, 2vw, 24px);
+      width: var(--list-width);
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      gap: 10px;
+      opacity: 0;
+      transform: translateX(22px) scale(0.96);
+      pointer-events: none;
+      transition: opacity 180ms ease, transform 180ms ease;
+      z-index: 6;
+    }
+
+    .stage.is-list-visible .word-bank {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+      pointer-events: auto;
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 0.9rem;
+      font-weight: 1000;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 0;
+      resize: none;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 14px;
+      font: inherit;
+      font-weight: 800;
+      color: var(--ink);
+      background: rgba(255,255,255,0.92);
+      outline: none;
+      box-shadow: inset 0 2px 8px rgba(16, 11, 47, 0.05);
+    }
+
+    .hint {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.86rem;
+      font-weight: 800;
+    }
+
+    .call-stage {
+      width: min(100%, 980px);
+      height: 100%;
+      margin-right: 0;
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) auto;
+      gap: 14px;
+      overflow: hidden;
+      transition: width 220ms ease, margin-right 220ms ease;
+    }
+
+    .word-bank-head {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .word-bank-head .panel-title {
+      min-width: 0;
+      font-size: 0.78rem;
+    }
+
+    .list-clear-btn {
+      min-height: 28px;
+      padding: 0 10px;
+      font-size: 0.7rem;
+      color: #fff;
+      background: linear-gradient(135deg, var(--red), #a8001a);
+      box-shadow: 0 8px 18px rgba(255, 37, 65, 0.18);
+    }
+
+    .called-card {
+      min-height: 0;
+      display: grid;
+      place-items: center;
+      border-radius: 30px;
+      border: 2px dashed rgba(8,125,255,0.28);
+      background:
+        radial-gradient(circle at 50% 42%, rgba(255,210,61,0.42), transparent 30%),
+        linear-gradient(135deg, rgba(8,125,255,0.08), rgba(255,138,0,0.1));
+      text-align: center;
+      padding: clamp(14px, 2vw, 28px);
+    }
+
+    .called-word {
+      font-size: clamp(3rem, 8vw, 7.8rem);
+      line-height: 0.95;
+      font-weight: 1000;
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: -0.05em;
+      -webkit-text-stroke: clamp(1px, 0.22vw, 3px) #071b63;
+      text-shadow: 0 5px 0 var(--blue), 0 12px 0 var(--orange), 0 24px 34px rgba(7,20,60,0.28);
+    }
+
+    .stage.is-list-visible .called-word {
+      font-size: clamp(2.7rem, 6.2vw, 6.3rem);
+    }
+
+    .called-sub {
+      margin-top: 14px;
+      font-weight: 1000;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .history {
+      min-height: 84px;
+      max-height: 24vh;
+      overflow-y: auto;
+      display: flex;
+      align-content: start;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 10px;
+      border-radius: 22px;
+      background: rgba(255,255,255,0.7);
+      border: 1px solid var(--line);
+    }
+
+    .chip {
+      padding: 8px 11px;
+      border-radius: 999px;
+      font-weight: 1000;
+      background: #fff;
+      box-shadow: 0 8px 18px rgba(16,11,47,0.08);
+    }
+
+    .side {
+      padding: clamp(12px, 1.4vw, 18px);
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 12px;
+      overflow: hidden;
+    }
+
+    .side-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .side h2 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 1000;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: rgba(16, 11, 47, 0.78);
+    }
+
+    .players {
+      min-height: 0;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      padding-right: 4px;
+    }
+
+    .player-pill {
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #fff, rgba(232,242,255,0.96));
+      border: 1px solid rgba(8,125,255,0.18);
+      box-shadow: 0 10px 22px rgba(16,11,47,0.08);
+      font-weight: 1000;
+    }
+
+    .winner {
+      position: fixed;
+      inset: 0;
+      display: none;
+      place-items: center;
+      padding: 18px;
+      background: rgba(8, 16, 48, 0.44);
+      z-index: 50;
+    }
+
+    .winner.is-visible { display: grid; }
+
+    .winner-card {
+      width: min(720px, 92vw);
+      border-radius: 34px;
+      padding: clamp(22px, 4vw, 44px);
+      text-align: center;
+      background: rgba(255,255,255,0.94);
+      box-shadow: 0 34px 100px rgba(7,20,60,0.35);
+    }
+
+    .winner-name {
+      margin: 8px 0 0;
+      font-size: clamp(2.4rem, 8vw, 6rem);
+      font-weight: 1000;
+      color: #fff;
+      -webkit-text-stroke: 2px #071b63;
+      text-shadow: 0 5px 0 var(--blue), 0 11px 0 var(--orange), 0 18px 30px rgba(7,20,60,0.25);
+    }
+
+    .winner-actions {
+      margin-top: 20px;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .claim-show-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 58;
+      display: none;
+      place-items: center;
+      padding: clamp(14px, 3vw, 28px);
+      background:
+        radial-gradient(circle at 50% 42%, rgba(255, 210, 61, 0.24), transparent 30%),
+        rgba(8, 16, 48, 0.48);
+      backdrop-filter: blur(14px);
+    }
+
+    .claim-show-modal.is-visible { display: grid; }
+
+    .claim-show-card {
+      width: min(880px, 94vw);
+      padding: clamp(24px, 5vw, 58px);
+      border-radius: clamp(32px, 5vw, 54px);
+      text-align: center;
+      background:
+        radial-gradient(circle at 18% 12%, rgba(255,255,255,0.9), transparent 12%),
+        radial-gradient(circle at 86% 20%, rgba(255, 138, 0, 0.22), transparent 28%),
+        linear-gradient(145deg, rgba(255,255,255,0.96), rgba(238,248,255,0.9));
+      border: 1px solid rgba(255,255,255,0.8);
+      box-shadow: 0 38px 110px rgba(7,20,60,0.38);
+      animation: claimShowIn 280ms cubic-bezier(0.18, 1.18, 0.24, 1) both;
+    }
+
+    .claim-show-kicker {
+      margin: 0 0 10px;
+      color: var(--red);
+      font-size: clamp(1rem, 2vw, 1.45rem);
+      font-weight: 1000;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+    }
+
+    .claim-show-name {
+      margin: 0;
+      font-size: clamp(3rem, 10vw, 8.6rem);
+      line-height: 0.86;
+      font-weight: 1000;
+      color: #fff;
+      -webkit-text-stroke: clamp(2px, 0.32vw, 4px) #071b63;
+      text-shadow:
+        0 6px 0 var(--blue),
+        0 14px 0 var(--orange),
+        0 28px 42px rgba(7,20,60,0.3);
+      overflow-wrap: anywhere;
+    }
+
+    .claim-show-text {
+      margin: 18px 0 24px;
+      color: var(--ink);
+      font-size: clamp(1.15rem, 2.7vw, 2rem);
+      font-weight: 1000;
+    }
+
+    .claim-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      display: none;
+      place-items: center;
+      padding: clamp(14px, 3vw, 28px);
+      background: rgba(8, 16, 48, 0.46);
+      backdrop-filter: blur(14px);
+    }
+
+    .claim-modal.is-visible { display: grid; }
+
+    .claim-card {
+      width: min(920px, 94vw);
+      max-height: min(92vh, 860px);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(260px, 360px);
+      gap: clamp(14px, 2vw, 24px);
+      padding: clamp(16px, 3vw, 28px);
+      border-radius: 34px;
+      background:
+        radial-gradient(circle at 12% 8%, rgba(255, 212, 38, 0.22), transparent 34%),
+        linear-gradient(145deg, rgba(255,255,255,0.96), rgba(238,248,255,0.92));
+      border: 1px solid rgba(255,255,255,0.78);
+      box-shadow: 0 34px 100px rgba(7,20,60,0.35);
+      overflow: hidden;
+    }
+
+    .claim-board {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: clamp(6px, 1vw, 10px);
+      padding: clamp(8px, 1.4vw, 14px);
+      border-radius: 28px;
+      background: rgba(255,255,255,0.68);
+      border: 1px solid rgba(8,125,255,0.18);
+    }
+
+    .claim-cell {
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 6px;
+      border-radius: clamp(10px, 1.6vw, 18px);
+      color: var(--ink);
+      background: linear-gradient(135deg, #fff, rgba(232,242,255,0.96));
+      border: 1px solid rgba(8,125,255,0.16);
+      font-size: clamp(0.74rem, 1.55vw, 1.08rem);
+      line-height: 1.02;
+      font-weight: 1000;
+      overflow-wrap: anywhere;
+      box-shadow: 0 8px 18px rgba(16,11,47,0.08);
+    }
+
+    .claim-cell.is-marked {
+      color: #fff;
+      background: linear-gradient(135deg, var(--green), #039b52);
+      border-color: transparent;
+    }
+
+    .claim-cell.is-line {
+      color: var(--ink);
+      background: linear-gradient(135deg, #fff86a, #19c875 52%, #00b8ff);
+      box-shadow:
+        0 0 0 4px rgba(255, 210, 61, 0.7),
+        0 0 26px rgba(25, 200, 117, 0.78),
+        0 16px 30px rgba(8,125,255,0.24);
+      animation: claimCellPop 900ms cubic-bezier(0.18, 1.2, 0.28, 1) both, claimGlow 1100ms ease-in-out infinite alternate;
+      z-index: 2;
+    }
+
+    .claim-info {
+      min-height: 0;
+      display: grid;
+      align-content: center;
+      gap: 14px;
+      text-align: center;
+    }
+
+    .claim-name {
+      margin: 0;
+      font-size: clamp(2rem, 5vw, 4.6rem);
+      line-height: 0.9;
+      font-weight: 1000;
+      color: #fff;
+      -webkit-text-stroke: 2px #071b63;
+      text-shadow: 0 5px 0 var(--blue), 0 11px 0 var(--orange), 0 18px 30px rgba(7,20,60,0.25);
+      overflow-wrap: anywhere;
+    }
+
+    .claim-status {
+      margin: 0;
+      padding: 12px 14px;
+      border-radius: 20px;
+      color: var(--muted);
+      background: rgba(255,255,255,0.78);
+      border: 1px solid var(--line);
+      font-weight: 1000;
+      line-height: 1.35;
+    }
+
+    .claim-actions {
+      display: grid;
+      gap: 10px;
+    }
+
+    .confirm-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 70;
+      display: grid;
+      place-items: center;
+      padding: clamp(16px, 4vw, 34px);
+      background: rgba(16, 11, 47, 0.36);
+      backdrop-filter: blur(14px);
+    }
+
+    .confirm-overlay.hidden {
+      display: none;
+    }
+
+    .confirm-modal {
+      width: min(92vw, 460px);
+      padding: clamp(20px, 4vw, 28px);
+      border-radius: 32px;
+      text-align: center;
+      background:
+        radial-gradient(circle at 15% 0%, rgba(255, 212, 38, 0.24), transparent 38%),
+        linear-gradient(145deg, rgba(255,255,255,0.96), rgba(238,248,255,0.92));
+      border: 1px solid rgba(255,255,255,0.78);
+      box-shadow: 0 30px 84px rgba(16, 11, 47, 0.28);
+      animation: confirmModalIn 180ms ease both;
+    }
+
+    .confirm-kicker {
+      margin: 0 0 8px;
+      color: var(--red);
+      font-size: 0.76rem;
+      font-weight: 1000;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .confirm-title {
+      margin: 0;
+      color: var(--ink);
+      font-size: clamp(1.7rem, 4vw, 2.4rem);
+      line-height: 0.95;
+      letter-spacing: -0.04em;
+    }
+
+    .confirm-text {
+      margin: 12px 0 18px;
+      color: var(--muted);
+      font-weight: 900;
+      line-height: 1.4;
+    }
+
+    .confirm-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .confirm-actions .ghost {
+      color: var(--ink);
+      background: rgba(255,255,255,0.94);
+      border: 1px solid var(--line);
+    }
+
+    .hidden { display: none !important; }
+
+    @keyframes confirmModalIn {
+      0% { opacity: 0; transform: scale(0.92); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes claimCellPop {
+      0% { transform: scale(0.88) rotate(-3deg); }
+      55% { transform: scale(1.12) rotate(2deg); }
+      100% { transform: scale(1.04) rotate(0deg); }
+    }
+
+    @keyframes claimGlow {
+      from { filter: saturate(1.1) brightness(1); }
+      to { filter: saturate(1.35) brightness(1.12); }
+    }
+
+    @keyframes claimShowIn {
+      0% { opacity: 0; transform: translateY(18px) scale(0.92) rotate(-1deg); }
+      70% { opacity: 1; transform: translateY(0) scale(1.04) rotate(0.4deg); }
+      100% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+    }
+
+    @media (max-width: 980px) {
+      .app { grid-template-columns: 1fr; overflow-y: auto; }
+      body { overflow: auto; }
+      .stage {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        min-height: 620px;
+      }
+      .stage.is-list-visible .call-stage {
+        width: 100%;
+        margin-right: 0;
+      }
+      .word-bank {
+        position: relative;
+        inset: auto;
+        width: 100%;
+        min-height: 260px;
+        order: 2;
+      }
+      .stage:not(.is-list-visible) .word-bank { display: none; }
+      .call-stage {
+        width: 100%;
+        min-height: 340px;
+      }
+      .side { min-height: 220px; }
+      .claim-card {
+        grid-template-columns: 1fr;
+        overflow-y: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="main">
+      <header class="topbar">
+        <div class="brand">
+          <span class="status-pill" id="statusPill">Setup</span>
+        </div>
+        <div class="actions">
+          <button type="button" id="listToggleBtn">Hide List</button>
+          <button type="button" onclick="location.href='/'">Home</button>
+          <button type="button" id="startBtn" class="primary">Start</button>
+          <button type="button" id="callBtn" class="primary">Call</button>
+          <button type="button" id="autoCallBtn" class="auto-call-btn">Auto 8s</button>
+          <label class="auto-interval" for="autoCallSecondsInput">
+            Every <input id="autoCallSecondsInput" type="number" min="4" max="20" step="1" value="8"> s
+          </label>
+          <button type="button" id="resetBtn" class="danger">Reset</button>
+        </div>
+      </header>
+
+      <section class="stage is-list-visible" id="stage">
+        <section class="word-bank">
+          <div class="word-bank-head">
+            <p class="panel-title">Vocabulary <span id="wordCount">(0)</span></p>
+            <button class="list-clear-btn" id="clearWordsBtn" type="button">Clear</button>
+          </div>
+          <textarea id="wordInput" spellcheck="false" placeholder="Paste vocabulary words here, one per line."></textarea>
+          <p class="hint">Use at least 24 words for 5x5 Bingo cards.</p>
+        </section>
+
+        <section class="call-stage">
+          <div class="called-card">
+            <div>
+              <div class="called-word" id="calledWord">Ready</div>
+              <div class="called-sub" id="calledSub">Start Bingo, then call a word</div>
+            </div>
+          </div>
+          <div class="history" id="history"></div>
+        </section>
+      </section>
+    </section>
+
+    <aside class="side">
+      <div class="side-head">
+        <h2>Players <span id="playerCount">(0)</span></h2>
+      </div>
+      <div class="players" id="players"></div>
+    </aside>
+  </main>
+
+  <section class="winner" id="winnerModal">
+    <div class="winner-card">
+      <p class="panel-title">Bingo Winner</p>
+      <p class="winner-name" id="winnerName">Player</p>
+      <div class="winner-actions">
+        <button type="button" id="playAgainBtn" class="primary">Play Again</button>
+        <button type="button" id="closeWinnerBtn">Close</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="claim-show-modal" id="claimShowModal" aria-hidden="true">
+    <div class="claim-show-card">
+      <p class="claim-show-kicker">Bingo Call</p>
+      <p class="claim-show-name" id="claimShowName">Player</p>
+      <p class="claim-show-text" id="claimShowText">called Bingo!</p>
+      <button type="button" id="checkClaimBtn" class="primary">Check</button>
+    </div>
+  </section>
+
+  <section class="claim-modal" id="claimModal" aria-hidden="true">
+    <div class="claim-card">
+      <div class="claim-board" id="claimBoard"></div>
+      <div class="claim-info">
+        <p class="panel-title">Bingo Claim</p>
+        <p class="claim-name" id="claimName">Player</p>
+        <p class="claim-status" id="claimStatus">Checking card...</p>
+        <div class="claim-actions">
+          <button type="button" id="claimPlayAgainBtn" class="primary">Play Again</button>
+          <button type="button" id="claimCloseBtn">Close</button>
+          <button type="button" id="continueBingoBtn">Continue</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="confirm-overlay hidden" id="confirmOverlay">
+    <div class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <p class="confirm-kicker">Confirm</p>
+      <h2 class="confirm-title" id="confirmTitle">Are you sure?</h2>
+      <p class="confirm-text" id="confirmText">This action cannot be undone.</p>
+      <div class="confirm-actions">
+        <button class="ghost" id="confirmCancelBtn" type="button">Cancel</button>
+        <button class="danger" id="confirmAcceptBtn" type="button">Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const storageKey = "bingo-room-code";
+    const classroomStorageKey = "friendzy-classroom-code";
+    const stage = document.getElementById("stage");
+    const wordInput = document.getElementById("wordInput");
+    const wordCount = document.getElementById("wordCount");
+    const playerCount = document.getElementById("playerCount");
+    const players = document.getElementById("players");
+    const statusPill = document.getElementById("statusPill");
+    const calledWord = document.getElementById("calledWord");
+    const calledSub = document.getElementById("calledSub");
+    const history = document.getElementById("history");
+    const listToggleBtn = document.getElementById("listToggleBtn");
+    const clearWordsBtn = document.getElementById("clearWordsBtn");
+    const startBtn = document.getElementById("startBtn");
+    const callBtn = document.getElementById("callBtn");
+    const autoCallBtn = document.getElementById("autoCallBtn");
+    const autoCallSecondsInput = document.getElementById("autoCallSecondsInput");
+    const resetBtn = document.getElementById("resetBtn");
+    const claimShowModal = document.getElementById("claimShowModal");
+    const claimShowName = document.getElementById("claimShowName");
+    const claimShowText = document.getElementById("claimShowText");
+    const checkClaimBtn = document.getElementById("checkClaimBtn");
+    const claimModal = document.getElementById("claimModal");
+    const claimBoard = document.getElementById("claimBoard");
+    const claimName = document.getElementById("claimName");
+    const claimStatus = document.getElementById("claimStatus");
+    const claimPlayAgainBtn = document.getElementById("claimPlayAgainBtn");
+    const claimCloseBtn = document.getElementById("claimCloseBtn");
+    const continueBingoBtn = document.getElementById("continueBingoBtn");
+    const winnerModal = document.getElementById("winnerModal");
+    const winnerName = document.getElementById("winnerName");
+    const playAgainBtn = document.getElementById("playAgainBtn");
+    const closeWinnerBtn = document.getElementById("closeWinnerBtn");
+    const confirmOverlay = document.getElementById("confirmOverlay");
+    const confirmTitle = document.getElementById("confirmTitle");
+    const confirmText = document.getElementById("confirmText");
+    const confirmCancelBtn = document.getElementById("confirmCancelBtn");
+    const confirmAcceptBtn = document.getElementById("confirmAcceptBtn");
+
+    let room = null;
+    let syncTimer = null;
+    let pollTimer = null;
+    let editingWords = false;
+    let dismissedWinnerKey = "";
+    let listVisible = localStorage.getItem("bingo-list-visible") !== "0";
+    let confirmState = null;
+    let activeClaimKey = "";
+    let claimReviewOpen = false;
+    let closedClaimReviewKey = "";
+    let autoCallEnabled = localStorage.getItem("bingo-auto-call") !== "0";
+    let autoCallTimer = null;
+    let autoCallDueAt = 0;
+    let autoCallCountdownTimer = null;
+    let autoCallIntervalMs = getStoredAutoCallSeconds() * 1000;
+
+    const starterWords = [
+      "apple", "bridge", "castle", "dream", "energy", "forest", "garden", "harbor",
+      "island", "jungle", "kingdom", "lantern", "market", "notebook", "ocean", "pencil",
+      "question", "river", "sunset", "teacher", "umbrella", "village", "window", "yellow"
+    ];
+
+    function parseWords() {
+      return wordInput.value.split(/\r?\n/).map((word) => word.trim()).filter(Boolean);
+    }
+
+    function clampAutoCallSeconds(value) {
+      return Math.max(4, Math.min(20, Math.round(Number(value) || 8)));
+    }
+
+    function getStoredAutoCallSeconds() {
+      return clampAutoCallSeconds(localStorage.getItem("bingo-auto-call-seconds") || 8);
+    }
+
+    async function api(path, payload = null, method = "POST") {
+      const response = await fetch(path, {
+        method,
+        headers: payload ? { "Content-Type": "application/json" } : undefined,
+        body: payload ? JSON.stringify(payload) : undefined
+      });
+      const data = await response.json();
+      if (!response.ok || data.error) {
+        throw new Error(data.error || "Request failed");
+      }
+      return data;
+    }
+
+    function closeConfirm(result) {
+      if (!confirmState) return;
+      const { resolve } = confirmState;
+      confirmState = null;
+      confirmOverlay.classList.add("hidden");
+      resolve(result);
+    }
+
+    function openConfirm({ title, text, confirmLabel = "Continue" }) {
+      confirmTitle.textContent = title;
+      confirmText.textContent = text;
+      confirmAcceptBtn.textContent = confirmLabel;
+      confirmOverlay.classList.remove("hidden");
+      confirmAcceptBtn.focus();
+      return new Promise((resolve) => {
+        confirmState = { resolve };
+      });
+    }
+
+    async function setClassroomTool(activeTool = "bingo", activeToolCode = room?.code || "") {
+      const classroomCode = localStorage.getItem(classroomStorageKey);
+      if (!classroomCode) return;
+      try {
+        await api("/api/classroom/set-tool", { code: classroomCode, activeTool, activeToolCode });
+      } catch (_) {}
+    }
+
+    async function ensureRoom() {
+      if (room) return room;
+      const savedCode = localStorage.getItem(storageKey);
+      if (savedCode) {
+        try {
+          const data = await api(`/api/bingo/room?code=${encodeURIComponent(savedCode)}`, null, "GET");
+          room = data.room;
+          wordInput.value = (room.words || []).join("\n");
+          setClassroomTool("bingo", room.code).catch(() => {});
+          render();
+          return room;
+        } catch (_) {
+          localStorage.removeItem(storageKey);
+        }
+      }
+      const data = await api("/api/bingo/create-room");
+      room = data.room;
+      localStorage.setItem(storageKey, room.code);
+      if (!room.words.length) {
+        wordInput.value = starterWords.join("\n");
+        await syncWordsNow();
+      }
+      setClassroomTool("bingo", room.code).catch(() => {});
+      render();
+      return room;
+    }
+
+    async function syncWordsNow() {
+      if (!room) return;
+      const data = await api("/api/bingo/sync", { code: room.code, words: parseWords() });
+      room = data.room;
+      if (!editingWords) {
+        wordInput.value = (room.words || []).join("\n");
+      }
+      render();
+    }
+
+    function scheduleSync() {
+      clearTimeout(syncTimer);
+      syncTimer = setTimeout(() => syncWordsNow().catch((error) => alert(error.message)), 250);
+    }
+
+    function getRemainingWords() {
+      const called = new Set((room?.calledWords || []).map((word) => String(word || "").trim().toLowerCase()));
+      return (room?.words || []).filter((word) => !called.has(String(word || "").trim().toLowerCase()));
+    }
+
+    async function callNextWord() {
+      if (!room || room.status !== "live") return false;
+      if (!getRemainingWords().length) {
+        autoCallEnabled = false;
+        localStorage.setItem("bingo-auto-call", "0");
+        render();
+        return false;
+      }
+      const data = await api("/api/bingo/call", { code: room.code });
+      room = data.room;
+      render();
+      return true;
+    }
+
+    function stopAutoCallTimer() {
+      clearTimeout(autoCallTimer);
+      autoCallTimer = null;
+      autoCallDueAt = 0;
+      updateAutoCallButton();
+    }
+
+    function updateAutoCallButton() {
+      autoCallBtn.classList.toggle("is-active", autoCallEnabled);
+      const intervalSeconds = Math.round(autoCallIntervalMs / 1000);
+      if (!autoCallEnabled) {
+        autoCallBtn.textContent = `Auto ${intervalSeconds}s`;
+        return;
+      }
+      if (room?.status === "live" && autoCallDueAt) {
+        const seconds = Math.max(1, Math.ceil((autoCallDueAt - Date.now()) / 1000));
+        autoCallBtn.textContent = `Auto ${seconds}s`;
+        return;
+      }
+      autoCallBtn.textContent = "Auto On";
+    }
+
+    function startAutoCallCountdown() {
+      if (autoCallCountdownTimer) return;
+      autoCallCountdownTimer = setInterval(updateAutoCallButton, 250);
+    }
+
+    function scheduleAutoCall() {
+      if (!autoCallEnabled || !room || room.status !== "live" || !getRemainingWords().length) return;
+      if (autoCallTimer) {
+        updateAutoCallButton();
+        return;
+      }
+      autoCallDueAt = Date.now() + autoCallIntervalMs;
+      updateAutoCallButton();
+      autoCallTimer = setTimeout(async () => {
+        autoCallTimer = null;
+        autoCallDueAt = 0;
+        try {
+          const called = await callNextWord();
+          if (called) scheduleAutoCall();
+        } catch (error) {
+          autoCallEnabled = false;
+          localStorage.setItem("bingo-auto-call", "0");
+          alert(error.message);
+          render();
+        }
+      }, autoCallIntervalMs);
+    }
+
+    async function pollRoom() {
+      if (!room) return;
+      try {
+        const data = await api(`/api/bingo/room?code=${encodeURIComponent(room.code)}`, null, "GET");
+        const previousText = wordInput.value;
+        room = data.room;
+        if (!editingWords) {
+          wordInput.value = (room.words || []).join("\n");
+        } else {
+          wordInput.value = previousText;
+        }
+        render();
+      } catch (_) {
+        localStorage.removeItem(storageKey);
+      } finally {
+        scheduleAutoCall();
+        pollTimer = setTimeout(pollRoom, 1000);
+      }
+    }
+
+    function render() {
+      const words = parseWords();
+      stage.classList.toggle("is-list-visible", listVisible);
+      listToggleBtn.textContent = listVisible ? "Hide List" : "Show List";
+      wordCount.textContent = `(${words.length})`;
+      clearWordsBtn.disabled = !words.length || room?.status === "live";
+      playerCount.textContent = `(${(room?.players || []).length})`;
+      statusPill.textContent = room?.status === "checking" ? "Checking" : room?.status === "live" ? "Live" : room?.status === "finished" ? "Finished" : "Setup";
+      startBtn.disabled = !room || words.length < 24 || !(room.players || []).length || ["live", "checking"].includes(room.status);
+      callBtn.disabled = !room || room.status !== "live";
+      const remainingWords = getRemainingWords();
+      if (room && room.status !== "live") {
+        stopAutoCallTimer();
+      }
+      if (autoCallEnabled && (!room || !remainingWords.length)) {
+        autoCallEnabled = false;
+        localStorage.setItem("bingo-auto-call", "0");
+      }
+      autoCallBtn.disabled = !room || room.status === "finished" || !remainingWords.length;
+      updateAutoCallButton();
+      players.innerHTML = "";
+      (room?.players || []).forEach((player) => {
+        const item = document.createElement("div");
+        item.className = "player-pill";
+        const label = room?.pendingClaim?.playerId === player.id ? "Claiming" : "Ready";
+        item.innerHTML = `<span>${escapeHtml(player.name)}</span><span>${label}</span>`;
+        players.appendChild(item);
+      });
+      history.innerHTML = "";
+      (room?.calledWords || []).forEach((word) => {
+        const chip = document.createElement("span");
+        chip.className = "chip";
+        chip.textContent = word;
+        history.appendChild(chip);
+      });
+      const current = room?.calledWords?.[0];
+      calledWord.textContent = room?.status === "checking" ? "Bingo?" : (current || (room?.status === "live" ? "Call" : "Ready"));
+      calledSub.textContent = room?.status === "checking" && room.pendingClaim
+        ? `${room.pendingClaim.name} is claiming Bingo`
+        : (current ? "Current word" : "Start Bingo, then call a word");
+      renderClaim();
+      if (room?.winner) {
+        const winnerKey = `${room.winner.playerId || ""}-${room.winner.claimedAt || ""}`;
+        winnerName.textContent = room.winner.name;
+        if (winnerKey !== dismissedWinnerKey) {
+          winnerModal.classList.add("is-visible");
+        }
+      } else {
+        winnerModal.classList.remove("is-visible");
+        dismissedWinnerKey = "";
+      }
+    }
+
+    function renderClaim() {
+      const claim = room?.pendingClaim;
+      if (!claim) {
+        activeClaimKey = "";
+        claimReviewOpen = false;
+        claimShowModal.classList.remove("is-visible");
+        claimShowModal.setAttribute("aria-hidden", "true");
+        claimModal.classList.remove("is-visible");
+        claimModal.setAttribute("aria-hidden", "true");
+        claimBoard.innerHTML = "";
+        return;
+      }
+      const claimKey = `${claim.playerId || ""}-${claim.claimedAt || ""}`;
+      if (claimKey !== activeClaimKey) {
+        activeClaimKey = claimKey;
+        claimReviewOpen = false;
+        closedClaimReviewKey = "";
+      }
+      const reviewVisible = claimReviewOpen && closedClaimReviewKey !== claimKey;
+      claimShowName.textContent = claim.name || "Player";
+      claimShowText.textContent = `${claim.name || "Someone"} called Bingo!`;
+      claimShowModal.classList.toggle("is-visible", !claimReviewOpen);
+      claimShowModal.setAttribute("aria-hidden", claimReviewOpen ? "true" : "false");
+      claimModal.classList.toggle("is-visible", reviewVisible);
+      claimModal.setAttribute("aria-hidden", reviewVisible ? "false" : "true");
+      claimName.textContent = claim.name || "Player";
+      claimStatus.textContent = claim.isValid
+        ? "This card has a valid Bingo."
+        : "This claim is not a valid Bingo yet. Continue the game.";
+      claimPlayAgainBtn.classList.toggle("hidden", !claim.isValid);
+      claimCloseBtn.classList.toggle("hidden", !claim.isValid);
+      continueBingoBtn.classList.toggle("hidden", !!claim.isValid);
+      const line = new Set(Array.isArray(claim.line) ? claim.line : []);
+      claimBoard.innerHTML = "";
+      (claim.card?.cells || []).forEach((cell, index) => {
+        const item = document.createElement("div");
+        item.className = "claim-cell";
+        item.textContent = cell.word || "";
+        if (cell.marked || cell.free) item.classList.add("is-marked");
+        if (line.has(index)) item.classList.add("is-line");
+        claimBoard.appendChild(item);
+      });
+    }
+
+    function escapeHtml(value) {
+      return String(value || "").replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      }[char]));
+    }
+
+    startBtn.addEventListener("click", async () => {
+      try {
+        await syncWordsNow();
+        const data = await api("/api/bingo/start", { code: room.code });
+        room = data.room;
+        stopAutoCallTimer();
+        await callNextWord();
+        scheduleAutoCall();
+      } catch (error) {
+        alert(error.message);
+      }
+    });
+
+    callBtn.addEventListener("click", async () => {
+      try {
+        stopAutoCallTimer();
+        await callNextWord();
+        scheduleAutoCall();
+      } catch (error) {
+        alert(error.message);
+      }
+    });
+
+    autoCallBtn.addEventListener("click", () => {
+      autoCallEnabled = !autoCallEnabled;
+      localStorage.setItem("bingo-auto-call", autoCallEnabled ? "1" : "0");
+      if (autoCallEnabled) {
+        scheduleAutoCall();
+      } else {
+        stopAutoCallTimer();
+      }
+      render();
+    });
+
+    autoCallSecondsInput.value = String(Math.round(autoCallIntervalMs / 1000));
+    autoCallSecondsInput.addEventListener("change", () => {
+      const seconds = clampAutoCallSeconds(autoCallSecondsInput.value);
+      autoCallSecondsInput.value = String(seconds);
+      localStorage.setItem("bingo-auto-call-seconds", String(seconds));
+      autoCallIntervalMs = seconds * 1000;
+      stopAutoCallTimer();
+      if (autoCallEnabled) {
+        scheduleAutoCall();
+      }
+      render();
+    });
+
+    listToggleBtn.addEventListener("click", () => {
+      listVisible = !listVisible;
+      localStorage.setItem("bingo-list-visible", listVisible ? "1" : "0");
+      render();
+    });
+
+    async function resolveClaim(valid) {
+      try {
+        const data = await api("/api/bingo/resolve-claim", { code: room.code, valid });
+        room = data.room;
+        render();
+        scheduleAutoCall();
+        return true;
+      } catch (error) {
+        alert(error.message);
+        return false;
+      }
+    }
+
+    continueBingoBtn.addEventListener("click", () => resolveClaim(false));
+    claimPlayAgainBtn.addEventListener("click", async () => {
+      const resolved = await resolveClaim(true);
+      if (resolved) {
+        await resetGame();
+      }
+    });
+    claimCloseBtn.addEventListener("click", async () => {
+      const resolved = await resolveClaim(true);
+      if (resolved && room?.winner) {
+        dismissedWinnerKey = `${room.winner.playerId || ""}-${room.winner.claimedAt || ""}`;
+      }
+      claimModal.classList.remove("is-visible");
+      claimModal.setAttribute("aria-hidden", "true");
+      winnerModal.classList.remove("is-visible");
+    });
+    checkClaimBtn.addEventListener("click", async () => {
+      try {
+        const data = await api("/api/bingo/review-claim", { code: room.code });
+        room = data.room;
+      } catch (error) {
+        alert(error.message);
+        return;
+      }
+      claimReviewOpen = true;
+      renderClaim();
+    });
+
+    clearWordsBtn.addEventListener("click", async () => {
+      const words = parseWords();
+      if (!words.length || room?.status === "live") return;
+      const confirmed = await openConfirm({
+        title: "Clear vocabulary?",
+        text: "This will remove every word from the Bingo vocabulary list. Connected players will stay in the room.",
+        confirmLabel: "Clear"
+      });
+      if (!confirmed) return;
+      wordInput.value = "";
+      editingWords = false;
+      await syncWordsNow();
+    });
+
+    async function resetGame() {
+      try {
+        stopAutoCallTimer();
+        const data = await api("/api/bingo/reset", { code: room.code });
+        room = data.room;
+        dismissedWinnerKey = "";
+        winnerModal.classList.remove("is-visible");
+        render();
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+
+    resetBtn.addEventListener("click", async () => {
+      const confirmed = await openConfirm({
+        title: "Reset Bingo?",
+        text: "Cards, called words, and the current winner will be cleared. The vocabulary list will stay.",
+        confirmLabel: "Reset"
+      });
+      if (!confirmed) return;
+      resetGame();
+    });
+
+    playAgainBtn.addEventListener("click", () => {
+      resetGame();
+    });
+
+    closeWinnerBtn.addEventListener("click", () => {
+      if (room?.winner) {
+        dismissedWinnerKey = `${room.winner.playerId || ""}-${room.winner.claimedAt || ""}`;
+      }
+      winnerModal.classList.remove("is-visible");
+    });
+
+    confirmCancelBtn.addEventListener("click", () => closeConfirm(false));
+    confirmAcceptBtn.addEventListener("click", () => closeConfirm(true));
+    confirmOverlay.addEventListener("click", (event) => {
+      if (event.target === confirmOverlay) {
+        closeConfirm(false);
+      }
+    });
+
+    wordInput.addEventListener("focus", () => { editingWords = true; });
+    wordInput.addEventListener("blur", () => {
+      editingWords = false;
+      syncWordsNow().catch(() => {});
+    });
+    wordInput.addEventListener("input", () => {
+      render();
+      scheduleSync();
+    });
+
+    ensureRoom().then(() => {
+      startAutoCallCountdown();
+      pollRoom();
+    });
+  </script>
+  <script src="./friendzy-panel.js"></script>
+</body>
+</html>
