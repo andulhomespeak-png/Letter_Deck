@@ -705,16 +705,93 @@ function shuffleValues(values) {
   return items;
 }
 
+const bingoNumberOnes = {
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+  eleven: 11,
+  twelve: 12,
+  thirteen: 13,
+  fourteen: 14,
+  fifteen: 15,
+  sixteen: 16,
+  seventeen: 17,
+  eighteen: 18,
+  nineteen: 19
+};
+
+const bingoNumberTens = {
+  twenty: 20,
+  thirty: 30,
+  forty: 40,
+  fifty: 50,
+  sixty: 60,
+  seventy: 70
+};
+
+function getClassicBingoNumberValue(word) {
+  const raw = String(word || "").trim();
+  const numeric = Number(raw);
+  if (Number.isInteger(numeric) && numeric >= 1 && numeric <= 75) return numeric;
+  const clean = raw.toLowerCase().replace(/-/g, " ").replace(/\s+/g, " ").trim();
+  if (bingoNumberOnes[clean]) return bingoNumberOnes[clean];
+  if (bingoNumberTens[clean]) return bingoNumberTens[clean];
+  const [ten, one] = clean.split(" ");
+  const value = (bingoNumberTens[ten] || 0) + (bingoNumberOnes[one] || 0);
+  return value >= 1 && value <= 75 ? value : 0;
+}
+
+function getBingoEntry(rawWord) {
+  const raw = String(rawWord || "").trim();
+  const arrowMatch = raw.match(/^(.+?)\s*(?:->|→)\s*(.+)$/);
+  if (arrowMatch) {
+    return {
+      raw,
+      call: arrowMatch[1].trim(),
+      display: arrowMatch[2].trim()
+    };
+  }
+  const value = getClassicBingoNumberValue(raw);
+  return {
+    raw,
+    call: raw,
+    display: value ? String(value) : raw
+  };
+}
+
 function makeBingoCard(words) {
-  const sortedWords = words.slice().sort((a, b) => String(a || "").localeCompare(String(b || "")));
   const columnTargets = [5, 5, 4, 5, 5];
-  const columnWords = columnTargets.map((target, column) => {
-    const start = Math.floor((sortedWords.length * column) / 5);
-    const end = Math.floor((sortedWords.length * (column + 1)) / 5);
-    return shuffleValues(sortedWords.slice(start, end))
-      .slice(0, target)
-      .sort((a, b) => String(a || "").localeCompare(String(b || "")));
-  });
+  const entries = words.map(getBingoEntry).filter((entry) => entry.raw && entry.call && entry.display);
+  const numericValues = entries.map((entry) => getClassicBingoNumberValue(entry.call));
+  const isClassicNumbers = entries.length >= 75
+    && numericValues.every((value) => Number.isInteger(value) && value >= 1 && value <= 75)
+    && new Set(numericValues).size >= 75;
+  const columnWords = isClassicNumbers
+    ? columnTargets.map((target, column) => {
+      const min = column * 15 + 1;
+      const max = min + 14;
+      return shuffleValues(entries.filter((entry) => {
+        const value = getClassicBingoNumberValue(entry.call);
+        return value >= min && value <= max;
+      }))
+        .slice(0, target)
+        .sort((a, b) => getClassicBingoNumberValue(a.call) - getClassicBingoNumberValue(b.call));
+    })
+    : columnTargets.map((target, column) => {
+      const sortedWords = entries.slice().sort((a, b) => a.display.localeCompare(b.display));
+      const start = Math.floor((sortedWords.length * column) / 5);
+      const end = Math.floor((sortedWords.length * (column + 1)) / 5);
+      return shuffleValues(sortedWords.slice(start, end))
+        .slice(0, target)
+        .sort((a, b) => a.display.localeCompare(b.display));
+    });
   const cells = Array.from({ length: 25 }, () => ({ word: "", marked: false, free: false }));
   for (let column = 0; column < 5; column += 1) {
     let wordIndex = 0;
@@ -723,12 +800,46 @@ function makeBingoCard(words) {
       if (cellIndex === 12) {
         cells[cellIndex] = { word: "FREE", marked: true, free: true };
       } else {
-        cells[cellIndex] = { word: columnWords[column][wordIndex] || "", marked: false, free: false };
+        const entry = columnWords[column][wordIndex] || { raw: "", display: "" };
+        cells[cellIndex] = {
+          word: entry.raw,
+          display: entry.display,
+          marked: false,
+          free: false
+        };
         wordIndex += 1;
       }
     }
   }
   return { size: 5, cells };
+}
+
+function getBingoCardSignature(card) {
+  return (card?.cells || [])
+    .map((cell) => String(cell?.word || "").trim().toLowerCase())
+    .join("|");
+}
+
+function getExistingBingoCardSignatures(room, excludePlayerId = "") {
+  const excludeId = String(excludePlayerId || "");
+  return new Set(Object.entries(room.cards || {})
+    .filter(([playerId]) => String(playerId) !== excludeId)
+    .map(([, card]) => getBingoCardSignature(card))
+    .filter(Boolean));
+}
+
+function makeUniqueBingoCard(room, playerId) {
+  const existing = getExistingBingoCardSignatures(room, playerId);
+  let fallbackCard = null;
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    const card = makeBingoCard(room.words || []);
+    fallbackCard = fallbackCard || card;
+    const signature = getBingoCardSignature(card);
+    if (!existing.has(signature)) {
+      return card;
+    }
+  }
+  return fallbackCard || makeBingoCard(room.words || []);
 }
 
 function getBingoLine(card, calledWords = []) {
@@ -783,7 +894,7 @@ function ensureBingoCard(room, playerId) {
     if ((room.words || []).length < 24) {
       return null;
     }
-    room.cards[id] = makeBingoCard(room.words);
+    room.cards[id] = makeUniqueBingoCard(room, id);
   }
   return room.cards[id];
 }
@@ -1590,11 +1701,12 @@ const server = http.createServer(async (req, res) => {
       const nextWords = normalizeBingoWords(words);
       const changed = (room.words || []).join("\n").toLowerCase() !== nextWords.join("\n").toLowerCase();
       room.words = nextWords;
-      if (changed && room.status === "setup") {
+      if (changed && !["live", "checking"].includes(room.status)) {
         room.cards = {};
         room.calledWords = [];
         room.pendingClaim = null;
         room.winner = null;
+        room.status = "setup";
       }
       touch(room);
       return json(res, 200, { room: serializeBingoRoom(room) });
@@ -1627,6 +1739,7 @@ const server = http.createServer(async (req, res) => {
       const room = getBingoRoom(code);
       if ((room.words || []).length < 24) throw new Error("Add at least 24 vocabulary words.");
       if (!(room.players || []).length) throw new Error("Add participants before starting Bingo.");
+      room.cards = {};
       room.players.forEach((player) => ensureBingoCard(room, player.id));
       room.status = "live";
       room.calledWords = [];

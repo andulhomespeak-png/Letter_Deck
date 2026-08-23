@@ -119,10 +119,11 @@
 
     .hud {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 8px;
+      gap: 4px;
       align-items: center;
-      padding: 8px 10px;
+      justify-content: center;
+      min-height: 72px;
+      padding: 8px 12px 9px;
       border-radius: 22px;
       background: rgba(255,255,255,0.82);
       border: 1px solid rgba(255,255,255,0.78);
@@ -139,18 +140,33 @@
     }
 
     .called {
-      padding: 8px 11px;
+      width: 100%;
+      padding: 7px 12px;
       border-radius: 999px;
-      background: #fff;
-      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.72);
+      border: 1px solid rgba(8,125,255,0.12);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.88);
+      font-size: clamp(1.2rem, 6vw, 2rem);
       font-weight: 1000;
-      color: var(--muted);
+      color: var(--ink);
+      text-align: center;
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .hud .message {
+      min-height: 0;
+      padding: 0 10px;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
     }
 
     .board-wrap {
       display: grid;
-      gap: 5px;
+      gap: 7px;
       padding: clamp(7px, 1.8vw, 12px);
       border-radius: 30px;
       background:
@@ -164,24 +180,60 @@
       display: grid;
       grid-template-columns: repeat(5, minmax(0, 1fr));
       gap: clamp(5px, 1.5vw, 9px);
-      padding: 0 clamp(5px, 1vw, 8px);
+      padding: clamp(5px, 1vw, 8px);
+      width: 100%;
+      min-height: clamp(54px, 12vw, 74px);
+      border: 2px solid rgba(255,255,255,0.92);
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--green), #039b52);
+      box-shadow:
+        inset 0 2px 0 rgba(255,255,255,0.36),
+        0 14px 32px rgba(25, 200, 117, 0.28),
+        0 5px 0 rgba(0,107,57,0.42);
+      cursor: pointer;
+      transition: transform 90ms ease, filter 120ms ease, opacity 120ms ease;
+    }
+
+    .bingo-letters:active {
+      transform: translateY(3px) scale(0.985);
+      box-shadow:
+        inset 0 2px 0 rgba(255,255,255,0.3),
+        0 8px 22px rgba(25, 200, 117, 0.24),
+        0 2px 0 rgba(0,107,57,0.42);
+    }
+
+    .bingo-letters:disabled {
+      cursor: not-allowed;
+      opacity: 0.62;
+      transform: none;
+      filter: grayscale(0.12);
     }
 
     .bingo-letters span {
       display: grid;
       place-items: center;
       min-height: clamp(28px, 7vw, 44px);
-      color: #ff2541;
-      font-family: "Cooper Black", "Franklin Gothic Heavy", "Arial Black", "Trebuchet MS", sans-serif;
+      color: #fff;
+      font-family: "Arial Black", "Franklin Gothic Heavy", "Trebuchet MS", sans-serif;
       font-size: clamp(1.5rem, 8vw, 3rem);
       line-height: 0.85;
       font-weight: 1000;
       text-transform: uppercase;
-      -webkit-text-stroke: clamp(0.6px, 0.18vw, 1.5px) #7a0014;
+      -webkit-text-stroke: clamp(0.8px, 0.2vw, 1.7px) #05366b;
       text-shadow:
-        0 2px 0 #fff,
-        0 5px 0 rgba(255, 138, 0, 0.45),
-        0 9px 14px rgba(122,0,20,0.2);
+        0 2px 0 #087dff,
+        0 5px 0 rgba(255, 210, 61, 0.65),
+        0 9px 14px rgba(0,107,57,0.25);
+    }
+
+    .bingo-letters span:first-child {
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      font-weight: 1000;
+      -webkit-text-stroke: clamp(0.8px, 0.2vw, 1.7px) #05366b;
+      text-shadow:
+        0 2px 0 #087dff,
+        0 5px 0 rgba(255, 210, 61, 0.65),
+        0 9px 14px rgba(0,107,57,0.25);
     }
 
     .bingo-card {
@@ -198,26 +250,29 @@
     .cell {
       aspect-ratio: 1;
       min-height: 0;
-      border: 1px solid rgba(8,125,255,0.18);
+      border: 2px solid rgba(8,125,255,0.32);
       border-radius: clamp(10px, 2.6vw, 18px);
       padding: 5px;
       display: grid;
       place-items: center;
       text-align: center;
-      font-size: clamp(0.66rem, 2.9vw, 1rem);
-      line-height: 1.02;
+      font-size: clamp(0.74rem, 3.2vw, 1.16rem);
+      line-height: 0.92;
       font-weight: 1000;
       color: var(--ink);
       background: linear-gradient(135deg, #fff, rgba(232,242,255,0.96));
       box-shadow: 0 8px 18px rgba(16,11,47,0.08);
-      overflow-wrap: anywhere;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: clip;
+      word-break: keep-all;
     }
 
     .cell.is-marked {
       color: #fff;
-      background: linear-gradient(135deg, var(--green), #039b52);
+      background: linear-gradient(135deg, var(--blue), #005be8);
       border-color: transparent;
-      box-shadow: 0 12px 22px rgba(25,200,117,0.24);
+      box-shadow: 0 12px 22px rgba(8,125,255,0.24);
     }
 
     .cell.bingo-line {
@@ -327,18 +382,14 @@
 
     <section class="game">
       <div class="hud">
-        <div class="player-name" id="playerName">Player</div>
         <div class="called" id="calledLabel">Waiting</div>
+        <div class="message game-info" id="gameMessage">Mark words as they are called.</div>
       </div>
+      <button type="button" class="bingo-letters" id="bingoBtn" aria-label="Call Bingo">
+        <span>B</span><span>I</span><span>N</span><span>G</span><span>O</span>
+      </button>
       <div class="board-wrap">
-        <div class="bingo-letters" aria-hidden="true">
-          <span>B</span><span>I</span><span>N</span><span>G</span><span>O</span>
-        </div>
         <div class="bingo-card" id="cardGrid"></div>
-      </div>
-      <div class="footer">
-        <button type="button" id="bingoBtn">Bingo</button>
-        <div class="message" id="gameMessage">Mark words as they are called.</div>
       </div>
     </section>
   </main>
@@ -354,7 +405,6 @@
     const nameInput = document.getElementById("nameInput");
     const joinBtn = document.getElementById("joinBtn");
     const joinMessage = document.getElementById("joinMessage");
-    const playerName = document.getElementById("playerName");
     const calledLabel = document.getElementById("calledLabel");
     const cardGrid = document.getElementById("cardGrid");
     const bingoBtn = document.getElementById("bingoBtn");
@@ -386,7 +436,7 @@
 
     function setGameMessage(text, tone = "") {
       gameMessage.textContent = text;
-      gameMessage.className = `message ${tone}`.trim();
+      gameMessage.className = `message game-info ${tone}`.trim();
     }
 
     async function join() {
@@ -408,7 +458,6 @@
         localStorage.setItem(playerKey, String(player.id));
         localStorage.setItem(nameKey, player.name);
         document.body.classList.add("is-playing");
-        playerName.textContent = player.name;
         render();
         startPolling();
       } catch (error) {
@@ -471,9 +520,38 @@
       return [];
     }
 
+    function getCardWordFontSize(word) {
+      const length = String(word || "").trim().length;
+      if (/^\d{1,2}$/.test(String(word || "").trim())) return "clamp(1.85rem, 11vw, 3.35rem)";
+      if (length <= 4) return "clamp(1rem, 4.9vw, 1.55rem)";
+      if (length <= 6) return "clamp(0.86rem, 3.9vw, 1.25rem)";
+      if (length <= 8) return "clamp(0.72rem, 3.15vw, 1rem)";
+      if (length <= 10) return "clamp(0.62rem, 2.55vw, 0.84rem)";
+      return "clamp(0.52rem, 2.1vw, 0.7rem)";
+    }
+
+    function getBingoNumberDisplay(word) {
+      const ones = {
+        one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9,
+        ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15,
+        sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19
+      };
+      const tens = { twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70 };
+      const clean = String(word || "").trim().toLowerCase().replace(/-/g, " ").replace(/\s+/g, " ");
+      if (ones[clean]) return String(ones[clean]);
+      if (tens[clean]) return String(tens[clean]);
+      const [ten, one] = clean.split(" ");
+      const value = (tens[ten] || 0) + (ones[one] || 0);
+      return value >= 1 && value <= 75 ? String(value) : "";
+    }
+
+    function getBingoCallText(word) {
+      return String(word || "").split(/\s*(?:->|→)\s*/)[0].trim();
+    }
+
     function render() {
       const current = room?.calledWords?.[0] || "";
-      calledLabel.textContent = current ? `Called: ${current}` : room?.status === "live" ? "Listen" : "Waiting";
+      calledLabel.textContent = current ? getBingoCallText(current).toUpperCase() : (room?.status === "live" ? "Listen" : "Waiting");
       cardGrid.innerHTML = "";
       const card = room?.card;
       if (!card) {
@@ -495,7 +573,9 @@
         const button = document.createElement("button");
         button.type = "button";
         button.className = "cell";
-        button.textContent = cell.word;
+        const displayWord = cell.display || getBingoNumberDisplay(cell.word) || cell.word;
+        button.textContent = displayWord;
+        button.style.fontSize = getCardWordFontSize(displayWord);
         if (cell.free) button.classList.add("free");
         if (cell.marked) button.classList.add("is-marked");
         if (winningLine.has(index)) button.classList.add("bingo-line");
@@ -509,7 +589,7 @@
         const isClaimant = String(room.pendingClaim.playerId || "") === String(player?.id || "");
         setGameMessage(isClaimant ? "You called Bingo. Wait for verification." : "Somebody called Bingo. Wait for verification.", "");
       } else if (room.status === "live") {
-        setGameMessage(current ? `Called: "${current}". Find it and mark it if you have it.` : "Listen, search, and mark your card.", "");
+        setGameMessage(current ? "Find it and mark it if you have it." : "Listen, search, and mark your card.", "");
       } else {
         setGameMessage("Wait for the teacher to start.", "");
       }

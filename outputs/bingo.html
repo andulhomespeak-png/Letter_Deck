@@ -62,7 +62,7 @@
 
     .topbar {
       display: grid;
-      grid-template-columns: minmax(180px, 1fr) auto;
+      grid-template-columns: minmax(0, 1fr) minmax(260px, 360px);
       align-items: center;
       gap: 10px;
     }
@@ -70,27 +70,57 @@
     .brand {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 8px;
+      flex-wrap: wrap;
       min-width: 0;
     }
 
-    .status-pill {
-      width: max-content;
-      padding: 9px 13px;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.9);
-      border: 1px solid var(--line);
+    .numbers-preset {
+      min-width: 104px;
+      min-height: 52px;
+      display: grid;
+      place-items: center;
+      gap: 0;
+      padding: 7px 16px 8px;
+      border-radius: 18px;
+      background:
+        radial-gradient(circle at 18% 16%, rgba(255,255,255,0.9), transparent 28%),
+        linear-gradient(135deg, #fff, #eaf4ff);
+      border: 1px solid rgba(8,125,255,0.18);
       font-weight: 1000;
-      color: var(--muted);
+      color: var(--ink);
       white-space: nowrap;
+      box-shadow: 0 12px 26px rgba(8,125,255,0.14);
+    }
+
+    .numbers-preset span:first-child {
+      font-size: 0.72rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--blue);
+      line-height: 1;
+    }
+
+    .numbers-preset span:last-child {
+      font-size: 1rem;
+      line-height: 1.05;
     }
 
     .actions {
-      display: flex;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(58px, 1fr));
       justify-content: end;
       align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
+      gap: 6px;
+      justify-self: end;
+      width: min(360px, 100%);
+    }
+
+    .actions button {
+      min-height: 34px;
+      padding: 0 9px;
+      font-size: 0.82rem;
+      box-shadow: 0 8px 18px rgba(16, 11, 47, 0.1);
     }
 
     button {
@@ -129,31 +159,32 @@
     }
 
     .auto-interval {
-      min-height: 44px;
-      padding: 0 10px;
+      min-height: 34px;
+      padding: 0 7px;
       border-radius: 999px;
       display: flex;
       align-items: center;
-      gap: 5px;
+      justify-content: center;
+      gap: 3px;
       color: var(--muted);
       background: rgba(255,255,255,0.86);
       border: 1px solid var(--line);
       box-shadow: 0 12px 26px rgba(16, 11, 47, 0.08);
-      font-size: 0.78rem;
+      font-size: 0.68rem;
       font-weight: 1000;
       white-space: nowrap;
     }
 
     .auto-interval input {
-      width: 46px;
-      min-height: 28px;
+      width: 38px;
+      min-height: 24px;
       border: 1px solid rgba(8,125,255,0.2);
       border-radius: 999px;
       padding: 0 6px;
       color: var(--ink);
       background: #fff;
       font: inherit;
-      font-size: 0.9rem;
+      font-size: 0.78rem;
       text-align: center;
       outline: 0;
     }
@@ -280,23 +311,31 @@
       display: grid;
       place-items: center;
       border-radius: 30px;
-      border: 2px dashed rgba(8,125,255,0.28);
+      border: 2px dashed rgba(8,125,255,0.38);
       background:
-        radial-gradient(circle at 50% 42%, rgba(255,210,61,0.42), transparent 30%),
-        linear-gradient(135deg, rgba(8,125,255,0.08), rgba(255,138,0,0.1));
+        radial-gradient(circle at 50% 42%, rgba(255,210,61,0.62), transparent 34%),
+        linear-gradient(135deg, rgba(8,125,255,0.15), rgba(255,138,0,0.15));
       text-align: center;
       padding: clamp(14px, 2vw, 28px);
     }
 
     .called-word {
+      display: inline-block;
+      padding: 0.05em 0.18em 0.09em;
+      border-radius: 0.22em;
+      background: rgba(7, 20, 60, 0.1);
       font-size: clamp(3rem, 8vw, 7.8rem);
       line-height: 0.95;
       font-weight: 1000;
       color: #fff;
       text-transform: uppercase;
       letter-spacing: -0.05em;
-      -webkit-text-stroke: clamp(1px, 0.22vw, 3px) #071b63;
-      text-shadow: 0 5px 0 var(--blue), 0 12px 0 var(--orange), 0 24px 34px rgba(7,20,60,0.28);
+      -webkit-text-stroke: clamp(1.4px, 0.3vw, 4px) #061142;
+      text-shadow:
+        0 5px 0 #087dff,
+        0 12px 0 #ff8a00,
+        0 0 22px rgba(255,255,255,0.92),
+        0 26px 36px rgba(7,20,60,0.46);
     }
 
     .stage.is-list-visible .called-word {
@@ -304,11 +343,7 @@
     }
 
     .called-sub {
-      margin-top: 14px;
-      font-weight: 1000;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
+      display: none;
     }
 
     .history {
@@ -527,10 +562,13 @@
       color: var(--ink);
       background: linear-gradient(135deg, #fff, rgba(232,242,255,0.96));
       border: 1px solid rgba(8,125,255,0.16);
-      font-size: clamp(0.74rem, 1.55vw, 1.08rem);
-      line-height: 1.02;
+      font-size: clamp(0.76rem, 1.55vw, 1.08rem);
+      line-height: 0.92;
       font-weight: 1000;
-      overflow-wrap: anywhere;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: clip;
+      word-break: keep-all;
       box-shadow: 0 8px 18px rgba(16,11,47,0.08);
     }
 
@@ -712,7 +750,26 @@
     <section class="main">
       <header class="topbar">
         <div class="brand">
-          <span class="status-pill" id="statusPill">Setup</span>
+          <button type="button" class="numbers-preset" id="numbersBtn">
+            <span>Bingo</span>
+            <span>Numbers</span>
+          </button>
+          <button type="button" class="numbers-preset" id="pastSimpleBtn">
+            <span>Past</span>
+            <span>Simple</span>
+          </button>
+          <button type="button" class="numbers-preset" id="pastParticipleBtn">
+            <span>Past</span>
+            <span>Participle</span>
+          </button>
+          <button type="button" class="numbers-preset" id="presentPastBtn">
+            <span>Present</span>
+            <span>Past</span>
+          </button>
+          <button type="button" class="numbers-preset" id="presentParticipleBtn">
+            <span>Present</span>
+            <span>Participle</span>
+          </button>
         </div>
         <div class="actions">
           <button type="button" id="listToggleBtn">Hide List</button>
@@ -741,7 +798,7 @@
           <div class="called-card">
             <div>
               <div class="called-word" id="calledWord">Ready</div>
-              <div class="called-sub" id="calledSub">Start Bingo, then call a word</div>
+              <div class="called-sub" id="calledSub"></div>
             </div>
           </div>
           <div class="history" id="history"></div>
@@ -813,7 +870,11 @@
     const wordCount = document.getElementById("wordCount");
     const playerCount = document.getElementById("playerCount");
     const players = document.getElementById("players");
-    const statusPill = document.getElementById("statusPill");
+    const numbersBtn = document.getElementById("numbersBtn");
+    const pastSimpleBtn = document.getElementById("pastSimpleBtn");
+    const pastParticipleBtn = document.getElementById("pastParticipleBtn");
+    const presentPastBtn = document.getElementById("presentPastBtn");
+    const presentParticipleBtn = document.getElementById("presentParticipleBtn");
     const calledWord = document.getElementById("calledWord");
     const calledSub = document.getElementById("calledSub");
     const history = document.getElementById("history");
@@ -867,6 +928,78 @@
       "question", "river", "sunset", "teacher", "umbrella", "village", "window", "yellow"
     ];
 
+    const pastSimpleWords = [
+      "was / were", "became", "began", "bent", "bet", "bit", "blew", "broke", "brought", "built",
+      "bought", "caught", "chose", "came", "cost", "cut", "dealt", "did", "drew", "drank",
+      "drove", "ate", "fell", "fed", "felt", "fought", "found", "flew", "forgot", "forgave",
+      "froze", "got", "gave", "went", "grew", "hung", "had", "heard", "hid", "hit",
+      "held", "hurt", "kept", "knew", "led", "left", "lent", "let", "lay", "lost",
+      "made", "meant", "met", "paid", "put", "read", "rode", "rang", "rose", "ran",
+      "said", "saw", "sold", "sent", "shook", "shot", "showed", "shut", "sang", "sank",
+      "sat", "slept", "spoke", "spent", "stood", "stole", "stuck", "swam", "took", "taught",
+      "tore", "told", "thought", "threw", "understood", "woke", "wore", "won", "wrote", "beat",
+      "became", "bred", "burst", "dug", "fled", "ground", "lit", "sought", "slid", "struck"
+    ];
+
+    const pastParticipleWords = [
+      "been", "become", "begun", "bent", "bet", "bitten", "blown", "broken", "brought", "built",
+      "bought", "caught", "chosen", "come", "cost", "cut", "dealt", "done", "drawn", "drunk",
+      "driven", "eaten", "fallen", "fed", "felt", "fought", "found", "flown", "forgotten", "forgiven",
+      "frozen", "gotten", "given", "gone", "grown", "hung", "had", "heard", "hidden", "hit",
+      "held", "hurt", "kept", "known", "led", "left", "lent", "let", "lain", "lost",
+      "made", "meant", "met", "paid", "put", "read", "ridden", "rung", "risen", "run",
+      "said", "seen", "sold", "sent", "shaken", "shot", "shown", "shut", "sung", "sunk",
+      "sat", "slept", "spoken", "spent", "stood", "stolen", "stuck", "swum", "taken", "taught",
+      "torn", "told", "thought", "thrown", "understood", "woken", "worn", "won", "written", "beaten",
+      "become", "bred", "burst", "dug", "fled", "ground", "lit", "sought", "slid", "struck"
+    ];
+
+    const presentPastPairs = [
+      "be -> was / were", "become -> became", "begin -> began", "bend -> bent", "bet -> bet",
+      "bite -> bit", "blow -> blew", "break -> broke", "bring -> brought", "build -> built",
+      "buy -> bought", "catch -> caught", "choose -> chose", "come -> came", "cost -> cost",
+      "cut -> cut", "deal -> dealt", "do -> did", "draw -> drew", "drink -> drank",
+      "drive -> drove", "eat -> ate", "fall -> fell", "feed -> fed", "feel -> felt",
+      "fight -> fought", "find -> found", "fly -> flew", "forget -> forgot", "forgive -> forgave",
+      "freeze -> froze", "get -> got", "give -> gave", "go -> went", "grow -> grew",
+      "hang -> hung", "have -> had", "hear -> heard", "hide -> hid", "hit -> hit",
+      "hold -> held", "hurt -> hurt", "keep -> kept", "know -> knew", "lead -> led",
+      "leave -> left", "lend -> lent", "let -> let", "lie -> lay", "lose -> lost",
+      "make -> made", "mean -> meant", "meet -> met", "pay -> paid", "put -> put",
+      "read -> read", "ride -> rode", "ring -> rang", "rise -> rose", "run -> ran",
+      "say -> said", "see -> saw", "sell -> sold", "send -> sent", "shake -> shook",
+      "shoot -> shot", "show -> showed", "shut -> shut", "sing -> sang", "sink -> sank",
+      "sit -> sat", "sleep -> slept", "speak -> spoke", "spend -> spent", "stand -> stood",
+      "steal -> stole", "stick -> stuck", "swim -> swam", "take -> took", "teach -> taught",
+      "tear -> tore", "tell -> told", "think -> thought", "throw -> threw", "understand -> understood",
+      "wake -> woke", "wear -> wore", "win -> won", "write -> wrote", "beat -> beat",
+      "breed -> bred", "burst -> burst", "dig -> dug", "flee -> fled", "grind -> ground",
+      "light -> lit", "seek -> sought", "slide -> slid", "strike -> struck"
+    ];
+
+    const presentParticiplePairs = [
+      "be -> been", "become -> become", "begin -> begun", "bend -> bent", "bet -> bet",
+      "bite -> bitten", "blow -> blown", "break -> broken", "bring -> brought", "build -> built",
+      "buy -> bought", "catch -> caught", "choose -> chosen", "come -> come", "cost -> cost",
+      "cut -> cut", "deal -> dealt", "do -> done", "draw -> drawn", "drink -> drunk",
+      "drive -> driven", "eat -> eaten", "fall -> fallen", "feed -> fed", "feel -> felt",
+      "fight -> fought", "find -> found", "fly -> flown", "forget -> forgotten", "forgive -> forgiven",
+      "freeze -> frozen", "get -> gotten", "give -> given", "go -> gone", "grow -> grown",
+      "hang -> hung", "have -> had", "hear -> heard", "hide -> hidden", "hit -> hit",
+      "hold -> held", "hurt -> hurt", "keep -> kept", "know -> known", "lead -> led",
+      "leave -> left", "lend -> lent", "let -> let", "lie -> lain", "lose -> lost",
+      "make -> made", "mean -> meant", "meet -> met", "pay -> paid", "put -> put",
+      "read -> read", "ride -> ridden", "ring -> rung", "rise -> risen", "run -> run",
+      "say -> said", "see -> seen", "sell -> sold", "send -> sent", "shake -> shaken",
+      "shoot -> shot", "show -> shown", "shut -> shut", "sing -> sung", "sink -> sunk",
+      "sit -> sat", "sleep -> slept", "speak -> spoken", "spend -> spent", "stand -> stood",
+      "steal -> stolen", "stick -> stuck", "swim -> swum", "take -> taken", "teach -> taught",
+      "tear -> torn", "tell -> told", "think -> thought", "throw -> thrown", "understand -> understood",
+      "wake -> woken", "wear -> worn", "win -> won", "write -> written", "beat -> beaten",
+      "breed -> bred", "burst -> burst", "dig -> dug", "flee -> fled", "grind -> ground",
+      "light -> lit", "seek -> sought", "slide -> slid", "strike -> struck"
+    ];
+
     function parseWords() {
       return wordInput.value.split(/\r?\n/).map((word) => word.trim()).filter(Boolean);
     }
@@ -877,6 +1010,54 @@
 
     function getStoredAutoCallSeconds() {
       return clampAutoCallSeconds(localStorage.getItem("bingo-auto-call-seconds") || 8);
+    }
+
+    function getAudioContext() {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return null;
+      if (!window.friendzyBingoAudio) {
+        window.friendzyBingoAudio = new AudioContextClass();
+      }
+      return window.friendzyBingoAudio;
+    }
+
+    function unlockBingoAudio() {
+      const context = getAudioContext();
+      if (context?.state === "suspended") {
+        context.resume().catch(() => {});
+      }
+    }
+
+    function playWordCallSound() {
+      const context = getAudioContext();
+      if (!context) return;
+      if (context.state === "suspended") {
+        context.resume().catch(() => {});
+      }
+      const now = context.currentTime;
+      const master = context.createGain();
+      master.gain.setValueAtTime(0.0001, now);
+      master.gain.exponentialRampToValueAtTime(0.22, now + 0.025);
+      master.gain.exponentialRampToValueAtTime(0.0001, now + 0.72);
+      master.connect(context.destination);
+
+      [
+        { frequency: 659.25, start: 0, duration: 0.18 },
+        { frequency: 880, start: 0.16, duration: 0.2 },
+        { frequency: 1318.51, start: 0.34, duration: 0.22 }
+      ].forEach((note) => {
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.type = "triangle";
+        oscillator.frequency.setValueAtTime(note.frequency, now + note.start);
+        gain.gain.setValueAtTime(0.0001, now + note.start);
+        gain.gain.exponentialRampToValueAtTime(0.75, now + note.start + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + note.start + note.duration);
+        oscillator.connect(gain);
+        gain.connect(master);
+        oscillator.start(now + note.start);
+        oscillator.stop(now + note.start + note.duration + 0.04);
+      });
     }
 
     async function api(path, payload = null, method = "POST") {
@@ -966,6 +1147,23 @@
       return (room?.words || []).filter((word) => !called.has(String(word || "").trim().toLowerCase()));
     }
 
+    function numberToWords(number) {
+      const ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+      const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy"];
+      if (number < 20) return ones[number];
+      const ten = Math.floor(number / 10);
+      const one = number % 10;
+      return one ? `${tens[ten]} ${ones[one]}` : tens[ten];
+    }
+
+    function getClassicBingoNumbers() {
+      return Array.from({ length: 75 }, (_, index) => numberToWords(index + 1));
+    }
+
+    function getBingoCallText(word) {
+      return String(word || "").split(/\s*(?:->|→)\s*/)[0].trim();
+    }
+
     async function callNextWord() {
       if (!room || room.status !== "live") return false;
       if (!getRemainingWords().length) {
@@ -976,6 +1174,7 @@
       }
       const data = await api("/api/bingo/call", { code: room.code });
       room = data.room;
+      playWordCallSound();
       render();
       return true;
     }
@@ -1057,7 +1256,11 @@
       wordCount.textContent = `(${words.length})`;
       clearWordsBtn.disabled = !words.length || room?.status === "live";
       playerCount.textContent = `(${(room?.players || []).length})`;
-      statusPill.textContent = room?.status === "checking" ? "Checking" : room?.status === "live" ? "Live" : room?.status === "finished" ? "Finished" : "Setup";
+      numbersBtn.disabled = !!room && ["live", "checking"].includes(room.status);
+      pastSimpleBtn.disabled = !!room && ["live", "checking"].includes(room.status);
+      pastParticipleBtn.disabled = !!room && ["live", "checking"].includes(room.status);
+      presentPastBtn.disabled = !!room && ["live", "checking"].includes(room.status);
+      presentParticipleBtn.disabled = !!room && ["live", "checking"].includes(room.status);
       startBtn.disabled = !room || words.length < 24 || !(room.players || []).length || ["live", "checking"].includes(room.status);
       callBtn.disabled = !room || room.status !== "live";
       const remainingWords = getRemainingWords();
@@ -1082,14 +1285,12 @@
       (room?.calledWords || []).forEach((word) => {
         const chip = document.createElement("span");
         chip.className = "chip";
-        chip.textContent = word;
+        chip.textContent = getBingoCallText(word);
         history.appendChild(chip);
       });
       const current = room?.calledWords?.[0];
-      calledWord.textContent = room?.status === "checking" ? "Bingo?" : (current || (room?.status === "live" ? "Call" : "Ready"));
-      calledSub.textContent = room?.status === "checking" && room.pendingClaim
-        ? `${room.pendingClaim.name} is claiming Bingo`
-        : (current ? "Current word" : "Start Bingo, then call a word");
+      calledWord.textContent = room?.status === "checking" ? "Bingo?" : (current ? getBingoCallText(current) : (room?.status === "live" ? "Call" : "Ready"));
+      calledSub.textContent = "";
       renderClaim();
       if (room?.winner) {
         const winnerKey = `${room.winner.playerId || ""}-${room.winner.claimedAt || ""}`;
@@ -1101,6 +1302,16 @@
         winnerModal.classList.remove("is-visible");
         dismissedWinnerKey = "";
       }
+    }
+
+    function getClaimWordFontSize(word) {
+      const length = String(word || "").trim().length;
+      if (/^\d{1,2}$/.test(String(word || "").trim())) return "clamp(1.7rem, 4.2vw, 3.25rem)";
+      if (length <= 4) return "clamp(1rem, 2.15vw, 1.45rem)";
+      if (length <= 6) return "clamp(0.88rem, 1.75vw, 1.18rem)";
+      if (length <= 8) return "clamp(0.76rem, 1.42vw, 0.98rem)";
+      if (length <= 10) return "clamp(0.64rem, 1.16vw, 0.82rem)";
+      return "clamp(0.52rem, 0.96vw, 0.68rem)";
     }
 
     function renderClaim() {
@@ -1140,7 +1351,9 @@
       (claim.card?.cells || []).forEach((cell, index) => {
         const item = document.createElement("div");
         item.className = "claim-cell";
-        item.textContent = cell.word || "";
+        const displayWord = cell.display || cell.word || "";
+        item.textContent = displayWord;
+        item.style.fontSize = getClaimWordFontSize(displayWord);
         if (cell.marked || cell.free) item.classList.add("is-marked");
         if (line.has(index)) item.classList.add("is-line");
         claimBoard.appendChild(item);
@@ -1157,8 +1370,12 @@
       }[char]));
     }
 
+    window.addEventListener("pointerdown", unlockBingoAudio, { once: true });
+    window.addEventListener("keydown", unlockBingoAudio, { once: true });
+
     startBtn.addEventListener("click", async () => {
       try {
+        unlockBingoAudio();
         await syncWordsNow();
         const data = await api("/api/bingo/start", { code: room.code });
         room = data.room;
@@ -1172,6 +1389,7 @@
 
     callBtn.addEventListener("click", async () => {
       try {
+        unlockBingoAudio();
         stopAutoCallTimer();
         await callNextWord();
         scheduleAutoCall();
@@ -1208,6 +1426,86 @@
       listVisible = !listVisible;
       localStorage.setItem("bingo-list-visible", listVisible ? "1" : "0");
       render();
+    });
+
+    numbersBtn.addEventListener("click", async () => {
+      if (room && ["live", "checking"].includes(room.status)) return;
+      const words = parseWords();
+      if (words.length) {
+        const confirmed = await openConfirm({
+          title: "Use classic Bingo numbers?",
+          text: "This will replace the current vocabulary list with numbers 1 through 75. Connected players will stay in the room.",
+          confirmLabel: "Use Numbers"
+        });
+        if (!confirmed) return;
+      }
+      wordInput.value = getClassicBingoNumbers().join("\n");
+      editingWords = false;
+      await syncWordsNow();
+    });
+
+    pastSimpleBtn.addEventListener("click", async () => {
+      if (room && ["live", "checking"].includes(room.status)) return;
+      const words = parseWords();
+      if (words.length) {
+        const confirmed = await openConfirm({
+          title: "Use Past Simple verbs?",
+          text: "This will replace the current Bingo list with past simple verbs. Connected players will stay in the room.",
+          confirmLabel: "Use Verbs"
+        });
+        if (!confirmed) return;
+      }
+      wordInput.value = pastSimpleWords.join("\n");
+      editingWords = false;
+      await syncWordsNow();
+    });
+
+    pastParticipleBtn.addEventListener("click", async () => {
+      if (room && ["live", "checking"].includes(room.status)) return;
+      const words = parseWords();
+      if (words.length) {
+        const confirmed = await openConfirm({
+          title: "Use Past Participle verbs?",
+          text: "This will replace the current Bingo list with past participle verbs. Connected players will stay in the room.",
+          confirmLabel: "Use Verbs"
+        });
+        if (!confirmed) return;
+      }
+      wordInput.value = pastParticipleWords.join("\n");
+      editingWords = false;
+      await syncWordsNow();
+    });
+
+    presentPastBtn.addEventListener("click", async () => {
+      if (room && ["live", "checking"].includes(room.status)) return;
+      const words = parseWords();
+      if (words.length) {
+        const confirmed = await openConfirm({
+          title: "Use Present to Past verbs?",
+          text: "This will replace the current Bingo list. The call will show the present verb, while cards show the past simple form.",
+          confirmLabel: "Use Verbs"
+        });
+        if (!confirmed) return;
+      }
+      wordInput.value = presentPastPairs.join("\n");
+      editingWords = false;
+      await syncWordsNow();
+    });
+
+    presentParticipleBtn.addEventListener("click", async () => {
+      if (room && ["live", "checking"].includes(room.status)) return;
+      const words = parseWords();
+      if (words.length) {
+        const confirmed = await openConfirm({
+          title: "Use Present to Participle verbs?",
+          text: "This will replace the current Bingo list. The call will show the present verb, while cards show the past participle form.",
+          confirmLabel: "Use Verbs"
+        });
+        if (!confirmed) return;
+      }
+      wordInput.value = presentParticiplePairs.join("\n");
+      editingWords = false;
+      await syncWordsNow();
     });
 
     async function resolveClaim(valid) {
