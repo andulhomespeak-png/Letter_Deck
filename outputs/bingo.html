@@ -62,7 +62,7 @@
       display: grid;
       grid-template-rows: auto minmax(0, 1fr);
       gap: clamp(10px, 1.5vw, 16px);
-      overflow: hidden;
+      overflow: visible;
     }
 
     .topbar {
@@ -70,6 +70,8 @@
       grid-template-columns: minmax(0, 1fr) minmax(260px, 360px);
       align-items: center;
       gap: 10px;
+      position: relative;
+      z-index: 20;
     }
 
     .brand {
@@ -111,6 +113,20 @@
       line-height: 1.05;
     }
 
+    .numbers-preset.is-selected {
+      color: #fff;
+      background:
+        radial-gradient(circle at 18% 16%, rgba(255,255,255,0.26), transparent 30%),
+        linear-gradient(135deg, #075ec8, #1740b8);
+      border-color: rgba(7, 94, 200, 0.68);
+      box-shadow: 0 14px 30px rgba(7, 94, 200, 0.24);
+    }
+
+    .numbers-preset.is-selected span:first-child,
+    .numbers-preset.is-selected span:last-child {
+      color: #fff;
+    }
+
     .actions {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -146,7 +162,82 @@
 
     button:hover { transform: translateY(-2px); }
     button:active { transform: translateY(1px); }
-    button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+    button:disabled {
+      cursor: not-allowed;
+      transform: none;
+      color: rgba(16, 11, 47, 0.48);
+      background: rgba(255,255,255,0.62);
+      border-color: rgba(16, 11, 47, 0.12);
+      box-shadow: none;
+      filter: saturate(0.72);
+    }
+
+    /* Bingo button hints: remove this block and data-tip attributes to undo. */
+    [data-tip] {
+      position: relative;
+      z-index: 1;
+    }
+
+    [data-tip]:hover,
+    [data-tip]:focus-visible,
+    [data-tip]:focus-within {
+      z-index: 9200;
+    }
+
+    [data-tip]::before,
+    [data-tip]::after {
+      position: absolute;
+      left: 50%;
+      z-index: 9201;
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, 6px);
+      transition: opacity 130ms ease, transform 130ms ease;
+    }
+
+    [data-tip]::before {
+      content: "";
+      top: calc(100% + 6px);
+      width: 12px;
+      height: 12px;
+      background: rgba(255,255,255,0.98);
+      border-left: 1.5px dashed rgba(8, 125, 255, 0.7);
+      border-top: 1.5px dashed rgba(8, 125, 255, 0.7);
+      transform: translate(-50%, 6px) rotate(45deg);
+    }
+
+    [data-tip]::after {
+      content: attr(data-tip);
+      top: calc(100% + 12px);
+      width: max-content;
+      max-width: 190px;
+      padding: 8px 10px;
+      border-radius: 16px;
+      color: var(--ink);
+      background: rgba(255,255,255,0.98);
+      border: 1.5px dashed rgba(8, 125, 255, 0.7);
+      box-shadow: 0 14px 30px rgba(16, 11, 47, 0.16);
+      font-size: 0.72rem;
+      line-height: 1.18;
+      text-align: center;
+      white-space: normal;
+    }
+
+    [data-tip]:hover::before,
+    [data-tip]:hover::after,
+    [data-tip]:focus-visible::before,
+    [data-tip]:focus-visible::after,
+    [data-tip]:focus-within::before,
+    [data-tip]:focus-within::after {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    [data-tip]:hover::before,
+    [data-tip]:focus-visible::before,
+    [data-tip]:focus-within::before {
+      transform: translate(-50%, 0) rotate(45deg);
+    }
 
     .primary {
       color: #fff;
@@ -812,37 +903,37 @@
     <section class="main">
       <header class="topbar">
         <div class="brand">
-          <button type="button" class="numbers-preset" id="numbersBtn">
+          <button type="button" class="numbers-preset" id="numbersBtn" data-tip="Use classic numbers 1-75.">
             <span>Bingo</span>
             <span>Numbers</span>
           </button>
-          <button type="button" class="numbers-preset" id="pastSimpleBtn">
+          <button type="button" class="numbers-preset" id="pastSimpleBtn" data-tip="Use past simple verbs.">
             <span>Past</span>
             <span>Simple</span>
           </button>
-          <button type="button" class="numbers-preset" id="pastParticipleBtn">
+          <button type="button" class="numbers-preset" id="pastParticipleBtn" data-tip="Use past participle verbs.">
             <span>Past</span>
             <span>Participle</span>
           </button>
-          <button type="button" class="numbers-preset" id="presentPastBtn">
+          <button type="button" class="numbers-preset" id="presentPastBtn" data-tip="Call present, mark past simple.">
             <span>Present</span>
             <span>Past</span>
           </button>
-          <button type="button" class="numbers-preset" id="presentParticipleBtn">
+          <button type="button" class="numbers-preset" id="presentParticipleBtn" data-tip="Call present, mark participle.">
             <span>Present</span>
             <span>Participle</span>
           </button>
         </div>
         <div class="actions">
-          <button type="button" id="listToggleBtn">Hide List</button>
-          <button type="button" id="startBtn" class="primary">Start</button>
-          <button type="button" id="autoCallBtn" class="auto-call-btn">Auto 8s</button>
-          <button type="button" id="musicBtn" class="music-btn">Music</button>
-          <label class="auto-interval" for="autoCallSecondsInput">
+          <button type="button" id="listToggleBtn" data-tip="Show or hide the word list.">Hide List</button>
+          <button type="button" id="startBtn" class="primary" data-tip="Start the game or call next.">Start</button>
+          <button type="button" id="autoCallBtn" class="auto-call-btn" data-tip="Call words automatically.">Auto 8s</button>
+          <button type="button" id="musicBtn" class="music-btn" data-tip="Toggle background music.">Music</button>
+          <label class="auto-interval" for="autoCallSecondsInput" data-tip="Set seconds between auto calls.">
             Every <input id="autoCallSecondsInput" type="number" min="4" max="20" step="1" value="8"> s
           </label>
-          <button type="button" id="resetBtn" class="danger">Clear</button>
-          <button type="button" onclick="location.href='/'">Home</button>
+          <button type="button" id="resetBtn" class="danger" data-tip="Clear cards and called words.">Clear</button>
+          <button type="button" onclick="location.href='/'" data-tip="Return to the home screen.">Home</button>
         </div>
       </header>
 
@@ -850,7 +941,7 @@
         <section class="word-bank">
           <div class="word-bank-head">
             <p class="panel-title">Vocabulary <span id="wordCount">(0)</span></p>
-            <button class="list-clear-btn" id="clearWordsBtn" type="button">Clear</button>
+            <button class="list-clear-btn" id="clearWordsBtn" type="button" data-tip="Remove all vocabulary words.">Clear</button>
           </div>
           <textarea id="wordInput" spellcheck="false" placeholder="Paste vocabulary words here, one per line."></textarea>
           <p class="hint">Use at least 24 words for 5x5 Bingo cards.</p>
@@ -881,8 +972,8 @@
       <p class="panel-title">Bingo Winner</p>
       <p class="winner-name" id="winnerName">Player</p>
       <div class="winner-actions">
-        <button type="button" id="playAgainBtn" class="primary">Play Again</button>
-        <button type="button" id="closeWinnerBtn">Close</button>
+        <button type="button" id="playAgainBtn" class="primary" data-tip="Reset for another round.">Play Again</button>
+        <button type="button" id="closeWinnerBtn" data-tip="Hide this winner screen.">Close</button>
       </div>
     </div>
   </section>
@@ -892,7 +983,7 @@
       <p class="claim-show-kicker">Bingo Call</p>
       <p class="claim-show-name" id="claimShowName">Player</p>
       <p class="claim-show-text" id="claimShowText">called Bingo!</p>
-      <button type="button" id="checkClaimBtn" class="primary">Check</button>
+      <button type="button" id="checkClaimBtn" class="primary" data-tip="Review the claimed card.">Check</button>
     </div>
   </section>
 
@@ -904,9 +995,9 @@
         <p class="claim-name" id="claimName">Player</p>
         <p class="claim-status" id="claimStatus">Checking card...</p>
         <div class="claim-actions">
-          <button type="button" id="claimPlayAgainBtn" class="primary">Play Again</button>
-          <button type="button" id="claimCloseBtn">Close</button>
-          <button type="button" id="continueBingoBtn">Continue</button>
+          <button type="button" id="claimPlayAgainBtn" class="primary" data-tip="Accept Bingo and restart.">Play Again</button>
+          <button type="button" id="claimCloseBtn" data-tip="Close this card review.">Close</button>
+          <button type="button" id="continueBingoBtn" data-tip="Reject and keep playing.">Continue</button>
         </div>
       </div>
     </div>
@@ -922,8 +1013,8 @@
         <span id="confirmOptionText">Also clear scores</span>
       </label>
       <div class="confirm-actions">
-        <button class="ghost" id="confirmCancelBtn" type="button">Cancel</button>
-        <button class="danger" id="confirmAcceptBtn" type="button">Continue</button>
+        <button class="ghost" id="confirmCancelBtn" type="button" data-tip="Keep things unchanged.">Cancel</button>
+        <button class="danger" id="confirmAcceptBtn" type="button" data-tip="Confirm this action.">Continue</button>
       </div>
     </div>
   </div>
@@ -992,6 +1083,7 @@
     let autoCallIntervalMs = getStoredAutoCallSeconds() * 1000;
     let musicEnabled = localStorage.getItem("bingo-music-enabled") !== "0";
     let bingoAudioPrimed = false;
+    let activePreset = "numbers";
     const bingoCorrectSound = new Audio("buzzer-chime.mp3");
     const bingoWrongSound = new Audio("buzzer-wrong.mp3");
     const bingoMusic = new Audio("bingo-music-loop.mp3");
@@ -1075,6 +1167,18 @@
 
     function parseWords() {
       return wordInput.value.split(/\r?\n/).map((word) => word.trim()).filter(Boolean);
+    }
+
+    function updatePresetSelection() {
+      [
+        [numbersBtn, "numbers"],
+        [pastSimpleBtn, "past-simple"],
+        [pastParticipleBtn, "past-participle"],
+        [presentPastBtn, "present-past"],
+        [presentParticipleBtn, "present-participle"]
+      ].forEach(([button, preset]) => {
+        button.classList.toggle("is-selected", activePreset === preset);
+      });
     }
 
     function clampAutoCallSeconds(value) {
@@ -1386,6 +1490,7 @@
       pastParticipleBtn.disabled = !!room && ["live", "checking"].includes(room.status);
       presentPastBtn.disabled = !!room && ["live", "checking"].includes(room.status);
       presentParticipleBtn.disabled = !!room && ["live", "checking"].includes(room.status);
+      updatePresetSelection();
       const isLive = room?.status === "live";
       const remainingWords = getRemainingWords();
       startBtn.textContent = isLive ? "Call" : "Start";
@@ -1577,6 +1682,7 @@
         if (!confirmed) return;
       }
       wordInput.value = getClassicBingoNumbers().join("\n");
+      activePreset = "numbers";
       editingWords = false;
       await syncWordsNow();
     });
@@ -1593,6 +1699,7 @@
         if (!confirmed) return;
       }
       wordInput.value = pastSimpleWords.join("\n");
+      activePreset = "past-simple";
       editingWords = false;
       await syncWordsNow();
     });
@@ -1609,6 +1716,7 @@
         if (!confirmed) return;
       }
       wordInput.value = pastParticipleWords.join("\n");
+      activePreset = "past-participle";
       editingWords = false;
       await syncWordsNow();
     });
@@ -1625,6 +1733,7 @@
         if (!confirmed) return;
       }
       wordInput.value = presentPastPairs.join("\n");
+      activePreset = "present-past";
       editingWords = false;
       await syncWordsNow();
     });
@@ -1641,6 +1750,7 @@
         if (!confirmed) return;
       }
       wordInput.value = presentParticiplePairs.join("\n");
+      activePreset = "present-participle";
       editingWords = false;
       await syncWordsNow();
     });
@@ -1704,6 +1814,7 @@
       });
       if (!confirmed) return;
       wordInput.value = "";
+      activePreset = "";
       editingWords = false;
       await syncWordsNow();
     });
@@ -1737,6 +1848,7 @@
       dismissedWinnerKey = "";
       editingWords = false;
       listVisible = false;
+      activePreset = "";
       if (oldCode) {
         try { await api("/api/bingo/delete-room", { code: oldCode }); } catch (_) {}
       }
@@ -1802,6 +1914,7 @@
       syncWordsNow().catch(() => {});
     });
     wordInput.addEventListener("input", () => {
+      activePreset = "";
       render();
       scheduleSync();
     });
