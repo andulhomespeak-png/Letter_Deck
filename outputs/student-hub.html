@@ -44,31 +44,44 @@
       box-shadow: 0 28px 80px rgba(16, 11, 47, 0.18);
       backdrop-filter: blur(18px);
       display: grid;
-      grid-template-rows: auto 1fr auto;
-      gap: 18px;
+      grid-template-rows: minmax(136px, 0.46fr) minmax(210px, 0.74fr) auto;
+      gap: 14px;
       overflow: hidden;
     }
 
-    h1 {
+    .friendzy-lockup {
+      align-self: end;
+      display: grid;
+      place-items: center;
+      gap: 5px;
+      transform: translateY(8px);
+    }
+
+    .friendzy-brand {
+      display: block;
+      width: min(90vw, 390px);
+      max-width: 100%;
+      max-height: 116px;
+      object-fit: contain;
+      filter: drop-shadow(0 16px 28px rgba(7, 20, 60, 0.18));
+    }
+
+    .friendzy-kicker {
       margin: 0;
-      font-family: "Franklin Gothic Heavy", "Arial Black", "Trebuchet MS", sans-serif;
-      font-size: clamp(2.8rem, 16vw, 5.2rem);
-      line-height: 0.86;
-      letter-spacing: -0.055em;
+      color: rgba(8, 40, 111, 0.68);
+      font-size: clamp(0.62rem, 2.7vw, 0.82rem);
+      font-weight: 1000;
+      letter-spacing: 0.2em;
       text-align: center;
       text-transform: uppercase;
-      color: transparent;
-      background: linear-gradient(180deg, #fffdf2 0%, #ffe066 34%, #ff8a00 70%, #ff2f45 100%);
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-stroke: 1.5px #073a9b;
-      text-shadow: 0 4px 0 #0b82ff, 0 12px 24px rgba(16, 11, 47, 0.2);
+      text-shadow: 0 1px 0 rgba(255,255,255,0.9);
     }
 
     .join {
-      align-self: center;
+      align-self: start;
       display: grid;
       gap: 14px;
+      padding-top: clamp(8px, 3svh, 26px);
     }
 
     label {
@@ -159,7 +172,10 @@
 </head>
 <body>
   <main class="card" id="card">
-    <h1>Friendzy</h1>
+    <section class="friendzy-lockup" aria-label="Friendzy">
+      <img class="friendzy-brand" src="./friendzy-logo.png" alt="Friendzy">
+      <p class="friendzy-kicker">Play &bull; Learn &bull; Compete</p>
+    </section>
 
     <form class="join" id="joinForm">
       <label for="nameInput">Enter your name or team name</label>

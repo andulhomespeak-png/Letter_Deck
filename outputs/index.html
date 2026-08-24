@@ -41,7 +41,7 @@
 
     .intro {
       position: relative;
-      padding: clamp(14px, 2.2vw, 22px) clamp(18px, 3vw, 30px) clamp(13px, 2vw, 20px);
+      padding: clamp(12px, 1.8vw, 20px) clamp(16px, 2.6vw, 28px) clamp(12px, 1.8vw, 18px);
       border: 1px solid rgba(255, 255, 255, 0.72);
       border-radius: clamp(24px, 3vw, 34px);
       background:
@@ -69,54 +69,22 @@
       background: radial-gradient(circle, rgba(255, 122, 0, 0.18), transparent 64%);
     }
 
-    h1 {
+    .friendzy-brand {
       position: relative;
       z-index: 1;
-      margin: 0;
-      width: max-content;
+      display: block;
+      width: min(94vw, 1120px);
       max-width: 100%;
-      font-family: "Trebuchet MS", "Arial Rounded MT Bold", "Franklin Gothic Heavy", "Arial Black", sans-serif;
-      font-size: clamp(3.05rem, 8vw, 6.8rem);
-      line-height: 0.86;
-      letter-spacing: -0.065em;
-      text-align: center;
-      text-transform: uppercase;
-      color: transparent;
-      transform: skewX(-3deg);
-      background:
-        linear-gradient(180deg, #ffffff 0%, #f8fdff 34%, #bfe9ff 62%, #2d9eff 100%);
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-stroke: clamp(1.8px, 0.26vw, 3.2px) #07286f;
-      text-shadow:
-        0 2px 0 #ffffff,
-        0 5px 0 #0b82ff,
-        0 9px 0 #0645b7,
-        0 13px 20px rgba(16, 11, 47, 0.2);
-      filter:
-        drop-shadow(0 0 9px rgba(11, 130, 255, 0.18))
-        drop-shadow(0 8px 0 rgba(255, 122, 0, 0.16));
-    }
-
-    h1::after {
-      content: "";
-      position: absolute;
-      width: 0.14em;
-      height: 0.14em;
-      right: -0.08em;
-      top: 0.06em;
-      border-radius: 50%;
-      background: var(--orange);
-      box-shadow:
-        -0.28em 0.1em 0 -0.045em #ffe066,
-        -0.12em 0.28em 0 -0.055em var(--orange);
+      max-height: clamp(132px, 22vw, 288px);
+      object-fit: contain;
+      filter: drop-shadow(0 18px 34px rgba(7, 20, 60, 0.18));
     }
 
     .intro-kicker {
       position: relative;
       z-index: 1;
       margin: 0;
-      color: rgba(8, 40, 111, 0.74);
+      color: rgba(8, 40, 111, 0.7);
       font-size: clamp(0.68rem, 1.35vw, 0.9rem);
       font-weight: 1000;
       letter-spacing: clamp(0.15em, 0.58vw, 0.28em);
@@ -239,14 +207,9 @@
         padding-inline: 14px;
       }
 
-      h1 {
-        font-size: clamp(2.8rem, 15vw, 4.4rem);
-        -webkit-text-stroke-width: 1.5px;
-        text-shadow:
-          0 2px 0 #ffffff,
-          0 4px 0 #0b82ff,
-          0 7px 0 #0645b7,
-          0 14px 22px rgba(16, 11, 47, 0.24);
+      .friendzy-brand {
+        width: min(96vw, 680px);
+        max-height: 146px;
       }
     }
 
@@ -259,8 +222,8 @@
   <main class="shell">
     <header>
       <section class="intro">
-        <h1>Friendzy</h1>
-        <p class="intro-kicker">Play &bull; Laugh &bull; Compete</p>
+        <img class="friendzy-brand" src="./friendzy-logo.png" alt="Friendzy">
+        <p class="intro-kicker">Play &bull; Learn &bull; Compete</p>
       </section>
     </header>
 

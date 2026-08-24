@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Quick Poll</title>
-  <link rel="icon" type="image/png" href="./quick-poll-student-logo.png">
+  <link rel="icon" type="image/png" href="./friendzy-logo.png">
   <style>
     :root {
       --ink: #100b2f;
@@ -48,18 +48,6 @@
       grid-template-rows: auto auto minmax(0, 1fr) auto;
       gap: 16px;
       overflow: hidden;
-    }
-
-    .hero {
-      display: grid;
-      place-items: center;
-    }
-
-    .tool-logo {
-      width: min(82vw, 310px);
-      max-height: 320px;
-      object-fit: contain;
-      filter: drop-shadow(0 20px 34px rgba(16, 11, 47, 0.18));
     }
 
     .form {
@@ -216,14 +204,10 @@
 </head>
 <body>
   <main class="card">
-    <section class="hero">
-      <img class="tool-logo" src="./quick-poll-student-logo.png" alt="Quick Poll">
-    </section>
-
     <form class="form" id="joinForm">
-      <label for="nameInput">Enter your name or team name</label>
-      <input id="nameInput" name="name" autocomplete="name" placeholder="Your name" required>
-      <button id="joinBtn" type="submit">Join</button>
+      <p>Connect through the Friendzy QR.</p>
+      <input id="nameInput" type="hidden" name="name" autocomplete="name" placeholder="Your name">
+      <button id="joinBtn" hidden type="submit">Join</button>
     </form>
 
     <section class="reconnect hidden" id="reconnectPanel">
@@ -239,7 +223,7 @@
       <button class="nomination-button" id="nominateBtn" type="button">Nominate me</button>
     </section>
 
-    <div class="message" id="message">Join the room and wait for the teacher to start.</div>
+    <div class="message" id="message">Scan the Friendzy QR to join.</div>
   </main>
 
   <script>
@@ -326,6 +310,18 @@
       nominateBtn.textContent = "Nominate me";
     }
 
+    function requireFriendzyJoin() {
+      if (shouldAutoJoin && autoName) return false;
+      if (classroomCode) {
+        window.location.replace(`./student-hub.html?code=${encodeURIComponent(classroomCode)}`);
+        return true;
+      }
+      joinForm.classList.remove("hidden");
+      reconnectPanel.classList.add("hidden");
+      setMessage("Scan the Friendzy QR to join this activity.");
+      return true;
+    }
+
     function render() {
       if (!code) {
         setMessage("Missing room code. Scan the QR again.", "bad");
@@ -336,9 +332,9 @@
         nominationPanel.classList.add("hidden");
         resetNominationButton();
         if (!awaitingReconnect && !removedByTeacher) {
-          joinForm.classList.remove("hidden");
+          joinForm.classList.toggle("hidden", shouldAutoJoin && autoName);
           reconnectPanel.classList.add("hidden");
-          setMessage("Join the room and wait for the teacher to start.");
+          setMessage("Scan the Friendzy QR to join.");
         }
         return;
       }
@@ -452,7 +448,10 @@
       }
     });
 
-    if (!playerName && autoName && shouldAutoJoin) {
+    if (requireFriendzyJoin()) {
+      joinBtn.disabled = true;
+      nameInput.disabled = true;
+    } else if (!playerName && autoName && shouldAutoJoin) {
       joinPoll(autoName);
     }
     if (classroomCode) {
@@ -494,13 +493,13 @@
           removedByTeacher = true;
           localStorage.removeItem(playerKey);
           localStorage.removeItem(nameKey);
-          joinForm.classList.remove("hidden");
+          joinForm.classList.add("hidden");
           reconnectPanel.classList.add("hidden");
           nameInput.disabled = false;
           joinBtn.disabled = false;
           joinBtn.textContent = "Join";
           nameInput.value = "";
-          setMessage("You were removed from this poll. Ask before joining again.", "bad");
+          setMessage("You were removed from this poll. Scan the Friendzy QR to join again.", "bad");
           optionsEl.innerHTML = "";
           return;
         }
@@ -514,7 +513,7 @@
 
     window.addEventListener("load", async () => {
       if (!playerName) {
-        nameInput.focus();
+        requireFriendzyJoin();
       } else {
         joinForm.classList.add("hidden");
         reconnectPanel.classList.remove("hidden");

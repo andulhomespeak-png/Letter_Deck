@@ -91,13 +91,6 @@
       letter-spacing: -0.06em;
       text-transform: uppercase;
     }
-    .join-logo {
-      display: block;
-      width: min(100%, 320px);
-      height: auto;
-      margin: 0 auto 4px;
-      filter: drop-shadow(0 12px 20px rgba(20, 12, 55, 0.18));
-    }
     section {
       display: grid;
       gap: 14px;
@@ -828,10 +821,9 @@
   </div>
   <main class="card">
     <section id="joinView" class="join-stack">
-      <img class="join-logo" src="./letter-clash-logo.png" alt="Letter Clash">
-      <p>Enter your name or team name.</p>
-      <input id="teamName" placeholder="Team name">
-      <button id="joinBtn">Join Room</button>
+      <p>Connect through the Friendzy QR.</p>
+      <input id="teamName" type="hidden" placeholder="Team name">
+      <button id="joinBtn" type="button" hidden>Join</button>
     </section>
 
     <section id="waitingView" class="hidden">
@@ -943,6 +935,16 @@
     function returnToClassroomHub() {
       if (!classroomCode) return;
       window.location.href = `./student-hub.html?code=${encodeURIComponent(classroomCode)}`;
+    }
+
+    function requireFriendzyJoin() {
+      if (shouldAutoJoin && autoName) return false;
+      if (classroomCode) {
+        returnToClassroomHub();
+        return true;
+      }
+      joinPrompt.textContent = "Scan the Friendzy QR to join this activity.";
+      return true;
     }
 
     async function pollClassroomRoute() {
@@ -1444,7 +1446,9 @@
       }
     });
 
-    if (autoName) {
+    if (requireFriendzyJoin()) {
+      joinBtn.disabled = true;
+    } else if (autoName) {
       teamName.value = autoName;
       if (shouldAutoJoin) {
         joinRoom(false).catch(async (error) => {

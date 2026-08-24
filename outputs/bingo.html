@@ -15,6 +15,8 @@
       --green: #19c875;
       --orange: #ff8a00;
       --panel: rgba(255, 255, 255, 0.88);
+      --blue-line: rgba(8, 125, 255, 0.58);
+      --blue-line-strong: rgba(8, 125, 255, 0.78);
     }
 
     * { box-sizing: border-box; }
@@ -45,10 +47,13 @@
     .main,
     .side {
       min-height: 0;
-      border: 1px solid rgba(255,255,255,0.75);
+      border: 2px solid var(--blue-line-strong);
       border-radius: clamp(24px, 3vw, 34px);
       background: var(--panel);
-      box-shadow: 0 26px 78px rgba(16, 11, 47, 0.16);
+      box-shadow:
+        0 26px 78px rgba(16, 11, 47, 0.16),
+        inset 0 0 0 2px rgba(255,255,255,0.62),
+        0 0 0 1px rgba(255,255,255,0.72);
       backdrop-filter: blur(18px);
     }
 
@@ -86,7 +91,7 @@
       background:
         radial-gradient(circle at 18% 16%, rgba(255,255,255,0.9), transparent 28%),
         linear-gradient(135deg, #fff, #eaf4ff);
-      border: 1px solid rgba(8,125,255,0.18);
+      border: 1.5px solid var(--blue-line);
       font-weight: 1000;
       color: var(--ink);
       white-space: nowrap;
@@ -108,23 +113,25 @@
 
     .actions {
       display: grid;
-      grid-template-columns: repeat(4, minmax(58px, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       justify-content: end;
       align-items: center;
       gap: 6px;
       justify-self: end;
-      width: min(360px, 100%);
+      width: min(408px, 100%);
     }
 
     .actions button {
+      width: 100%;
       min-height: 34px;
+      border: 1.5px solid var(--blue-line);
       padding: 0 9px;
       font-size: 0.82rem;
       box-shadow: 0 8px 18px rgba(16, 11, 47, 0.1);
     }
 
     button {
-      border: 0;
+      border: 1.5px solid var(--blue-line);
       border-radius: 999px;
       min-height: 44px;
       padding: 0 16px;
@@ -158,29 +165,39 @@
       box-shadow: 0 14px 32px rgba(8, 125, 255, 0.22);
     }
 
+    .music-btn.is-active {
+      color: #fff;
+      background: linear-gradient(135deg, var(--green), #039b52);
+      box-shadow: 0 14px 32px rgba(25, 200, 117, 0.22);
+    }
+
     .auto-interval {
+      grid-column: span 2;
+      box-sizing: border-box;
+      width: 100%;
       min-height: 34px;
-      padding: 0 7px;
+      padding: 0 9px;
       border-radius: 999px;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 3px;
+      gap: 6px;
       color: var(--muted);
       background: rgba(255,255,255,0.86);
-      border: 1px solid var(--line);
+      border: 1px solid var(--blue-line);
       box-shadow: 0 12px 26px rgba(16, 11, 47, 0.08);
-      font-size: 0.68rem;
+      font-size: 0.66rem;
       font-weight: 1000;
       white-space: nowrap;
     }
 
     .auto-interval input {
-      width: 38px;
+      width: 58px;
+      box-sizing: border-box;
       min-height: 24px;
-      border: 1px solid rgba(8,125,255,0.2);
+      border: 1px solid var(--blue-line-strong);
       border-radius: 999px;
-      padding: 0 6px;
+      padding: 0 16px 0 8px;
       color: var(--ink);
       background: #fff;
       font: inherit;
@@ -202,7 +219,7 @@
       background:
         linear-gradient(135deg, rgba(255,255,255,0.62), rgba(255,255,255,0.18)),
         radial-gradient(circle at 50% 48%, rgba(8, 125, 255, 0.14), transparent 34%);
-      border: 1px dashed rgba(16, 11, 47, 0.14);
+      border: 2px dashed var(--blue-line-strong);
     }
 
     .stage.is-list-visible .call-stage {
@@ -215,7 +232,7 @@
       min-height: 0;
       border-radius: 28px;
       background: rgba(255,255,255,0.72);
-      border: 1px solid var(--line);
+      border: 1px solid rgba(8, 125, 255, 0.36);
       box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
       padding: clamp(12px, 1.4vw, 18px);
     }
@@ -255,7 +272,7 @@
       width: 100%;
       min-height: 0;
       resize: none;
-      border: 1px solid var(--line);
+      border: 1px solid rgba(8, 125, 255, 0.36);
       border-radius: 22px;
       padding: 14px;
       font: inherit;
@@ -357,7 +374,7 @@
       padding: 10px;
       border-radius: 22px;
       background: rgba(255,255,255,0.7);
-      border: 1px solid var(--line);
+      border: 1px solid rgba(8, 125, 255, 0.36);
     }
 
     .chip {
@@ -365,6 +382,7 @@
       border-radius: 999px;
       font-weight: 1000;
       background: #fff;
+      border: 1px solid rgba(8,125,255,0.2);
       box-shadow: 0 8px 18px rgba(16,11,47,0.08);
     }
 
@@ -410,9 +428,27 @@
       padding: 8px 12px;
       border-radius: 999px;
       background: linear-gradient(135deg, #fff, rgba(232,242,255,0.96));
-      border: 1px solid rgba(8,125,255,0.18);
+      border: 2px solid var(--blue-line-strong);
       box-shadow: 0 10px 22px rgba(16,11,47,0.08);
       font-weight: 1000;
+    }
+
+    .player-pill span:first-child {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .bingo-score {
+      flex: 0 0 auto;
+      min-width: 66px;
+      padding: 5px 8px;
+      border-radius: 999px;
+      color: #fff;
+      text-align: center;
+      background: linear-gradient(135deg, var(--blue), #3024d8);
+      box-shadow: 0 8px 16px rgba(8,125,255,0.18);
     }
 
     .winner {
@@ -477,7 +513,7 @@
         radial-gradient(circle at 18% 12%, rgba(255,255,255,0.9), transparent 12%),
         radial-gradient(circle at 86% 20%, rgba(255, 138, 0, 0.22), transparent 28%),
         linear-gradient(145deg, rgba(255,255,255,0.96), rgba(238,248,255,0.9));
-      border: 1px solid rgba(255,255,255,0.8);
+      border: 2px solid var(--blue-line-strong);
       box-shadow: 0 38px 110px rgba(7,20,60,0.38);
       animation: claimShowIn 280ms cubic-bezier(0.18, 1.18, 0.24, 1) both;
     }
@@ -536,7 +572,7 @@
       background:
         radial-gradient(circle at 12% 8%, rgba(255, 212, 38, 0.22), transparent 34%),
         linear-gradient(145deg, rgba(255,255,255,0.96), rgba(238,248,255,0.92));
-      border: 1px solid rgba(255,255,255,0.78);
+      border: 1.5px solid var(--blue-line);
       box-shadow: 0 34px 100px rgba(7,20,60,0.35);
       overflow: hidden;
     }
@@ -549,7 +585,7 @@
       padding: clamp(8px, 1.4vw, 14px);
       border-radius: 28px;
       background: rgba(255,255,255,0.68);
-      border: 1px solid rgba(8,125,255,0.18);
+      border: 1.5px solid var(--blue-line);
     }
 
     .claim-cell {
@@ -561,7 +597,7 @@
       border-radius: clamp(10px, 1.6vw, 18px);
       color: var(--ink);
       background: linear-gradient(135deg, #fff, rgba(232,242,255,0.96));
-      border: 1px solid rgba(8,125,255,0.16);
+      border: 1.5px solid var(--blue-line);
       font-size: clamp(0.76rem, 1.55vw, 1.08rem);
       line-height: 0.92;
       font-weight: 1000;
@@ -614,7 +650,7 @@
       border-radius: 20px;
       color: var(--muted);
       background: rgba(255,255,255,0.78);
-      border: 1px solid var(--line);
+      border: 1.5px solid var(--blue-line);
       font-weight: 1000;
       line-height: 1.35;
     }
@@ -647,7 +683,7 @@
       background:
         radial-gradient(circle at 15% 0%, rgba(255, 212, 38, 0.24), transparent 38%),
         linear-gradient(145deg, rgba(255,255,255,0.96), rgba(238,248,255,0.92));
-      border: 1px solid rgba(255,255,255,0.78);
+      border: 2px solid var(--blue-line-strong);
       box-shadow: 0 30px 84px rgba(16, 11, 47, 0.28);
       animation: confirmModalIn 180ms ease both;
     }
@@ -676,6 +712,32 @@
       line-height: 1.4;
     }
 
+    .confirm-option {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      margin: 0 0 18px;
+      padding: 10px 12px;
+      border-radius: 999px;
+      color: var(--ink);
+      background: rgba(255,255,255,0.78);
+      border: 1.5px solid var(--blue-line);
+      font-size: 0.86rem;
+      font-weight: 1000;
+      cursor: pointer;
+    }
+
+    .confirm-option.is-visible {
+      display: inline-flex;
+    }
+
+    .confirm-option input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--blue);
+    }
+
     .confirm-actions {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -685,7 +747,7 @@
     .confirm-actions .ghost {
       color: var(--ink);
       background: rgba(255,255,255,0.94);
-      border: 1px solid var(--line);
+      border: 1.5px solid var(--blue-line);
     }
 
     .hidden { display: none !important; }
@@ -773,18 +835,18 @@
         </div>
         <div class="actions">
           <button type="button" id="listToggleBtn">Hide List</button>
-          <button type="button" onclick="location.href='/'">Home</button>
           <button type="button" id="startBtn" class="primary">Start</button>
-          <button type="button" id="callBtn" class="primary">Call</button>
           <button type="button" id="autoCallBtn" class="auto-call-btn">Auto 8s</button>
+          <button type="button" id="musicBtn" class="music-btn">Music</button>
           <label class="auto-interval" for="autoCallSecondsInput">
             Every <input id="autoCallSecondsInput" type="number" min="4" max="20" step="1" value="8"> s
           </label>
-          <button type="button" id="resetBtn" class="danger">Reset</button>
+          <button type="button" id="resetBtn" class="danger">Clear</button>
+          <button type="button" onclick="location.href='/'">Home</button>
         </div>
       </header>
 
-      <section class="stage is-list-visible" id="stage">
+      <section class="stage" id="stage">
         <section class="word-bank">
           <div class="word-bank-head">
             <p class="panel-title">Vocabulary <span id="wordCount">(0)</span></p>
@@ -855,6 +917,10 @@
       <p class="confirm-kicker">Confirm</p>
       <h2 class="confirm-title" id="confirmTitle">Are you sure?</h2>
       <p class="confirm-text" id="confirmText">This action cannot be undone.</p>
+      <label class="confirm-option" id="confirmOption">
+        <input id="confirmOptionInput" type="checkbox">
+        <span id="confirmOptionText">Also clear scores</span>
+      </label>
       <div class="confirm-actions">
         <button class="ghost" id="confirmCancelBtn" type="button">Cancel</button>
         <button class="danger" id="confirmAcceptBtn" type="button">Continue</button>
@@ -881,8 +947,8 @@
     const listToggleBtn = document.getElementById("listToggleBtn");
     const clearWordsBtn = document.getElementById("clearWordsBtn");
     const startBtn = document.getElementById("startBtn");
-    const callBtn = document.getElementById("callBtn");
     const autoCallBtn = document.getElementById("autoCallBtn");
+    const musicBtn = document.getElementById("musicBtn");
     const autoCallSecondsInput = document.getElementById("autoCallSecondsInput");
     const resetBtn = document.getElementById("resetBtn");
     const claimShowModal = document.getElementById("claimShowModal");
@@ -903,6 +969,9 @@
     const confirmOverlay = document.getElementById("confirmOverlay");
     const confirmTitle = document.getElementById("confirmTitle");
     const confirmText = document.getElementById("confirmText");
+    const confirmOption = document.getElementById("confirmOption");
+    const confirmOptionInput = document.getElementById("confirmOptionInput");
+    const confirmOptionText = document.getElementById("confirmOptionText");
     const confirmCancelBtn = document.getElementById("confirmCancelBtn");
     const confirmAcceptBtn = document.getElementById("confirmAcceptBtn");
 
@@ -911,7 +980,7 @@
     let pollTimer = null;
     let editingWords = false;
     let dismissedWinnerKey = "";
-    let listVisible = localStorage.getItem("bingo-list-visible") !== "0";
+    let listVisible = false;
     let confirmState = null;
     let activeClaimKey = "";
     let claimReviewOpen = false;
@@ -921,12 +990,16 @@
     let autoCallDueAt = 0;
     let autoCallCountdownTimer = null;
     let autoCallIntervalMs = getStoredAutoCallSeconds() * 1000;
-
-    const starterWords = [
-      "apple", "bridge", "castle", "dream", "energy", "forest", "garden", "harbor",
-      "island", "jungle", "kingdom", "lantern", "market", "notebook", "ocean", "pencil",
-      "question", "river", "sunset", "teacher", "umbrella", "village", "window", "yellow"
-    ];
+    let musicEnabled = localStorage.getItem("bingo-music-enabled") !== "0";
+    let bingoAudioPrimed = false;
+    const bingoCorrectSound = new Audio("buzzer-chime.mp3");
+    const bingoWrongSound = new Audio("buzzer-wrong.mp3");
+    const bingoMusic = new Audio("bingo-music-loop.mp3");
+    bingoCorrectSound.preload = "auto";
+    bingoWrongSound.preload = "auto";
+    bingoMusic.preload = "auto";
+    bingoMusic.loop = true;
+    bingoMusic.volume = 0.34;
 
     const pastSimpleWords = [
       "was / were", "became", "began", "bent", "bet", "bit", "blew", "broke", "brought", "built",
@@ -1026,6 +1099,40 @@
       if (context?.state === "suspended") {
         context.resume().catch(() => {});
       }
+      if (!bingoAudioPrimed) {
+        [bingoCorrectSound, bingoWrongSound, bingoMusic].forEach((sound) => {
+          sound.load();
+        });
+        bingoAudioPrimed = true;
+      }
+    }
+
+    function playBingoResultSound(isValid) {
+      pauseBingoMusic();
+      const sound = isValid ? bingoCorrectSound : bingoWrongSound;
+      sound.pause();
+      sound.currentTime = 0;
+      sound.play().catch(() => {});
+    }
+
+    function playBingoMusic() {
+      if (!musicEnabled) return;
+      bingoMusic.play().catch(() => {});
+    }
+
+    function startBingoMusic() {
+      if (!musicEnabled) return;
+      bingoMusic.pause();
+      bingoMusic.currentTime = 0;
+      bingoMusic.play().catch(() => {});
+    }
+
+    function pauseBingoMusic() {
+      bingoMusic.pause();
+    }
+
+    function updateMusicButton() {
+      musicBtn.classList.toggle("is-active", musicEnabled);
     }
 
     function playWordCallSound() {
@@ -1075,20 +1182,26 @@
 
     function closeConfirm(result) {
       if (!confirmState) return;
-      const { resolve } = confirmState;
+      const { resolve, hasOption } = confirmState;
+      const checked = confirmOptionInput.checked;
       confirmState = null;
       confirmOverlay.classList.add("hidden");
-      resolve(result);
+      confirmOption.classList.remove("is-visible");
+      confirmOptionInput.checked = false;
+      resolve(hasOption && result ? { confirmed: true, checked } : result);
     }
 
-    function openConfirm({ title, text, confirmLabel = "Continue" }) {
+    function openConfirm({ title, text, confirmLabel = "Continue", optionLabel = "" }) {
       confirmTitle.textContent = title;
       confirmText.textContent = text;
       confirmAcceptBtn.textContent = confirmLabel;
+      confirmOptionInput.checked = false;
+      confirmOptionText.textContent = optionLabel;
+      confirmOption.classList.toggle("is-visible", !!optionLabel);
       confirmOverlay.classList.remove("hidden");
       confirmAcceptBtn.focus();
       return new Promise((resolve) => {
-        confirmState = { resolve };
+        confirmState = { resolve, hasOption: !!optionLabel };
       });
     }
 
@@ -1107,6 +1220,7 @@
         try {
           const data = await api(`/api/bingo/room?code=${encodeURIComponent(savedCode)}`, null, "GET");
           room = data.room;
+          await importClassroomPlayers();
           wordInput.value = (room.words || []).join("\n");
           setClassroomTool("bingo", room.code).catch(() => {});
           render();
@@ -1118,10 +1232,8 @@
       const data = await api("/api/bingo/create-room");
       room = data.room;
       localStorage.setItem(storageKey, room.code);
-      if (!room.words.length) {
-        wordInput.value = starterWords.join("\n");
-        await syncWordsNow();
-      }
+      await importClassroomPlayers();
+      wordInput.value = (room.words || []).join("\n");
       setClassroomTool("bingo", room.code).catch(() => {});
       render();
       return room;
@@ -1135,6 +1247,18 @@
         wordInput.value = (room.words || []).join("\n");
       }
       render();
+    }
+
+    async function importClassroomPlayers() {
+      const classroomCode = localStorage.getItem(classroomStorageKey);
+      if (!room || !classroomCode) return false;
+      try {
+        const data = await api("/api/bingo/import-classroom", { code: room.code, classroomCode });
+        room = data.room;
+        return true;
+      } catch (_) {
+        return false;
+      }
     }
 
     function scheduleSync() {
@@ -1235,6 +1359,7 @@
         const data = await api(`/api/bingo/room?code=${encodeURIComponent(room.code)}`, null, "GET");
         const previousText = wordInput.value;
         room = data.room;
+        await importClassroomPlayers();
         if (!editingWords) {
           wordInput.value = (room.words || []).join("\n");
         } else {
@@ -1261,9 +1386,11 @@
       pastParticipleBtn.disabled = !!room && ["live", "checking"].includes(room.status);
       presentPastBtn.disabled = !!room && ["live", "checking"].includes(room.status);
       presentParticipleBtn.disabled = !!room && ["live", "checking"].includes(room.status);
-      startBtn.disabled = !room || words.length < 24 || !(room.players || []).length || ["live", "checking"].includes(room.status);
-      callBtn.disabled = !room || room.status !== "live";
+      const isLive = room?.status === "live";
       const remainingWords = getRemainingWords();
+      startBtn.textContent = isLive ? "Call" : "Start";
+      startBtn.disabled = !room
+        || (isLive ? !remainingWords.length : words.length < 24 || !(room.players || []).length || room.status === "checking");
       if (room && room.status !== "live") {
         stopAutoCallTimer();
       }
@@ -1273,12 +1400,13 @@
       }
       autoCallBtn.disabled = !room || room.status === "finished" || !remainingWords.length;
       updateAutoCallButton();
+      updateMusicButton();
       players.innerHTML = "";
       (room?.players || []).forEach((player) => {
         const item = document.createElement("div");
         item.className = "player-pill";
-        const label = room?.pendingClaim?.playerId === player.id ? "Claiming" : "Ready";
-        item.innerHTML = `<span>${escapeHtml(player.name)}</span><span>${label}</span>`;
+        const label = room?.pendingClaim?.playerId === player.id ? "Claiming" : `${Number(player.bingos || 0)} bingo${Number(player.bingos || 0) === 1 ? "" : "s"}`;
+        item.innerHTML = `<span>${escapeHtml(player.name)}</span><span class="bingo-score">${escapeHtml(label)}</span>`;
         players.appendChild(item);
       });
       history.innerHTML = "";
@@ -1331,6 +1459,7 @@
         activeClaimKey = claimKey;
         claimReviewOpen = false;
         closedClaimReviewKey = "";
+        pauseBingoMusic();
       }
       const reviewVisible = claimReviewOpen && closedClaimReviewKey !== claimKey;
       claimShowName.textContent = claim.name || "Player";
@@ -1376,23 +1505,19 @@
     startBtn.addEventListener("click", async () => {
       try {
         unlockBingoAudio();
-        await syncWordsNow();
-        const data = await api("/api/bingo/start", { code: room.code });
-        room = data.room;
-        stopAutoCallTimer();
-        await callNextWord();
-        scheduleAutoCall();
-      } catch (error) {
-        alert(error.message);
-      }
-    });
-
-    callBtn.addEventListener("click", async () => {
-      try {
-        unlockBingoAudio();
-        stopAutoCallTimer();
-        await callNextWord();
-        scheduleAutoCall();
+        if (room?.status === "live") {
+          stopAutoCallTimer();
+          await callNextWord();
+          scheduleAutoCall();
+        } else {
+          await syncWordsNow();
+          const data = await api("/api/bingo/start", { code: room.code });
+          room = data.room;
+          startBingoMusic();
+          stopAutoCallTimer();
+          await callNextWord();
+          scheduleAutoCall();
+        }
       } catch (error) {
         alert(error.message);
       }
@@ -1407,6 +1532,18 @@
         stopAutoCallTimer();
       }
       render();
+    });
+
+    musicBtn.addEventListener("click", () => {
+      unlockBingoAudio();
+      musicEnabled = !musicEnabled;
+      localStorage.setItem("bingo-music-enabled", musicEnabled ? "1" : "0");
+      if (musicEnabled) {
+        playBingoMusic();
+      } else {
+        pauseBingoMusic();
+      }
+      updateMusicButton();
     });
 
     autoCallSecondsInput.value = String(Math.round(autoCallIntervalMs / 1000));
@@ -1521,7 +1658,12 @@
       }
     }
 
-    continueBingoBtn.addEventListener("click", () => resolveClaim(false));
+    continueBingoBtn.addEventListener("click", async () => {
+      const resolved = await resolveClaim(false);
+      if (resolved && room?.status === "live") {
+        playBingoMusic();
+      }
+    });
     claimPlayAgainBtn.addEventListener("click", async () => {
       const resolved = await resolveClaim(true);
       if (resolved) {
@@ -1539,8 +1681,11 @@
     });
     checkClaimBtn.addEventListener("click", async () => {
       try {
+        unlockBingoAudio();
+        pauseBingoMusic();
         const data = await api("/api/bingo/review-claim", { code: room.code });
         room = data.room;
+        playBingoResultSound(!!room.pendingClaim?.isValid);
       } catch (error) {
         alert(error.message);
         return;
@@ -1563,10 +1708,11 @@
       await syncWordsNow();
     });
 
-    async function resetGame() {
+    async function resetGame(clearScores = false) {
       try {
         stopAutoCallTimer();
-        const data = await api("/api/bingo/reset", { code: room.code });
+        pauseBingoMusic();
+        const data = await api("/api/bingo/reset", { code: room.code, clearScores });
         room = data.room;
         dismissedWinnerKey = "";
         winnerModal.classList.remove("is-visible");
@@ -1576,18 +1722,63 @@
       }
     }
 
+    async function resetBingoAsFirstOpen() {
+      const oldCode = room?.code || localStorage.getItem(storageKey);
+      stopAutoCallTimer();
+      pauseBingoMusic();
+      winnerModal.classList.remove("is-visible");
+      claimShowModal.classList.remove("is-visible");
+      claimShowModal.setAttribute("aria-hidden", "true");
+      claimModal.classList.remove("is-visible");
+      claimModal.setAttribute("aria-hidden", "true");
+      activeClaimKey = "";
+      claimReviewOpen = false;
+      closedClaimReviewKey = "";
+      dismissedWinnerKey = "";
+      editingWords = false;
+      listVisible = false;
+      if (oldCode) {
+        try { await api("/api/bingo/delete-room", { code: oldCode }); } catch (_) {}
+      }
+      localStorage.removeItem(storageKey);
+      room = null;
+      await ensureRoom();
+    }
+
     resetBtn.addEventListener("click", async () => {
-      const confirmed = await openConfirm({
-        title: "Reset Bingo?",
+      const result = await openConfirm({
+        title: "Clear Bingo?",
         text: "Cards, called words, and the current winner will be cleared. The vocabulary list will stay.",
-        confirmLabel: "Reset"
+        confirmLabel: "Clear",
+        optionLabel: "Also clear ranking scores"
       });
-      if (!confirmed) return;
-      resetGame();
+      if (!result?.confirmed) return;
+      resetGame(!!result.checked);
     });
 
-    playAgainBtn.addEventListener("click", () => {
-      resetGame();
+    playAgainBtn.addEventListener("click", async () => {
+      await resetGame();
+    });
+
+    window.addEventListener("friendzy:reset", () => {
+      resetBingoAsFirstOpen().catch((error) => alert(error.message || "Could not reset Bingo."));
+    });
+
+    window.addEventListener("friendzy:player-removed", (event) => {
+      const name = String(event.detail?.name || "").trim();
+      if (!room || !name) return;
+      api("/api/bingo/remove-player", { code: room.code, name })
+        .then((data) => {
+          room = data.room;
+          render();
+        })
+        .catch(() => {});
+    });
+
+    window.addEventListener("friendzy:players-updated", () => {
+      importClassroomPlayers().then((changed) => {
+        if (changed) render();
+      });
     });
 
     closeWinnerBtn.addEventListener("click", () => {

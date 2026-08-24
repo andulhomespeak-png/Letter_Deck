@@ -301,10 +301,9 @@
 </head>
 <body>
   <section class="join" id="joinView">
-    <img class="logo" src="./buzzer-logo.png" alt="Fast Buzzer">
-    <label for="nameInput">Enter your name or team name</label>
-    <input id="nameInput" autocomplete="name" maxlength="34" autofocus>
-    <button id="joinBtn" type="button">Join Room</button>
+    <p>Connect through the Friendzy QR.</p>
+    <input id="nameInput" type="hidden" autocomplete="name" maxlength="34">
+    <button id="joinBtn" hidden type="button">Join</button>
     <p class="join-error" id="joinError"></p>
   </section>
 
@@ -377,6 +376,16 @@
       joinView.classList.remove("hidden");
       joinError.textContent = message;
       buzzBtn.disabled = true;
+    }
+
+    function requireFriendzyJoin() {
+      if (shouldAutoJoin && autoName) return false;
+      if (classroomCode) {
+        window.location.replace(`./student-hub.html?code=${encodeURIComponent(classroomCode)}`);
+        return true;
+      }
+      joinError.textContent = "Scan the Friendzy QR to join this activity.";
+      return true;
     }
 
     async function api(path, payload = null, method = "POST") {
@@ -633,7 +642,10 @@
       }
     }, 12000);
 
-    if (!code) {
+    if (requireFriendzyJoin()) {
+      nameInput.disabled = true;
+      joinBtn.disabled = true;
+    } else if (!code) {
       nameInput.disabled = true;
       joinBtn.disabled = true;
       joinError.textContent = "Missing room code.";

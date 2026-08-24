@@ -1823,7 +1823,6 @@
       podiumSoundPlayed = false;
       lastPodiumKey = "";
       podiumOverlay.classList.remove("is-visible");
-      startBackgroundLoop();
     }
 
     function escapeHtml(value) {
@@ -2390,6 +2389,23 @@
       } catch (_) {}
     }
 
+    async function importClassroomPlayers() {
+      const classroomCode = window.localStorage.getItem(classroomStorageKey);
+      if (!liveEnabled || !liveRoom || !classroomCode) return false;
+      try {
+        const data = await liveApi("/api/live/import-classroom", { code: liveRoom.code, classroomCode });
+        liveRoom = data.room;
+        persistLiveRoomCode();
+        matchFinished = liveRoom?.status === "finished";
+        syncLiveTeamsIntoScores();
+        syncActiveLettersFromRoom();
+        applyLiveRoomFeedback();
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+
     function connectLiveSocket() {
       if (!liveEnabled || !liveRoom) {
         return;
@@ -2454,6 +2470,7 @@
       try {
         const data = await liveApi(`/api/live/room?code=${encodeURIComponent(liveRoom.code)}`, null, "GET");
         liveRoom = data.room;
+        await importClassroomPlayers();
         persistLiveRoomCode();
         matchFinished = liveRoom?.status === "finished";
         syncLiveTeamsIntoScores();
@@ -2494,6 +2511,7 @@
         liveRoom = data.room;
       }
       persistLiveRoomCode();
+      await importClassroomPlayers();
       if (recoveredExistingRoom) {
         matchFinished = liveRoom?.status === "finished";
         syncLiveTeamsIntoScores();
@@ -2535,6 +2553,7 @@
       persistLiveRoomCode();
       matchFinished = false;
       clearLiveSubmissionState();
+      startBackgroundLoop(true);
       await syncLiveRoom("live");
       render();
     }
@@ -2556,9 +2575,6 @@
       audioPrimed = true;
       if (sfxEnabled) {
         getAudioContext();
-      }
-      if (musicEnabled) {
-        startBackgroundLoop();
       }
     }
 
@@ -2615,11 +2631,15 @@
       }
     }
 
-    function startBackgroundLoop() {
+    function startBackgroundLoop(reset = false) {
       if (!musicEnabled || isGameFinished()) {
         return;
       }
       try {
+        if (reset) {
+          backgroundLoop.pause();
+          backgroundLoop.currentTime = 0;
+        }
         if (backgroundLoop.paused) {
           backgroundLoop.play().catch(() => {});
         }
@@ -2643,9 +2663,7 @@
 
     function toggleMusic() {
       musicEnabled = !musicEnabled;
-      if (musicEnabled) {
-        startBackgroundLoop();
-      } else {
+      if (!musicEnabled) {
         stopMusic();
       }
       render();
@@ -2742,7 +2760,6 @@
       }
       persistLiveRoomCode();
       render();
-      startBackgroundLoop();
       syncLiveRoom("waiting", { lastSuccess: null, lastFeedback: null, podium: [], clearAcceptedWords: true }).catch(() => {});
     }
 
@@ -3182,6 +3199,31 @@
         resetGameAndDeleteLiveRoom().catch(() => {});
       }
     });
+
+    window.addEventListener("friendzy:reset", () => {
+      resetGameAndDeleteLiveRoom()
+        .then(() => ensureLiveRoom())
+        .catch(() => {});
+    });
+
+    window.addEventListener("friendzy:player-removed", (event) => {
+      const name = String(event.detail?.name || "").trim();
+      if (!liveRoom || !name) return;
+      liveApi("/api/live/remove-team", { code: liveRoom.code, name })
+        .then((data) => {
+          liveRoom = data.room;
+          syncLiveTeamsIntoScores();
+          render();
+        })
+        .catch(() => {});
+    });
+
+    window.addEventListener("friendzy:players-updated", () => {
+      importClassroomPlayers().then((changed) => {
+        if (changed) render();
+      });
+    });
+
     podiumResetBtn.addEventListener("click", async () => {
       const confirmed = await openConfirm({
         title: "Start New Match?",

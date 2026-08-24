@@ -323,9 +323,7 @@ function createPollRoom() {
   const room = {
     code: makeCode(),
     status: "waiting",
-    source: "manual",
     blockSelfVote: true,
-    joinRole: "voter",
     options: [],
     candidatePlayerIds: [],
     nominationMode: false,
@@ -353,11 +351,24 @@ function createWheelRoom() {
   return room;
 }
 
+function numberToBingoWords(number) {
+  const ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+  const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy"];
+  if (number < 20) return ones[number];
+  const ten = Math.floor(number / 10);
+  const one = number % 10;
+  return one ? `${tens[ten]} ${ones[one]}` : tens[ten];
+}
+
+function getDefaultBingoWords() {
+  return Array.from({ length: 75 }, (_, index) => numberToBingoWords(index + 1));
+}
+
 function createBingoRoom() {
   const room = {
     code: makeCode(),
     status: "setup",
-    words: [],
+    words: getDefaultBingoWords(),
     calledWords: [],
     players: [],
     cards: {},
@@ -638,8 +649,7 @@ function serializeClassroomRoom(room) {
 }
 
 function serializeWheelRoom(room) {
-  const playerNames = new Set((room.players || []).map((player) => String(player.name || "").trim().toLowerCase()).filter(Boolean));
-  room.names = normalizeWheelNames(room.names).filter((name) => !playerNames.has(String(name || "").trim().toLowerCase()));
+  room.names = normalizeWheelNames(room.names);
   return {
     code: room.code,
     names: room.names,
@@ -914,8 +924,13 @@ function getPollCandidates(room) {
 }
 
 function serializeBingoRoom(room, playerId = "") {
-  const sortedPlayers = (room.players || []).slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+  const sortedPlayers = (room.players || []).slice().sort((a, b) => {
+    const bingoDelta = Number(b.bingos || 0) - Number(a.bingos || 0);
+    if (bingoDelta) return bingoDelta;
+    return String(a.name || "").localeCompare(String(b.name || ""));
+  });
   const id = String(playerId || "");
+  if (id) ensureBingoCard(room, id);
   return {
     code: room.code,
     status: room.status,
@@ -941,9 +956,7 @@ function serializePollRoom(room) {
   return {
     code: room.code,
     status: room.status,
-    source: room.source,
     blockSelfVote: !!room.blockSelfVote,
-    joinRole: room.joinRole === "candidate" ? "candidate" : "voter",
     options: room.options || [],
     candidatePlayerIds: room.candidatePlayerIds || [],
     nominationMode: !!room.nominationMode,
@@ -1305,6 +1318,45 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { player, room: serialize(room) });
     }
 
+    if (req.method === "POST" && url.pathname === "/api/live/import-classroom") {
+      const { code, classroomCode } = await body(req);
+      const room = getRoom(code);
+      const classroom = getClassroomRoom(classroomCode);
+      let changed = false;
+      (classroom.players || []).forEach((sourcePlayer) => {
+        const clean = String(sourcePlayer.name || "").trim();
+        if (!clean) return;
+        let team = room.teams.find((item) => String(item.name || "").trim().toLowerCase() === clean.toLowerCase());
+        if (!team) {
+          let index = room.teams.length + 1;
+          let id = `team-${index}`;
+          while (room.teams.some((item) => item.id === id)) {
+            index += 1;
+            id = `team-${index}`;
+          }
+          team = { id, name: clean, members: 0, score: 0 };
+          room.teams.push(team);
+          changed = true;
+        }
+        const existingPlayer = room.players.find((item) => String(item.teamName || "").trim().toLowerCase() === clean.toLowerCase());
+        if (!existingPlayer) {
+          team.members = Number(team.members || 0) + 1;
+          room.players.push({
+            id: `player-${room.nextPlayerId++}`,
+            teamId: team.id,
+            teamName: team.name,
+            classroomPlayerId: sourcePlayer.id
+          });
+          changed = true;
+        }
+      });
+      if (changed) {
+        touch(room);
+        broadcastRoom(room);
+      }
+      return json(res, 200, { room: serialize(room) });
+    }
+
     if (req.method === "POST" && url.pathname === "/api/live/submit") {
       const { code, playerId, teamId, teamName, word, roundId } = await body(req);
       const room = getRoom(code);
@@ -1426,15 +1478,19 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && url.pathname === "/api/live/remove-team") {
-      const { code, teamId } = await body(req);
+      const { code, teamId, name } = await body(req);
       const room = getRoom(code);
+      const clean = String(name || "").trim().toLowerCase();
+      const removedTeamIds = new Set(room.teams
+        .filter((team) => team.id === teamId || (clean && String(team.name || "").trim().toLowerCase() === clean))
+        .map((team) => team.id));
       const before = room.teams.length;
-      room.teams = room.teams.filter((team) => team.id !== teamId);
+      room.teams = room.teams.filter((team) => !removedTeamIds.has(team.id));
       if (room.teams.length === before) {
         throw new Error("Team not found");
       }
-      room.players = room.players.filter((player) => player.teamId !== teamId);
-      room.submissions = room.submissions.filter((submission) => submission.teamId !== teamId);
+      room.players = room.players.filter((player) => !removedTeamIds.has(player.teamId));
+      room.submissions = room.submissions.filter((submission) => !removedTeamIds.has(submission.teamId));
       touch(room);
       broadcastRoom(room);
       return json(res, 200, { room: serialize(room) });
@@ -1626,14 +1682,18 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && url.pathname === "/api/buzzer/remove-player") {
-      const { code, playerId } = await body(req);
+      const { code, playerId, name } = await body(req);
       const room = getBuzzerRoom(code);
+      const clean = String(name || "").trim().toLowerCase();
+      const removedIds = new Set(room.players
+        .filter((player) => player.id === playerId || (clean && String(player.name || "").trim().toLowerCase() === clean))
+        .map((player) => player.id));
       const before = room.players.length;
-      room.players = room.players.filter((player) => player.id !== playerId);
+      room.players = room.players.filter((player) => !removedIds.has(player.id));
       if (room.players.length === before) throw new Error("Participant not found");
-      room.buzzes = room.buzzes.filter((buzz) => buzz.playerId !== playerId);
-      room.lockedOutPlayers = (room.lockedOutPlayers || []).filter((id) => id !== playerId);
-      if (room.winner?.playerId === playerId) {
+      room.buzzes = room.buzzes.filter((buzz) => !removedIds.has(buzz.playerId));
+      room.lockedOutPlayers = (room.lockedOutPlayers || []).filter((id) => !removedIds.has(id));
+      if (removedIds.has(room.winner?.playerId)) {
         room.winner = null;
       }
       touch(room);
@@ -1658,8 +1718,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/api/wheel/sync") {
       const { code, names } = await body(req);
       const room = getWheelRoom(code);
-      const playerNames = new Set((room.players || []).map((player) => String(player.name || "").trim().toLowerCase()).filter(Boolean));
-      room.names = normalizeWheelNames(names).filter((name) => !playerNames.has(String(name || "").trim().toLowerCase()));
+      room.names = normalizeWheelNames(names);
       touch(room);
       return json(res, 200, { room: serializeWheelRoom(room) });
     }
@@ -1674,9 +1733,42 @@ const server = http.createServer(async (req, res) => {
       if (!alreadyExists) {
         room.players.push({ name: clean, joinedAt: Date.now() });
       }
-      room.names = normalizeWheelNames(room.names).filter((item) => item.toLowerCase() !== clean.toLowerCase());
+      room.names = normalizeWheelNames(room.names);
       touch(room);
       return json(res, 200, { room: serializeWheelRoom(room), added: !alreadyExists, name: clean });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/wheel/import-classroom") {
+      const { code, classroomCode } = await body(req);
+      const room = getWheelRoom(code);
+      const classroom = getClassroomRoom(classroomCode);
+      let changed = false;
+      (classroom.players || []).forEach((sourcePlayer) => {
+        const clean = String(sourcePlayer.name || "").trim();
+        if (!clean) return;
+        const alreadyExists = (room.players || []).some((player) => String(player.name || "").trim().toLowerCase() === clean.toLowerCase());
+        if (!alreadyExists) {
+          room.players.push({
+            name: clean,
+            joinedAt: sourcePlayer.joinedAt || Date.now(),
+            classroomPlayerId: sourcePlayer.id
+          });
+          changed = true;
+        }
+      });
+      if (changed) touch(room);
+      return json(res, 200, { room: serializeWheelRoom(room) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/wheel/remove-player") {
+      const { code, name } = await body(req);
+      const room = getWheelRoom(code);
+      const clean = String(name || "").trim().toLowerCase();
+      const before = (room.players || []).length;
+      room.players = (room.players || []).filter((player) => String(player.name || "").trim().toLowerCase() !== clean);
+      if (room.players.length === before) throw new Error("Participant not found");
+      touch(room);
+      return json(res, 200, { room: serializeWheelRoom(room) });
     }
 
     if (req.method === "POST" && url.pathname === "/api/bingo/create-room") {
@@ -1703,6 +1795,7 @@ const server = http.createServer(async (req, res) => {
       room.words = nextWords;
       if (changed && !["live", "checking"].includes(room.status)) {
         room.cards = {};
+        room.players.forEach((player) => ensureBingoCard(room, player.id));
         room.calledWords = [];
         room.pendingClaim = null;
         room.winner = null;
@@ -1722,11 +1815,12 @@ const server = http.createServer(async (req, res) => {
       const duplicate = room.players.find((item) => item !== player && String(item.name || "").trim().toLowerCase() === clean.toLowerCase());
       if (duplicate) throw new Error("A participant with this name is already connected.");
       if (!player) {
-        player = { id: room.nextPlayerId || 1, name: clean, joinedAt: Date.now(), updatedAt: Date.now() };
+        player = { id: room.nextPlayerId || 1, name: clean, bingos: 0, joinedAt: Date.now(), updatedAt: Date.now() };
         room.nextPlayerId = Number(player.id) + 1;
         room.players.push(player);
       } else {
         player.name = clean;
+        player.bingos = Number(player.bingos || 0);
         player.updatedAt = Date.now();
       }
       ensureBingoCard(room, player.id);
@@ -1734,12 +1828,43 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { room: serializeBingoRoom(room, player.id), player });
     }
 
+    if (req.method === "POST" && url.pathname === "/api/bingo/import-classroom") {
+      const { code, classroomCode } = await body(req);
+      const room = getBingoRoom(code);
+      const classroom = getClassroomRoom(classroomCode);
+      let changed = false;
+      (classroom.players || []).forEach((sourcePlayer) => {
+        const clean = String(sourcePlayer.name || "").trim();
+        if (!clean) return;
+        let player = room.players.find((item) => String(item.name || "").trim().toLowerCase() === clean.toLowerCase());
+        if (!player) {
+          player = {
+            id: room.nextPlayerId || 1,
+            name: clean,
+            bingos: 0,
+            joinedAt: sourcePlayer.joinedAt || Date.now(),
+            updatedAt: Date.now(),
+            classroomPlayerId: sourcePlayer.id
+          };
+          room.nextPlayerId = Number(player.id) + 1;
+          room.players.push(player);
+          changed = true;
+        } else if (!Number.isFinite(Number(player.bingos))) {
+          player.bingos = 0;
+          player.updatedAt = Date.now();
+          changed = true;
+        }
+        ensureBingoCard(room, player.id);
+      });
+      if (changed) touch(room);
+      return json(res, 200, { room: serializeBingoRoom(room) });
+    }
+
     if (req.method === "POST" && url.pathname === "/api/bingo/start") {
       const { code } = await body(req);
       const room = getBingoRoom(code);
       if ((room.words || []).length < 24) throw new Error("Add at least 24 vocabulary words.");
       if (!(room.players || []).length) throw new Error("Add participants before starting Bingo.");
-      room.cards = {};
       room.players.forEach((player) => ensureBingoCard(room, player.id));
       room.status = "live";
       room.calledWords = [];
@@ -1754,14 +1879,57 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { room: serializeBingoRoom(room) });
     }
 
+    if (req.method === "POST" && url.pathname === "/api/bingo/shuffle-card") {
+      const { code, playerId } = await body(req);
+      const room = getBingoRoom(code);
+      if (room.status !== "setup") throw new Error("Cards can only be changed before Bingo starts.");
+      const player = room.players.find((item) => Number(item.id) === Number(playerId || 0));
+      if (!player) throw new Error("Participant not found.");
+      if (!room.cards) room.cards = {};
+      room.cards[String(player.id)] = makeUniqueBingoCard(room, player.id);
+      touch(room);
+      return json(res, 200, { room: serializeBingoRoom(room, player.id) });
+    }
+
     if (req.method === "POST" && url.pathname === "/api/bingo/reset") {
-      const { code } = await body(req);
+      const { code, clearScores } = await body(req);
       const room = getBingoRoom(code);
       room.status = "setup";
       room.calledWords = [];
       room.cards = {};
       room.pendingClaim = null;
       room.winner = null;
+      if (clearScores) {
+        (room.players || []).forEach((player) => {
+          player.bingos = 0;
+          player.updatedAt = Date.now();
+        });
+      }
+      touch(room);
+      return json(res, 200, { room: serializeBingoRoom(room) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/bingo/remove-player") {
+      const { code, name, playerId } = await body(req);
+      const room = getBingoRoom(code);
+      const clean = String(name || "").trim().toLowerCase();
+      const removedIds = new Set((room.players || [])
+        .filter((player) => Number(player.id) === Number(playerId || 0) || (clean && String(player.name || "").trim().toLowerCase() === clean))
+        .map((player) => String(player.id)));
+      const before = room.players.length;
+      room.players = room.players.filter((player) => !removedIds.has(String(player.id)));
+      if (room.players.length === before) throw new Error("Participant not found.");
+      removedIds.forEach((id) => {
+        if (room.cards) delete room.cards[id];
+      });
+      if (removedIds.has(String(room.pendingClaim?.playerId || ""))) {
+        room.pendingClaim = null;
+        room.status = "live";
+      }
+      if (removedIds.has(String(room.winner?.playerId || ""))) {
+        room.winner = null;
+        room.status = "setup";
+      }
       touch(room);
       return json(res, 200, { room: serializeBingoRoom(room) });
     }
@@ -1834,6 +2002,11 @@ const server = http.createServer(async (req, res) => {
       if (!claim) throw new Error("No Bingo claim is waiting.");
       if (valid) {
         if (!claim.isValid) throw new Error("This card does not have a valid Bingo.");
+        const player = room.players.find((item) => Number(item.id) === Number(claim.playerId));
+        if (player) {
+          player.bingos = Number(player.bingos || 0) + 1;
+          player.updatedAt = Date.now();
+        }
         room.status = "finished";
         room.winner = {
           playerId: claim.playerId,
@@ -1866,10 +2039,8 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && url.pathname === "/api/poll/sync") {
-      const { code, options, source, blockSelfVote, candidatePlayerIds, joinRole, nominationMode, nomineePlayerIds } = await body(req);
+      const { code, options, blockSelfVote, candidatePlayerIds, nominationMode, nomineePlayerIds } = await body(req);
       const room = getPollRoom(code);
-      const nextSource = ["manual", "players", "mixed"].includes(source) ? source : "mixed";
-      const nextJoinRole = joinRole === "candidate" ? "candidate" : "voter";
       const nextOptions = normalizePollOptions(options);
       const validPlayerIds = new Set((room.players || []).map((player) => Number(player.id)));
       const nextCandidatePlayerIds = Array.from(new Set((Array.isArray(candidatePlayerIds) ? candidatePlayerIds : room.candidatePlayerIds || [])
@@ -1878,16 +2049,12 @@ const server = http.createServer(async (req, res) => {
       const nextNomineePlayerIds = Array.from(new Set((Array.isArray(nomineePlayerIds) ? nomineePlayerIds : room.nomineePlayerIds || [])
         .map((id) => Number(id))
         .filter((id) => validPlayerIds.has(id))));
-      const changed = room.source !== nextSource
-        || room.options.join("\n") !== nextOptions.join("\n")
+      const changed = room.options.join("\n") !== nextOptions.join("\n")
         || (room.candidatePlayerIds || []).join("|") !== nextCandidatePlayerIds.join("|")
-        || room.blockSelfVote !== !!blockSelfVote
-        || room.joinRole !== nextJoinRole;
-      room.source = nextSource;
+        || room.blockSelfVote !== !!blockSelfVote;
       room.options = nextOptions;
       room.candidatePlayerIds = nextCandidatePlayerIds;
       room.blockSelfVote = !!blockSelfVote;
-      room.joinRole = nextJoinRole;
       room.nominationMode = !!nominationMode;
       room.nomineePlayerIds = nextNomineePlayerIds;
       if (changed && room.status !== "voting") {
@@ -1921,6 +2088,35 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { room: serializePollRoom(room), player });
     }
 
+    if (req.method === "POST" && url.pathname === "/api/poll/import-classroom") {
+      const { code, classroomCode } = await body(req);
+      const room = getPollRoom(code);
+      const classroom = getClassroomRoom(classroomCode);
+      let changed = false;
+      (classroom.players || []).forEach((sourcePlayer) => {
+        const clean = String(sourcePlayer.name || "").trim();
+        if (!clean) return;
+        let player = room.players.find((item) => String(item.name || "").trim().toLowerCase() === clean.toLowerCase());
+        if (!player) {
+          player = {
+            id: room.nextPlayerId || 1,
+            name: clean,
+            joinedAt: sourcePlayer.joinedAt || Date.now(),
+            updatedAt: Date.now(),
+            classroomPlayerId: sourcePlayer.id
+          };
+          room.nextPlayerId = Number(player.id) + 1;
+          room.players.push(player);
+          changed = true;
+        }
+      });
+      const playerIds = new Set(room.players.map((item) => Number(item.id)));
+      room.candidatePlayerIds = (room.candidatePlayerIds || []).filter((id) => playerIds.has(Number(id)));
+      room.nomineePlayerIds = (room.nomineePlayerIds || []).filter((id) => playerIds.has(Number(id)));
+      if (changed) touch(room);
+      return json(res, 200, { room: serializePollRoom(room) });
+    }
+
     if (req.method === "POST" && url.pathname === "/api/poll/nominate") {
       const { code, playerId } = await body(req);
       const room = getPollRoom(code);
@@ -1939,15 +2135,18 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && url.pathname === "/api/poll/remove-player") {
-      const { code, playerId } = await body(req);
+      const { code, playerId, name } = await body(req);
       const room = getPollRoom(code);
-      const id = Number(playerId || 0);
+      const clean = String(name || "").trim().toLowerCase();
+      const ids = new Set((room.players || [])
+        .filter((player) => Number(player.id) === Number(playerId || 0) || (clean && String(player.name || "").trim().toLowerCase() === clean))
+        .map((player) => Number(player.id)));
       const before = room.players.length;
-      room.players = room.players.filter((player) => Number(player.id) !== id);
+      room.players = room.players.filter((player) => !ids.has(Number(player.id)));
       if (room.players.length === before) throw new Error("Participant not found");
-      room.candidatePlayerIds = (room.candidatePlayerIds || []).filter((candidateId) => Number(candidateId) !== id);
-      room.nomineePlayerIds = (room.nomineePlayerIds || []).filter((nomineeId) => Number(nomineeId) !== id);
-      room.votes = (room.votes || []).filter((vote) => Number(vote.voterId) !== id && vote.candidateId !== `player-${id}`);
+      room.candidatePlayerIds = (room.candidatePlayerIds || []).filter((candidateId) => !ids.has(Number(candidateId)));
+      room.nomineePlayerIds = (room.nomineePlayerIds || []).filter((nomineeId) => !ids.has(Number(nomineeId)));
+      room.votes = (room.votes || []).filter((vote) => !ids.has(Number(vote.voterId)) && !ids.has(Number(String(vote.candidateId || "").replace("player-", ""))));
       touch(room);
       return json(res, 200, { room: serializePollRoom(room) });
     }

@@ -529,10 +529,33 @@
       text-transform: uppercase;
     }
 
+    .names-panel-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .list-add-btn,
     .list-clear-btn {
       min-height: 28px;
       padding: 0 10px;
       font-size: 0.7rem;
+    }
+
+    .list-add-btn {
+      color: #fff;
+      background: linear-gradient(135deg, #087dff, #3024d8);
+      box-shadow: 0 8px 18px rgba(8, 125, 255, 0.18);
+    }
+
+    .list-add-btn:disabled {
+      opacity: 0.48;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .list-clear-btn {
       color: #fff;
       background: linear-gradient(135deg, var(--red), #a8001a);
       box-shadow: 0 8px 18px rgba(255, 37, 65, 0.18);
@@ -808,7 +831,10 @@
         <div class="names-panel" id="namesPanel">
           <div class="names-panel-head">
             <h2>Entries <span class="entry-count" id="entryCount">(0)</span></h2>
-            <button class="list-clear-btn" id="clearEntriesBtn" type="button">Clear</button>
+            <div class="names-panel-actions">
+              <button class="list-add-btn" id="addPlayersBtn" type="button">Add Players</button>
+              <button class="list-clear-btn" id="clearEntriesBtn" type="button">Clear</button>
+            </div>
           </div>
           <textarea id="namesInput" spellcheck="false" placeholder="Type or paste entries here. One per line."></textarea>
         </div>
@@ -869,6 +895,7 @@
     const spinBtn = document.getElementById("spinBtn");
     const modeToggleBtn = document.getElementById("modeToggleBtn");
     const listToggleBtn = document.getElementById("listToggleBtn");
+    const addPlayersBtn = document.getElementById("addPlayersBtn");
     const clearEntriesBtn = document.getElementById("clearEntriesBtn");
     const homeBtn = document.getElementById("homeBtn");
     const resetBtn = document.getElementById("resetBtn");
@@ -1095,6 +1122,7 @@
       nameCountEl.textContent = names.length;
       entryCountEl.textContent = `(${names.length})`;
       playerCountEl.textContent = `(${connectedPlayers.length})`;
+      addPlayersBtn.disabled = !connectedPlayers.length || spinning;
       clearEntriesBtn.disabled = !names.length || spinning;
       spinBtn.disabled = names.length < 2 || (spinning && !canBoost());
       spinBtn.textContent = spinning ? (canBoost() ? "Boost" : "Locked") : "Spin";
@@ -1169,6 +1197,7 @@
           const existing = await api(`/api/wheel/room?code=${encodeURIComponent(savedCode)}`, null, "GET");
           room = existing.room;
           connectedPlayers = room.players || [];
+          await importClassroomPlayers();
           mergeNames(room.names);
           setClassroomTool("wheel", room.code).catch(() => {});
           return room;
@@ -1179,6 +1208,7 @@
       const data = await api("/api/wheel/create-room");
       room = data.room;
       connectedPlayers = room.players || [];
+      await importClassroomPlayers();
       await syncNamesNow();
       setClassroomTool("wheel", room.code).catch(() => {});
       return room;
@@ -1190,6 +1220,19 @@
       try {
         await api("/api/classroom/set-tool", { code: classroomCode, activeTool, activeToolCode });
       } catch (_) {}
+    }
+
+    async function importClassroomPlayers() {
+      const classroomCode = localStorage.getItem(classroomStorageKey);
+      if (!room || !classroomCode) return false;
+      try {
+        const data = await api("/api/wheel/import-classroom", { code: room.code, classroomCode });
+        room = data.room;
+        connectedPlayers = room.players || [];
+        return true;
+      } catch (_) {
+        return false;
+      }
     }
 
     async function syncNamesNow() {
@@ -1393,6 +1436,7 @@
         const data = await api(`/api/wheel/room?code=${encodeURIComponent(room.code)}`, null, "GET");
         room = data.room;
         connectedPlayers = room.players || [];
+        await importClassroomPlayers();
         mergeNames(room.names);
       } catch (_) {
         room = null;
@@ -1508,6 +1552,17 @@
       listVisible = !listVisible;
       render();
     });
+    addPlayersBtn.addEventListener("click", () => {
+      if (!connectedPlayers.length || spinning) return;
+      const playerNames = connectedPlayers.map((player) => player.name).filter(Boolean);
+      const nextNames = normalize([...names, ...playerNames]);
+      pendingRemovalName = "";
+      removedNames.clear();
+      namesDirty = false;
+      editingNames = false;
+      setNames(nextNames, true);
+      syncNamesNow().catch(() => scheduleSync());
+    });
     clearEntriesBtn.addEventListener("click", async () => {
       if (!names.length || spinning) return;
       const confirmed = await openConfirm({
@@ -1564,6 +1619,38 @@
       render();
     });
 
+    window.addEventListener("friendzy:reset", () => {
+      const oldCode = room?.code || localStorage.getItem(storageKey);
+      if (oldCode) {
+        api("/api/wheel/delete-room", { code: oldCode }).catch(() => {});
+      }
+      room = null;
+      connectedPlayers = [];
+      qrVisible = false;
+      localStorage.removeItem(storageKey);
+      closeQrModal();
+      render();
+      ensureRoom().then(() => startPolling()).catch(() => {});
+    });
+
+    window.addEventListener("friendzy:player-removed", (event) => {
+      const name = String(event.detail?.name || "").trim();
+      if (!room || !name) return;
+      api("/api/wheel/remove-player", { code: room.code, name })
+        .then((data) => {
+          room = data.room;
+          connectedPlayers = room.players || [];
+          render();
+        })
+        .catch(() => {});
+    });
+
+    window.addEventListener("friendzy:players-updated", () => {
+      importClassroomPlayers().then((changed) => {
+        if (changed) render();
+      });
+    });
+
     qrToggleBtn.addEventListener("click", async () => {
       if (!qrVisible) {
         await ensureRoom();
@@ -1600,6 +1687,7 @@
           const data = await api(`/api/wheel/room?code=${encodeURIComponent(savedCode)}`, null, "GET");
           room = data.room;
           connectedPlayers = room.players || [];
+          await importClassroomPlayers();
           mergeNames(room.names);
           setClassroomTool("wheel", room.code).catch(() => {});
           startPolling();

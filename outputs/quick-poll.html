@@ -307,10 +307,6 @@
       gap: 12px;
     }
 
-    .side.is-players-source .side-content {
-      grid-template-rows: minmax(0, 1fr);
-    }
-
     .side-head,
     .row {
       display: flex;
@@ -330,37 +326,6 @@
       font-size: 1rem;
       letter-spacing: 0.14em;
       text-transform: uppercase;
-    }
-
-    .qr-box {
-      display: grid;
-      place-items: center;
-      gap: 8px;
-      padding: 12px;
-      border-radius: 24px;
-      background: rgba(255,255,255,0.72);
-      border: 1px solid var(--line);
-      cursor: zoom-in;
-      transition: transform 140ms ease, box-shadow 140ms ease;
-    }
-
-    .qr-box:hover {
-      transform: translateY(-2px) scale(1.01);
-      box-shadow: 0 16px 34px rgba(16, 11, 47, 0.14);
-    }
-
-    .qr-box img {
-      width: min(100%, 190px);
-      border-radius: 18px;
-      background: #fff;
-      image-rendering: pixelated;
-    }
-
-    .room-code {
-      margin: 0;
-      font-weight: 1000;
-      letter-spacing: 0.18em;
-      color: var(--muted);
     }
 
     .panel {
@@ -531,67 +496,6 @@
 
     .hidden { display: none !important; }
 
-    .qr-modal {
-      position: fixed;
-      inset: 0;
-      z-index: 50;
-      padding: clamp(12px, 3vw, 28px);
-      background: rgba(16, 11, 47, 0.42);
-      backdrop-filter: blur(18px);
-    }
-
-    .qr-modal-card {
-      position: fixed;
-      left: 50vw;
-      top: 50vh;
-      transform: translate(-50%, -50%);
-      width: min(92vw, 980px);
-      height: min(88vh, 820px);
-      padding: clamp(16px, 3vw, 28px);
-      border-radius: clamp(28px, 4vw, 42px);
-      display: grid;
-      grid-template-columns: minmax(0, 1.15fr) minmax(240px, 0.85fr);
-      gap: clamp(14px, 2vw, 22px);
-      background: rgba(255,255,255,0.92);
-      border: 1px solid rgba(255,255,255,0.78);
-      box-shadow: 0 32px 90px rgba(16, 11, 47, 0.28);
-      overflow: hidden;
-    }
-
-    .qr-modal-main {
-      display: grid;
-      gap: 10px;
-      place-items: center;
-      min-height: 0;
-    }
-
-    .qr-modal-main img {
-      width: min(100%, 620px);
-      max-height: min(62vh, 600px);
-      border-radius: 24px;
-      background: #fff;
-      image-rendering: pixelated;
-    }
-
-    .qr-modal-list {
-      min-height: 0;
-      display: grid;
-      grid-template-rows: auto auto minmax(0, 1fr);
-      gap: 10px;
-      padding: 14px;
-      border-radius: 28px;
-      background: rgba(255,255,255,0.68);
-      border: 1px solid var(--line);
-    }
-
-    .modal-names {
-      min-height: 0;
-      overflow-y: auto;
-      font-weight: 1000;
-      line-height: 1.55;
-      white-space: pre-line;
-    }
-
     .confirm-overlay {
       position: fixed;
       inset: 0;
@@ -665,12 +569,6 @@
       .actions { justify-content: stretch; }
       .actions button { flex: 1; }
       .side { min-height: 650px; }
-      .qr-modal-card {
-        grid-template-columns: 1fr;
-        width: min(92vw, 520px);
-        height: min(90vh, 760px);
-      }
-      .qr-modal-main img { max-height: 42vh; }
     }
   </style>
 </head>
@@ -718,20 +616,6 @@
     </aside>
   </main>
 
-  <div class="qr-modal hidden" id="qrModal" aria-hidden="true">
-    <div class="qr-modal-card">
-      <div class="qr-modal-main">
-        <img id="qrLargeImage" alt="Large Quick Poll room QR">
-        <p class="room-code" id="qrLargeCode">-----</p>
-        <button id="qrModalCloseBtn" type="button">Close</button>
-      </div>
-      <section class="qr-modal-list" aria-label="Players">
-        <h3>Players</h3>
-        <div class="modal-names" id="modalNames"></div>
-      </section>
-    </div>
-  </div>
-
   <div class="confirm-overlay hidden" id="confirmOverlay">
     <div class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
       <p class="confirm-kicker">Confirm</p>
@@ -750,16 +634,7 @@
     const voteToggleBtn = document.getElementById("voteToggleBtn");
     const topbar = document.getElementById("topbar");
     const clearBtn = document.getElementById("clearBtn");
-    const resetBtn = document.getElementById("resetBtn");
     const homeBtn = document.getElementById("homeBtn");
-    const qrToggleBtn = document.getElementById("qrToggleBtn");
-    const qrBox = document.getElementById("qrBox");
-    const qrImage = document.getElementById("qrImage");
-    const roomCodeEl = document.getElementById("roomCode");
-    const qrModal = document.getElementById("qrModal");
-    const qrLargeImage = document.getElementById("qrLargeImage");
-    const qrLargeCode = document.getElementById("qrLargeCode");
-    const qrModalCloseBtn = document.getElementById("qrModalCloseBtn");
     const confirmOverlay = document.getElementById("confirmOverlay");
     const confirmTitle = document.getElementById("confirmTitle");
     const confirmText = document.getElementById("confirmText");
@@ -773,19 +648,13 @@
     const optionsPanel = document.getElementById("optionsPanel");
     const optionsInput = document.getElementById("optionsInput");
     const submitOptionBtn = document.getElementById("submitOptionBtn");
-    const playerCount = document.getElementById("playerCount");
     const connectedPanel = document.getElementById("connectedPanel");
     const playersList = document.getElementById("playersList");
-    const modalNames = document.getElementById("modalNames");
     const results = document.getElementById("results");
     const stage = document.querySelector(".stage");
 
     let room = null;
-    let baseUrl = window.location.origin;
-    let qrVisible = false;
-    let source = "mixed";
     let blockSelfVote = true;
-    let joinRole = "voter";
     let options = [];
     let candidatePlayerIds = [];
     let nominationMode = false;
@@ -825,19 +694,10 @@
       return String(optionsInput.value || "").trim();
     }
 
-    function getJoinUrl() {
-      return room ? `${baseUrl}/quick-poll-student.html?code=${encodeURIComponent(room.code)}` : "";
-    }
-
-    function getQrSrc(size = 420) {
-      return room ? `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(getJoinUrl())}` : "";
-    }
-
     function renderPlayers() {
       const players = room?.players || [];
       const candidateIds = new Set(candidatePlayerIds.map((id) => Number(id)));
       const nomineeIds = nominationMode ? new Set(nomineePlayerIds.map((id) => Number(id))) : new Set();
-      if (playerCount) playerCount.textContent = `(${players.length})`;
       playersList.innerHTML = players.length
         ? players.slice().sort((a, b) => {
           const nomineeDiff = Number(nomineeIds.has(Number(b.id))) - Number(nomineeIds.has(Number(a.id)));
@@ -850,7 +710,6 @@
           return `<div class="player ${isNominee ? "is-nominee" : ""}" draggable="true" data-player-id="${player.id}"><span class="player-name">${escapeHtml(player.name)}</span>${tag}<button class="remove-player" type="button" data-player-id="${player.id}" aria-label="Remove ${escapeHtml(player.name)}">X</button></div>`;
         }).join("")
         : "";
-      modalNames.textContent = players.length ? players.map((player) => player.name).sort((a, b) => a.localeCompare(b)).join("\n") : "No players yet.";
     }
 
     function renderResults() {
@@ -873,9 +732,7 @@
     }
 
     function render() {
-      source = "mixed";
       blockSelfVote = room?.blockSelfVote ?? blockSelfVote;
-      joinRole = room?.joinRole || joinRole;
       options = room?.options || options;
       candidatePlayerIds = (room?.candidatePlayerIds || candidatePlayerIds).map((id) => Number(id));
       nominationMode = !!room?.nominationMode;
@@ -891,34 +748,15 @@
       voteToggleBtn.classList.toggle("primary", room?.status !== "voting");
       voteToggleBtn.classList.toggle("danger", room?.status === "voting");
       clearBtn.disabled = !room || room.status === "voting";
-      if (resetBtn) resetBtn.disabled = !room || room.status === "voting";
       if (room) {
         localStorage.setItem(storageKey, room.code);
-        if (roomCodeEl) roomCodeEl.textContent = room.code;
-        qrLargeCode.textContent = room.code;
-        if (qrImage) qrImage.src = getQrSrc(420);
-        qrLargeImage.src = getQrSrc(720);
-      } else {
-        if (roomCodeEl) roomCodeEl.textContent = "-----";
-        if (qrImage) qrImage.removeAttribute("src");
       }
-      sidePanel.classList.toggle("is-players-source", true);
-      if (qrBox) qrBox.classList.toggle("hidden", true);
-      if (qrToggleBtn) qrToggleBtn.textContent = qrVisible ? "Hide QR" : "Show QR";
       renderPlayers();
       renderResults();
     }
 
     function escapeHtml(value) {
       return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-    }
-
-    async function hydrateBaseUrl() {
-      try {
-        const data = await api("/api/live/server-info", null, "GET");
-        const localHost = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
-        baseUrl = localHost && data?.localOrigin ? data.localOrigin : (data?.publicOrigin || window.location.origin);
-      } catch (_) {}
     }
 
     async function ensureRoom() {
@@ -928,6 +766,7 @@
         try {
           const data = await api(`/api/poll/room?code=${encodeURIComponent(savedCode)}`, null, "GET");
           room = data.room;
+          await importClassroomPlayers();
           setClassroomTool("quick-poll", room.code).catch(() => {});
           render();
           return room;
@@ -937,6 +776,7 @@
       }
       const data = await api("/api/poll/create-room");
       room = data.room;
+      await importClassroomPlayers();
       await syncSettings();
       setClassroomTool("quick-poll", room.code).catch(() => {});
       return room;
@@ -950,9 +790,21 @@
       } catch (_) {}
     }
 
+    async function importClassroomPlayers() {
+      const classroomCode = localStorage.getItem(classroomStorageKey);
+      if (!room || !classroomCode) return false;
+      try {
+        const data = await api("/api/poll/import-classroom", { code: room.code, classroomCode });
+        room = data.room;
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+
     async function syncSettings() {
       if (!room) return;
-      const data = await api("/api/poll/sync", { code: room.code, options, source: "mixed", blockSelfVote, candidatePlayerIds, joinRole, nominationMode, nomineePlayerIds });
+      const data = await api("/api/poll/sync", { code: room.code, options, blockSelfVote, candidatePlayerIds, nominationMode, nomineePlayerIds });
       room = data.room;
       render();
     }
@@ -962,10 +814,10 @@
       try {
         const data = await api(`/api/poll/room?code=${encodeURIComponent(room.code)}`, null, "GET");
         room = data.room;
+        await importClassroomPlayers();
         render();
       } catch (_) {
         room = null;
-        qrVisible = false;
         localStorage.removeItem(storageKey);
         render();
       } finally {
@@ -976,18 +828,6 @@
     function startPolling() {
       clearTimeout(pollTimer);
       pollTimer = setTimeout(pollRoom, 500);
-    }
-
-    function openQrModal() {
-      if (!room || !qrVisible) return;
-      qrModal.classList.remove("hidden");
-      qrModal.setAttribute("aria-hidden", "false");
-      renderPlayers();
-    }
-
-    function closeQrModal() {
-      qrModal.classList.add("hidden");
-      qrModal.setAttribute("aria-hidden", "true");
     }
 
     function closeConfirm(result = false) {
@@ -1018,7 +858,6 @@
         return;
       }
       await ensureRoom();
-      source = "mixed";
       options = normalize([...(options || []), nextOption]);
       optionsInput.value = "";
       optionsInput.style.height = "auto";
@@ -1028,7 +867,6 @@
 
     async function addCandidatePlayer(playerId) {
       await ensureRoom();
-      source = "mixed";
       const id = Number(playerId);
       if (!id || candidatePlayerIds.includes(id)) {
         return;
@@ -1184,7 +1022,6 @@
 
     nominationToggleBtn.addEventListener("click", async () => {
       await ensureRoom();
-      source = "mixed";
       nominationMode = !nominationMode;
       if (!nominationMode) {
         nomineePlayerIds = [];
@@ -1197,19 +1034,6 @@
       await ensureRoom();
       blockSelfVote = !blockSelfVote;
       await syncSettings();
-    });
-
-    qrToggleBtn?.addEventListener("click", async () => {
-      if (!qrVisible) {
-        await ensureRoom();
-        qrVisible = true;
-        render();
-        startPolling();
-        return;
-      }
-      qrVisible = false;
-      closeQrModal();
-      render();
     });
 
     voteToggleBtn.addEventListener("click", async () => {
@@ -1243,43 +1067,43 @@
       render();
     });
 
-    resetBtn?.addEventListener("click", async () => {
-      const confirmed = await openConfirm({
-        title: "Reset Room?",
-        text: "This deletes the current Quick Poll room and removes all connected players.",
-        confirmLabel: "Reset"
-      });
-      if (!room || !confirmed) return;
-      const oldCode = room.code;
-      try {
-        await api("/api/poll/delete-room", { code: oldCode });
-      } catch (_) {}
+    window.addEventListener("friendzy:reset", () => {
+      const oldCode = room?.code || localStorage.getItem(storageKey);
+      if (oldCode) {
+        api("/api/poll/delete-room", { code: oldCode }).catch(() => {});
+      }
       room = null;
-      qrVisible = false;
-      source = "mixed";
       blockSelfVote = true;
-      joinRole = "voter";
       nominationMode = false;
       nomineePlayerIds = [];
       options = [];
       candidatePlayerIds = [];
       optionsInput.value = "";
       localStorage.removeItem(storageKey);
-      closeQrModal();
       render();
+      ensureRoom().then(() => startPolling()).catch(() => {});
+    });
+
+    window.addEventListener("friendzy:player-removed", (event) => {
+      const name = String(event.detail?.name || "").trim();
+      if (!room || !name) return;
+      api("/api/poll/remove-player", { code: room.code, name })
+        .then((data) => {
+          room = data.room;
+          render();
+        })
+        .catch(() => {});
+    });
+
+    window.addEventListener("friendzy:players-updated", () => {
+      importClassroomPlayers().then((changed) => {
+        if (changed) render();
+      });
     });
 
     homeBtn.addEventListener("click", () => {
       setClassroomTool("standby", "").finally(() => { window.location.href = "./"; });
     });
-    qrBox?.addEventListener("click", openQrModal);
-    qrBox?.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        openQrModal();
-      }
-    });
-    qrModalCloseBtn.addEventListener("click", closeQrModal);
     confirmCancelBtn.addEventListener("click", () => closeConfirm(false));
     confirmAcceptBtn.addEventListener("click", () => closeConfirm(true));
     confirmOverlay.addEventListener("click", (event) => {
@@ -1287,10 +1111,6 @@
         closeConfirm(false);
       }
     });
-    qrModal.addEventListener("click", (event) => {
-      if (event.target === qrModal) closeQrModal();
-    });
-
     document.addEventListener("keydown", (event) => {
       if (!confirmOverlay.classList.contains("hidden")) {
         if (event.key === "Escape") closeConfirm(false);
@@ -1298,7 +1118,7 @@
       }
     });
 
-    hydrateBaseUrl().then(async () => {
+    (async () => {
       render();
       const savedCode = localStorage.getItem(storageKey);
       if (savedCode) {
@@ -1317,7 +1137,7 @@
         await ensureRoom();
         startPolling();
       }
-    });
+    })();
   </script>
   <script src="./friendzy-panel.js"></script>
 </body>

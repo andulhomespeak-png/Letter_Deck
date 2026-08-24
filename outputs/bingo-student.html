@@ -56,14 +56,6 @@
       text-align: center;
     }
 
-    .join-logo {
-      width: min(88vw, 360px);
-      max-height: 280px;
-      justify-self: center;
-      object-fit: contain;
-      filter: drop-shadow(0 18px 26px rgba(7, 20, 60, 0.22));
-    }
-
     h1 {
       margin: 0;
       font-size: clamp(2rem, 11vw, 4.1rem);
@@ -266,6 +258,7 @@
       white-space: nowrap;
       text-overflow: clip;
       word-break: keep-all;
+      transition: transform 70ms ease, box-shadow 70ms ease;
     }
 
     .cell.is-marked {
@@ -273,6 +266,16 @@
       background: linear-gradient(135deg, var(--blue), #005be8);
       border-color: transparent;
       box-shadow: 0 12px 22px rgba(8,125,255,0.24);
+    }
+
+    .cell.mark-error {
+      color: #fff;
+      background: linear-gradient(135deg, var(--red), #a8001a);
+      border-color: rgba(255,255,255,0.9);
+      box-shadow:
+        0 0 0 4px rgba(255,37,65,0.18),
+        0 12px 24px rgba(255,37,65,0.28);
+      animation: markErrorPulse 560ms ease both;
     }
 
     .cell.bingo-line {
@@ -308,6 +311,19 @@
       background: linear-gradient(135deg, var(--orange), #ff4b18);
     }
 
+    .cell.shuffle-cell {
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 28% 18%, rgba(255,255,255,0.96), transparent 24%),
+        linear-gradient(135deg, #ffffff 0%, #e6f3ff 42%, #fff3cf 100%);
+      border-color: rgba(8,125,255,0.52);
+      box-shadow:
+        inset 0 2px 0 rgba(255,255,255,0.92),
+        0 0 0 3px rgba(8,125,255,0.12),
+        0 12px 22px rgba(8,125,255,0.18);
+      animation: shuffleNudge 1300ms ease-in-out infinite;
+    }
+
     .footer {
       display: grid;
       gap: 7px;
@@ -334,6 +350,30 @@
       background: rgba(255,37,65,0.14);
     }
 
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: clamp(14px, 4vw, 22px);
+      z-index: 20;
+      max-width: min(88vw, 360px);
+      padding: 11px 15px;
+      border-radius: 999px;
+      color: #fff;
+      background: linear-gradient(135deg, var(--red), #a8001a);
+      box-shadow: 0 18px 42px rgba(16,11,47,0.22);
+      font-weight: 1000;
+      text-align: center;
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, 12px) scale(0.96);
+      transition: opacity 150ms ease, transform 150ms ease;
+    }
+
+    .toast.is-visible {
+      opacity: 1;
+      transform: translate(-50%, 0) scale(1);
+    }
+
     @keyframes pulse {
       from { transform: scale(1); }
       to { transform: scale(1.035); }
@@ -355,13 +395,21 @@
       to { opacity: 1; transform: scale(1.04); }
     }
 
+    @keyframes markErrorPulse {
+      0% { transform: scale(1); }
+      35% { transform: scale(1.06); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes shuffleNudge {
+      0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
+      35% { transform: translateY(-3px) rotate(-1.5deg) scale(1.03); }
+      70% { transform: translateY(1px) rotate(1deg) scale(1.01); }
+    }
+
     @media (max-width: 420px) {
       .screen { padding: 8px; }
       .card { padding: 12px; border-radius: 24px; }
-      .join-logo {
-        width: min(90vw, 320px);
-        max-height: 238px;
-      }
       .game { gap: 6px; padding-top: 0; }
       .hud { padding: 7px 8px; }
       .board-wrap { padding: 7px; gap: 4px; }
@@ -374,10 +422,9 @@
 <body>
   <main class="screen">
     <section class="card join-card">
-      <img class="join-logo" src="./bingo-student-logo.png" alt="Bingo">
-      <input id="nameInput" type="text" placeholder="Enter your name or team name" autocomplete="name">
-      <button type="button" id="joinBtn">Join</button>
-      <div class="message" id="joinMessage">Wait for the teacher to start.</div>
+      <input id="nameInput" type="hidden" autocomplete="name">
+      <button type="button" hidden id="joinBtn">Join</button>
+      <div class="message" id="joinMessage">Scan the Friendzy QR to join.</div>
     </section>
 
     <section class="game">
@@ -392,6 +439,7 @@
         <div class="bingo-card" id="cardGrid"></div>
       </div>
     </section>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </main>
 
   <script>
@@ -409,10 +457,14 @@
     const cardGrid = document.getElementById("cardGrid");
     const bingoBtn = document.getElementById("bingoBtn");
     const gameMessage = document.getElementById("gameMessage");
+    const toast = document.getElementById("toast");
 
     let room = null;
     let player = null;
     let pollTimer = null;
+    let toastTimer = null;
+    let retryingMarks = false;
+    const pendingMarkRetries = new Map();
 
     nameInput.value = autoName || localStorage.getItem(nameKey) || "";
 
@@ -434,9 +486,66 @@
       joinMessage.className = `message ${tone}`.trim();
     }
 
+    function requireFriendzyJoin() {
+      if (isAuto && autoName) return false;
+      if (classroomCode) {
+        window.location.replace(`./student-hub.html?code=${encodeURIComponent(classroomCode)}`);
+        return true;
+      }
+      setJoinMessage("Scan the Friendzy QR to join this activity.");
+      return true;
+    }
+
     function setGameMessage(text, tone = "") {
       gameMessage.textContent = text;
       gameMessage.className = `message game-info ${tone}`.trim();
+    }
+
+    function showToast(text) {
+      clearTimeout(toastTimer);
+      toast.textContent = text;
+      toast.classList.add("is-visible");
+      toastTimer = setTimeout(() => {
+        toast.classList.remove("is-visible");
+      }, 1800);
+    }
+
+    function isConnectionError(error) {
+      if (!navigator.onLine) return true;
+      return /failed to fetch|network|load failed|request failed/i.test(String(error?.message || ""));
+    }
+
+    function queueMarkRetry(word) {
+      const clean = String(word || "").trim().toLowerCase();
+      if (!clean) return;
+      pendingMarkRetries.set(clean, { word, attempts: 0 });
+    }
+
+    async function retryPendingMarks() {
+      if (retryingMarks || !player || !pendingMarkRetries.size || room?.status !== "live") return;
+      retryingMarks = true;
+      let savedAny = false;
+      try {
+        for (const [key, pending] of Array.from(pendingMarkRetries.entries())) {
+          try {
+            const data = await api("/api/bingo/mark", { code, playerId: player.id, word: pending.word });
+            room = data.room;
+            pendingMarkRetries.delete(key);
+            savedAny = true;
+          } catch (error) {
+            pending.attempts += 1;
+            pendingMarkRetries.set(key, pending);
+            if (!isConnectionError(error) || pending.attempts >= 5) {
+              pendingMarkRetries.delete(key);
+            }
+          }
+        }
+      } finally {
+        retryingMarks = false;
+      }
+      if (savedAny) {
+        render();
+      }
     }
 
     async function join() {
@@ -472,6 +581,7 @@
         const data = await api(`/api/bingo/room?code=${encodeURIComponent(code)}&playerId=${encodeURIComponent(player.id)}`, null, "GET");
         room = data.room;
         render();
+        retryPendingMarks().catch(() => {});
         if (classroomCode) {
           syncClassroom().catch(() => {});
         }
@@ -569,18 +679,26 @@
           ? room.pendingClaim.line
           : getClientBingoLine(card, room?.calledWords || []);
       const winningLine = (isWinner || isReviewedClaimant) ? new Set(winnerLine) : new Set();
+      const canShuffle = room.status === "setup";
       (card.cells || []).forEach((cell, index) => {
         const button = document.createElement("button");
         button.type = "button";
         button.className = "cell";
         const displayWord = cell.display || getBingoNumberDisplay(cell.word) || cell.word;
-        button.textContent = displayWord;
-        button.style.fontSize = getCardWordFontSize(displayWord);
-        if (cell.free) button.classList.add("free");
+        const cellText = cell.free && canShuffle ? "Shuffle" : displayWord;
+        button.textContent = cellText;
+        button.style.fontSize = cell.free && canShuffle ? "clamp(0.72rem, 3.2vw, 1rem)" : getCardWordFontSize(cellText);
+        if (cell.free) button.classList.add(canShuffle ? "shuffle-cell" : "free");
         if (cell.marked) button.classList.add("is-marked");
         if (winningLine.has(index)) button.classList.add("bingo-line");
-        button.disabled = !!cell.free || room.status !== "live";
-        button.addEventListener("click", () => markWord(cell.word));
+        button.disabled = cell.free ? !canShuffle : room.status !== "live";
+        button.addEventListener("click", () => {
+          if (cell.free && canShuffle) {
+            shuffleCard();
+            return;
+          }
+          markWord(cell.word, button);
+        });
         cardGrid.appendChild(button);
       });
       if (room.status === "finished" && room.winner) {
@@ -591,18 +709,49 @@
       } else if (room.status === "live") {
         setGameMessage(current ? "Find it and mark it if you have it." : "Listen, search, and mark your card.", "");
       } else {
-        setGameMessage("Wait for the teacher to start.", "");
+        setGameMessage("Check your card. Tap Shuffle if you want a different one before the game starts.", "");
       }
       bingoBtn.disabled = room.status !== "live";
     }
 
-    async function markWord(word) {
+    async function shuffleCard() {
+      try {
+        const data = await api("/api/bingo/shuffle-card", { code, playerId: player.id });
+        room = data.room;
+        setGameMessage("New card ready. Shuffle again if you want another one.", "good");
+        render();
+      } catch (error) {
+        setGameMessage(error.message, "bad");
+      }
+    }
+
+    async function markWord(word, targetButton = null) {
+      const clean = String(word || "").trim().toLowerCase();
+      const localCell = (room?.card?.cells || []).find((cell) => String(cell.word || "").trim().toLowerCase() === clean);
+      if (localCell && !localCell.free && room?.status === "live") {
+        localCell.marked = !localCell.marked;
+        targetButton?.classList.toggle("is-marked", localCell.marked);
+      }
       try {
         const data = await api("/api/bingo/mark", { code, playerId: player.id, word });
         room = data.room;
         render();
       } catch (error) {
-        setGameMessage(error.message, "bad");
+        if (localCell && !localCell.free) {
+          localCell.marked = !localCell.marked;
+          targetButton?.classList.remove("is-marked");
+          targetButton?.classList.add("mark-error");
+          setTimeout(() => {
+            targetButton?.classList.remove("mark-error");
+            render();
+          }, 620);
+        }
+        if (isConnectionError(error)) {
+          queueMarkRetry(word);
+          showToast("Connection issue. Will retry automatically.");
+        } else {
+          showToast(error.message || "Mark failed.");
+        }
       }
     }
 
@@ -618,6 +767,7 @@
     });
 
     joinBtn.addEventListener("click", join);
+    window.addEventListener("online", () => retryPendingMarks().catch(() => {}));
     nameInput.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
         event.preventDefault();
@@ -625,7 +775,10 @@
       }
     });
 
-    if (isAuto && nameInput.value) {
+    if (requireFriendzyJoin()) {
+      nameInput.disabled = true;
+      joinBtn.disabled = true;
+    } else if (isAuto && nameInput.value) {
       join();
     }
   </script>

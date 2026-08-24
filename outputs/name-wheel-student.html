@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Spin the Wheel</title>
-  <link rel="icon" type="image/png" href="./spin-the-wheel-student-logo.png">
+  <link rel="icon" type="image/png" href="./friendzy-logo.png">
   <style>
     :root {
       --ink: #100b2f;
@@ -48,20 +48,6 @@
       grid-template-rows: auto 1fr auto;
       gap: 18px;
       overflow: hidden;
-    }
-
-    .hero {
-      display: grid;
-      place-items: center;
-      gap: 10px;
-      text-align: center;
-    }
-
-    .tool-logo {
-      width: min(82vw, 310px);
-      max-height: 320px;
-      object-fit: contain;
-      filter: drop-shadow(0 20px 34px rgba(16, 11, 47, 0.18));
     }
 
     .form {
@@ -203,21 +189,17 @@
 </head>
 <body>
   <main class="card">
-    <section class="hero">
-      <img class="tool-logo" src="./spin-the-wheel-student-logo.png" alt="Spin the Wheel">
-    </section>
-
     <form class="form" id="joinForm">
-      <label for="nameInput">Enter your name or team name</label>
-      <input id="nameInput" name="name" autocomplete="name" placeholder="Your name" required>
-      <button id="submitBtn" type="submit">Join</button>
+      <p>Connect through the Friendzy QR.</p>
+      <input id="nameInput" type="hidden" name="name" autocomplete="name" placeholder="Your name">
+      <button id="submitBtn" hidden type="submit">Join</button>
     </form>
 
     <section class="play-area" id="playArea">
       <button class="spin-pad is-locked" id="spinPad" type="button" aria-disabled="true">Spin</button>
     </section>
 
-    <div class="message" id="message">Join the room and wait for the host.</div>
+    <div class="message" id="message">Scan the Friendzy QR to join.</div>
   </main>
 
   <script>
@@ -246,6 +228,16 @@
     function setMessage(text, tone = "") {
       message.textContent = text;
       message.className = `message ${tone}`.trim();
+    }
+
+    function requireFriendzyJoin() {
+      if (shouldAutoJoin && autoName) return false;
+      if (classroomCode) {
+        window.location.replace(`./student-hub.html?code=${encodeURIComponent(classroomCode)}`);
+        return true;
+      }
+      setMessage("Scan the Friendzy QR to join this activity.");
+      return true;
     }
 
     async function api(path, payload = null, method = "POST") {
@@ -317,14 +309,18 @@
     });
 
     window.addEventListener("load", () => {
+      if (requireFriendzyJoin()) {
+        input.disabled = true;
+        submitBtn.disabled = true;
+        return;
+      }
       if (submittedName) {
         setMessage(`You are connected as ${submittedName}. Wait for your turn.`, "good");
         return;
       }
-      input.focus();
     });
 
-    if (!submittedName && autoName) {
+    if (!submittedName && !requireFriendzyJoin() && autoName) {
       input.value = autoName;
       if (shouldAutoJoin) {
         submitName(autoName);

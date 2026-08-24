@@ -23,6 +23,7 @@
   let room = null;
   let baseUrl = window.location.origin;
   let pollTimer = null;
+  let lastPlayersSignature = "";
 
   const style = document.createElement("style");
   style.textContent = `
@@ -529,6 +530,7 @@
     const players = room?.players || [];
     const count = players.length;
     const code = room?.code || "-----";
+    const playersSignature = players.map((player) => `${player.id}:${player.name}`).join("|");
     tabCount.textContent = `${count} connected`;
     countEl.textContent = `(${count})`;
     largeCount.textContent = `(${count})`;
@@ -545,6 +547,12 @@
     }
     renderPlayers(playersEl);
     renderPlayers(largePlayers);
+    if (playersSignature !== lastPlayersSignature) {
+      lastPlayersSignature = playersSignature;
+      window.dispatchEvent(new CustomEvent("friendzy:players-updated", {
+        detail: { players, code: room?.code || "" }
+      }));
+    }
   }
 
   function isHomePage() {
@@ -677,6 +685,7 @@
     room = null;
     await ensureRoom();
     render();
+    window.dispatchEvent(new CustomEvent("friendzy:reset"));
   });
   document.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-friendzy-remove]");
@@ -689,6 +698,9 @@
       const data = await api("/api/classroom/remove-player", { code: room.code, playerId });
       room = data.room;
       render();
+      window.dispatchEvent(new CustomEvent("friendzy:player-removed", {
+        detail: { playerId, name: player.name }
+      }));
     } catch (error) {
       alert(error.message || "Could not remove player.");
     }

@@ -342,169 +342,6 @@
       margin-bottom: -4px;
     }
 
-    .qr-toggle {
-      min-height: 36px;
-      padding: 0 12px;
-      font-size: 0.8rem;
-      box-shadow: none;
-      border: 1px solid var(--line);
-    }
-
-    .qr-box {
-      border-radius: 28px;
-      padding: 14px;
-      display: grid;
-      gap: 10px;
-      background: #fff;
-      border: 1px solid var(--line);
-      cursor: zoom-in;
-      position: relative;
-      transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
-    }
-
-    .qr-box:hover {
-      transform: translateY(-3px);
-      border-color: rgba(8, 125, 255, 0.36);
-      box-shadow: 0 18px 42px rgba(8, 125, 255, 0.16);
-    }
-
-    .qr-box img {
-      width: 100%;
-      border-radius: 20px;
-      image-rendering: pixelated;
-    }
-
-    .qr-fullscreen {
-      position: fixed;
-      inset: 0;
-      z-index: 50;
-      padding: clamp(18px, 4vw, 44px);
-      display: grid;
-      place-items: center;
-      background:
-        radial-gradient(circle at 50% 44%, rgba(255, 255, 255, 0.22), transparent 34%),
-        rgba(8, 8, 24, 0.82);
-      backdrop-filter: blur(12px);
-      cursor: default;
-    }
-
-    .qr-fullscreen-card {
-      width: min(92vw, 980px);
-      max-height: min(88vh, 820px);
-      padding: clamp(16px, 3vw, 28px);
-      border-radius: clamp(26px, 4vw, 44px);
-      background: #fff;
-      box-shadow: 0 34px 90px rgba(0, 0, 0, 0.42);
-      display: grid;
-      grid-template-columns: minmax(260px, 0.82fr) minmax(220px, 0.58fr);
-      gap: 14px;
-      text-align: center;
-      animation: qrPop 220ms ease both;
-      overflow: hidden;
-    }
-
-    .qr-fullscreen-card img {
-      width: min(100%, 620px);
-      max-height: min(62vh, 600px);
-      align-self: center;
-      justify-self: center;
-      border-radius: 28px;
-      image-rendering: pixelated;
-      object-fit: contain;
-    }
-
-    .qr-fullscreen-code {
-      margin: 0;
-      color: var(--red);
-      font-size: clamp(1.35rem, 3.6vmin, 2.7rem);
-      font-weight: 1000;
-      letter-spacing: 0.08em;
-      line-height: 0.95;
-    }
-
-    .qr-fullscreen-actions {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-
-    .qr-fullscreen-actions button {
-      min-height: 34px;
-      padding: 0 14px;
-      border-radius: 999px;
-      font-size: 0.82rem;
-    }
-
-    .qr-fullscreen-actions .live {
-      color: #fff;
-      background: linear-gradient(135deg, #11bf54, #0a8f42);
-      box-shadow: 0 14px 30px rgba(17, 191, 84, 0.28);
-    }
-
-    .qr-fullscreen-main {
-      min-width: 0;
-      min-height: 0;
-      display: grid;
-      grid-template-rows: minmax(0, 1fr) auto auto;
-      gap: 8px;
-      align-content: stretch;
-    }
-
-    .qr-fullscreen-people {
-      min-height: 0;
-      overflow: hidden;
-      display: grid;
-      grid-template-rows: auto minmax(0, 1fr);
-      gap: 10px;
-      padding: clamp(10px, 1.6vw, 16px);
-      border-radius: 24px;
-      background: rgba(8, 125, 255, 0.08);
-      border: 1px solid rgba(16, 11, 47, 0.1);
-    }
-
-    .qr-fullscreen-people h3 {
-      margin: 0;
-      color: #3e3580;
-      font-size: 0.95rem;
-      font-weight: 1000;
-      text-transform: uppercase;
-      letter-spacing: 0.14em;
-    }
-
-    .qr-fullscreen-list {
-      min-height: 0;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      padding-right: 3px;
-    }
-
-    .qr-fullscreen-person {
-      min-height: 38px;
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 26px;
-      align-items: center;
-      gap: 8px;
-      border-radius: 14px;
-      padding: 7px 10px;
-      background: #fff;
-      border: 1px solid rgba(16, 11, 47, 0.08);
-      font-weight: 1000;
-      text-align: left;
-    }
-
-    .qr-fullscreen-person.is-locked {
-      background: rgba(255, 226, 231, 0.96);
-      border-color: rgba(255, 37, 65, 0.22);
-    }
-
-    .qr-fullscreen-name {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
     .confirm-overlay {
       position: fixed;
       inset: 0;
@@ -666,6 +503,10 @@
       background: var(--red);
       box-shadow: none;
       opacity: 1;
+    }
+
+    .player .remove + .remove {
+      display: none;
     }
 
     .empty {
@@ -867,24 +708,6 @@
         overflow: auto;
       }
 
-      .qr-fullscreen-card {
-        grid-template-columns: 1fr;
-        width: min(92vw, 520px);
-        max-height: 90vh;
-        grid-template-rows: minmax(0, 0.82fr) minmax(108px, 0.38fr);
-      }
-
-      .qr-fullscreen-card img {
-        max-height: 42vh;
-      }
-
-      .qr-fullscreen-code {
-        font-size: clamp(1.2rem, 5.4vw, 2rem);
-      }
-
-      .qr-fullscreen-actions button {
-        min-height: 32px;
-      }
     }
   </style>
 </head>
@@ -967,7 +790,6 @@
     const idleState = document.getElementById("idleState");
     const liveBtn = document.getElementById("liveBtn");
     const holdBtn = document.getElementById("holdBtn");
-    const resetBtn = document.getElementById("resetBtn");
     const homeBtn = document.getElementById("homeBtn");
     const scorerToggleBtn = document.getElementById("scorerToggleBtn");
     const awardPointBtn = document.getElementById("awardPointBtn");
@@ -1153,7 +975,6 @@
       holdBtn.disabled = false;
       holdBtn.textContent = room.buzzerHeld ? "Held" : "Hold";
       holdBtn.classList.toggle("is-active", !!room.buzzerHeld);
-      if (resetBtn) resetBtn.disabled = false;
       pointsPanel.classList.toggle("hidden", !scorerEnabled);
       scoreActions.classList.toggle("hidden", !scorerEnabled);
       noScoreNextBtn.classList.toggle("hidden", scorerEnabled);
@@ -1194,14 +1015,6 @@
             <span class="player-name">${escapeHtml(player.name)}</span>
             ${scorerEnabled ? `<span class="player-score">${Number(player.score || 0)} pts</span>` : ""}
             <button class="remove" type="button" data-player-id="${escapeHtml(player.id)}" title="Remove">×</button>
-          </div>
-        `).join("")
-        : `<div class="empty">Waiting for players...</div>`;
-      return;
-      qrPeopleList.innerHTML = sortedPlayers.length
-        ? sortedPlayers.map((player) => `
-          <div class="qr-fullscreen-person ${lockedOutPlayers.includes(player.id) ? "is-locked" : ""}">
-            <span class="qr-fullscreen-name">${escapeHtml(player.name)}</span>
             <button class="remove" type="button" data-player-id="${escapeHtml(player.id)}" title="Remove">×</button>
           </div>
         `).join("")
@@ -1213,7 +1026,6 @@
       holdBtn.disabled = true;
       holdBtn.textContent = "Hold";
       holdBtn.classList.remove("is-active");
-      if (resetBtn) resetBtn.disabled = true;
       pointsPanel.classList.toggle("hidden", !scorerEnabled);
       scoreActions.classList.toggle("hidden", !scorerEnabled);
       noScoreNextBtn.classList.add("hidden");
@@ -1384,23 +1196,31 @@
       render();
     });
 
-    resetBtn?.addEventListener("click", async () => {
-      if (!room) return;
-      const confirmed = await askConfirm({
-        title: "Reset Room?",
-        text: "This will delete the current buzzer room. A new room will be created only when you press Show QR again.",
-        confirmLabel: "Reset"
-      });
-      if (!confirmed) return;
-      const oldCode = room.code;
+    window.addEventListener("friendzy:reset", () => {
+      const oldCode = room?.code || localStorage.getItem(storageKey);
       disconnectRoom();
       room = null;
       localStorage.removeItem(storageKey);
-      setClassroomTool("standby", "").catch(() => {});
-      try {
-        await api("/api/buzzer/delete-room", { code: oldCode });
-      } catch (_) {}
+      if (oldCode) {
+        api("/api/buzzer/delete-room", { code: oldCode }).catch(() => {});
+      }
       render();
+      ensureRoom().catch(() => {});
+    });
+
+    window.addEventListener("friendzy:player-removed", (event) => {
+      const name = String(event.detail?.name || "").trim();
+      if (!room || !name) return;
+      api("/api/buzzer/remove-player", { code: room.code, name })
+        .then((data) => {
+          room = data.room;
+          render();
+        })
+        .catch(() => {});
+    });
+
+    window.addEventListener("friendzy:players-updated", () => {
+      importClassroomPlayers().catch(() => {});
     });
 
     homeBtn.addEventListener("click", () => {
