@@ -1169,6 +1169,30 @@
       return wordInput.value.split(/\r?\n/).map((word) => word.trim()).filter(Boolean);
     }
 
+    function normalizeWordListForPreset(values) {
+      return (Array.isArray(values) ? values : [])
+        .map((word) => String(word || "").trim().toLowerCase())
+        .filter(Boolean)
+        .join("\n");
+    }
+
+    function getPresetFromWords(words) {
+      const signature = normalizeWordListForPreset(words);
+      const presets = [
+        ["numbers", getClassicBingoNumbers()],
+        ["past-simple", pastSimpleWords],
+        ["past-participle", pastParticipleWords],
+        ["present-past", presentPastPairs],
+        ["present-participle", presentParticiplePairs]
+      ];
+      const match = presets.find(([, values]) => normalizeWordListForPreset(values) === signature);
+      return match ? match[0] : "";
+    }
+
+    function syncActivePresetFromRoom() {
+      activePreset = String(room?.preset || "").trim() || getPresetFromWords(room?.words || parseWords());
+    }
+
     function updatePresetSelection() {
       [
         [numbersBtn, "numbers"],
@@ -1325,6 +1349,7 @@
           const data = await api(`/api/bingo/room?code=${encodeURIComponent(savedCode)}`, null, "GET");
           room = data.room;
           await importClassroomPlayers();
+          syncActivePresetFromRoom();
           wordInput.value = (room.words || []).join("\n");
           setClassroomTool("bingo", room.code).catch(() => {});
           render();
@@ -1337,6 +1362,7 @@
       room = data.room;
       localStorage.setItem(storageKey, room.code);
       await importClassroomPlayers();
+      syncActivePresetFromRoom();
       wordInput.value = (room.words || []).join("\n");
       setClassroomTool("bingo", room.code).catch(() => {});
       render();
@@ -1345,8 +1371,9 @@
 
     async function syncWordsNow() {
       if (!room) return;
-      const data = await api("/api/bingo/sync", { code: room.code, words: parseWords() });
+      const data = await api("/api/bingo/sync", { code: room.code, words: parseWords(), preset: activePreset });
       room = data.room;
+      syncActivePresetFromRoom();
       if (!editingWords) {
         wordInput.value = (room.words || []).join("\n");
       }
@@ -1464,6 +1491,7 @@
         const previousText = wordInput.value;
         room = data.room;
         await importClassroomPlayers();
+        syncActivePresetFromRoom();
         if (!editingWords) {
           wordInput.value = (room.words || []).join("\n");
         } else {

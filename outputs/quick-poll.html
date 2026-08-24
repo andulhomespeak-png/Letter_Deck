@@ -551,6 +551,32 @@
       line-height: 1.45;
     }
 
+    .confirm-check {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 18px;
+      border: 1px solid rgba(8, 125, 255, 0.18);
+      background: rgba(255,255,255,0.74);
+      color: var(--ink);
+      font-size: 0.98rem;
+      font-weight: 1000;
+      line-height: 1.2;
+      cursor: pointer;
+    }
+
+    .confirm-check.is-visible {
+      display: flex;
+    }
+
+    .confirm-check input {
+      width: 20px;
+      height: 20px;
+      accent-color: var(--red);
+      flex: 0 0 auto;
+    }
+
     .confirm-actions {
       display: flex;
       justify-content: center;
@@ -621,6 +647,10 @@
       <p class="confirm-kicker">Confirm</p>
       <h2 class="confirm-title" id="confirmTitle">Are you sure?</h2>
       <p class="confirm-text" id="confirmText">This action may affect the current poll.</p>
+      <label class="confirm-check" id="confirmCheckWrap">
+        <input id="confirmCheckInput" type="checkbox">
+        <span id="confirmCheckText">Also clear voting options.</span>
+      </label>
       <div class="confirm-actions">
         <button id="confirmCancelBtn" type="button">Cancel</button>
         <button class="danger" id="confirmAcceptBtn" type="button">Continue</button>
@@ -640,6 +670,9 @@
     const confirmText = document.getElementById("confirmText");
     const confirmCancelBtn = document.getElementById("confirmCancelBtn");
     const confirmAcceptBtn = document.getElementById("confirmAcceptBtn");
+    const confirmCheckWrap = document.getElementById("confirmCheckWrap");
+    const confirmCheckInput = document.getElementById("confirmCheckInput");
+    const confirmCheckText = document.getElementById("confirmCheckText");
     const sidePanel = document.getElementById("sidePanel");
     const selfVoteBtn = document.getElementById("selfVoteBtn");
     const selfVoteText = document.getElementById("selfVoteText");
@@ -840,10 +873,13 @@
       resolve(result);
     }
 
-    function openConfirm({ title, text, confirmLabel = "Continue" }) {
+    function openConfirm({ title, text, confirmLabel = "Continue", checkboxLabel = "" }) {
       confirmTitle.textContent = title;
       confirmText.textContent = text;
       confirmAcceptBtn.textContent = confirmLabel;
+      confirmCheckInput.checked = false;
+      confirmCheckText.textContent = checkboxLabel;
+      confirmCheckWrap.classList.toggle("is-visible", !!checkboxLabel);
       confirmOverlay.classList.remove("hidden");
       confirmAcceptBtn.focus();
       return new Promise((resolve) => {
@@ -1059,10 +1095,11 @@
       const confirmed = await openConfirm({
         title: "Clear Votes?",
         text: "This clears the current results but keeps the room, players, and options.",
-        confirmLabel: "Clear"
+        confirmLabel: "Clear",
+        checkboxLabel: "Also clear voting options and candidates."
       });
       if (!room || !confirmed) return;
-      const data = await api("/api/poll/reset", { code: room.code });
+      const data = await api("/api/poll/reset", { code: room.code, clearTargets: confirmCheckInput.checked });
       room = data.room;
       render();
     });

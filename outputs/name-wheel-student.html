@@ -239,6 +239,9 @@
     const submittedNameKey = `name-wheel-name-${code}`;
     let submittedName = localStorage.getItem(submittedNameKey) || "";
     let classroomPollTimer = null;
+    let wheelPollTimer = null;
+    let currentRoom = null;
+    let hasSpunThisTurn = false;
 
     if (submittedName) {
       input.value = submittedName;
@@ -250,6 +253,30 @@
     function setMessage(text, tone = "") {
       message.textContent = text;
       message.className = `message ${tone}`.trim();
+    }
+
+    function sameName(a, b) {
+      return String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
+    }
+
+    function hasTurn() {
+      return !!submittedName && sameName(currentRoom?.activeTurnName, submittedName);
+    }
+
+    function renderTurnState() {
+      const active = hasTurn();
+      if (!active) {
+        hasSpunThisTurn = false;
+      }
+      spinPad.classList.toggle("is-locked", !active);
+      spinPad.setAttribute("aria-disabled", String(!active));
+      spinPad.textContent = active ? (hasSpunThisTurn ? "Boost" : "Spin") : "Locked";
+      if (!submittedName) return;
+      if (active) {
+        setMessage(hasSpunThisTurn ? "Tap again to boost." : "Your turn. Tap Spin.", "good");
+      } else {
+        setMessage(`You are connected as ${submittedName}. Wait for your turn.`);
+      }
     }
 
     function requireFriendzyJoin() {
@@ -313,16 +340,36 @@
       try {
         const data = await api("/api/wheel/join", { code, name });
         submittedName = data.name;
+        currentRoom = data.room;
         localStorage.setItem(submittedNameKey, submittedName);
         input.disabled = true;
         submitBtn.disabled = true;
         card.classList.add("is-submitted");
-        setMessage(`You are connected as ${data.name}. Wait for your turn.`, "good");
+        renderTurnState();
+        startWheelPolling();
         input.blur();
       } catch (error) {
         setMessage(error.message || "Could not join this wheel.", "bad");
         submitBtn.disabled = false;
       }
+    }
+
+    async function pollWheelRoom() {
+      if (!code || !submittedName) return;
+      try {
+        const data = await api(`/api/wheel/room?code=${encodeURIComponent(code)}`, null, "GET");
+        currentRoom = data.room;
+        renderTurnState();
+      } catch (_) {
+        setMessage("Connection issue. Refresh or scan again.", "bad");
+      } finally {
+        wheelPollTimer = setTimeout(pollWheelRoom, 900);
+      }
+    }
+
+    function startWheelPolling() {
+      clearTimeout(wheelPollTimer);
+      wheelPollTimer = setTimeout(pollWheelRoom, 250);
     }
 
     form.addEventListener("submit", async (event) => {
@@ -339,7 +386,9 @@
         return;
       }
       if (submittedName) {
-        setMessage(`You are connected as ${submittedName}. Wait for your turn.`, "good");
+        card.classList.add("is-submitted");
+        renderTurnState();
+        startWheelPolling();
         return;
       }
     });
@@ -361,6 +410,21 @@
 
     spinPad.addEventListener("click", () => {
       spinPad.blur();
+      if (!hasTurn()) {
+        renderTurnState();
+        return;
+      }
+      hasSpunThisTurn = true;
+      renderTurnState();
+      api("/api/wheel/request-spin", { code, name: submittedName })
+        .then((data) => {
+          currentRoom = data.room;
+          renderTurnState();
+        })
+        .catch((error) => {
+          setMessage(error.message || "Could not use this turn.", "bad");
+          startWheelPolling();
+        });
     });
   </script>
 </body>

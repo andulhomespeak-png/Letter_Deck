@@ -344,6 +344,8 @@ function createWheelRoom() {
     code: makeCode(),
     names: [],
     players: [],
+    activeTurnName: "",
+    spinCommandId: 0,
     createdAt: Date.now(),
     updatedAt: Date.now()
   };
@@ -368,6 +370,7 @@ function createBingoRoom() {
   const room = {
     code: makeCode(),
     status: "setup",
+    preset: "numbers",
     words: getDefaultBingoWords(),
     calledWords: [],
     players: [],
@@ -510,6 +513,10 @@ function touch(room) {
   room.updatedAt = Date.now();
 }
 
+function sameName(a, b) {
+  return String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
+}
+
 function getRoomSocketSet(code) {
   const key = String(code || "").toUpperCase();
   if (!roomSockets.has(key)) {
@@ -650,10 +657,16 @@ function serializeClassroomRoom(room) {
 
 function serializeWheelRoom(room) {
   room.names = normalizeWheelNames(room.names);
+  if (room.activeTurnName) {
+    const stillConnected = (room.players || []).some((player) => sameName(player.name, room.activeTurnName));
+    if (!stillConnected) room.activeTurnName = "";
+  }
   return {
     code: room.code,
     names: room.names,
     players: (room.players || []).slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""))),
+    activeTurnName: room.activeTurnName || "",
+    spinCommandId: Number(room.spinCommandId || 0),
     updatedAt: room.updatedAt
   };
 }
@@ -934,6 +947,7 @@ function serializeBingoRoom(room, playerId = "") {
   return {
     code: room.code,
     status: room.status,
+    preset: room.preset || "",
     words: room.words || [],
     calledWords: room.calledWords || [],
     players: sortedPlayers,
@@ -1775,6 +1789,41 @@ const server = http.createServer(async (req, res) => {
       const before = (room.players || []).length;
       room.players = (room.players || []).filter((player) => String(player.name || "").trim().toLowerCase() !== clean);
       if (room.players.length === before) throw new Error("Participant not found");
+      if (sameName(room.activeTurnName, name)) room.activeTurnName = "";
+      touch(room);
+      return json(res, 200, { room: serializeWheelRoom(room) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/wheel/set-turn") {
+      const { code, name } = await body(req);
+      const room = getWheelRoom(code);
+      const clean = String(name || "").trim();
+      if (!clean) throw new Error("Name is required");
+      const player = (room.players || []).find((item) => sameName(item.name, clean));
+      if (!player) throw new Error("Participant not found");
+      room.activeTurnName = sameName(room.activeTurnName, player.name) ? "" : player.name;
+      touch(room);
+      return json(res, 200, { room: serializeWheelRoom(room) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/wheel/request-spin") {
+      const { code, name } = await body(req);
+      const room = getWheelRoom(code);
+      const clean = String(name || "").trim();
+      if (!clean) throw new Error("Name is required");
+      if (!sameName(room.activeTurnName, clean)) throw new Error("Wait for your turn.");
+      room.spinCommandId = Number(room.spinCommandId || 0) + 1;
+      touch(room);
+      return json(res, 200, { room: serializeWheelRoom(room) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/wheel/consume-turn") {
+      const { code, name } = await body(req);
+      const room = getWheelRoom(code);
+      const clean = String(name || "").trim();
+      if (!clean) throw new Error("Name is required");
+      if (!sameName(room.activeTurnName, clean)) throw new Error("Wait for your turn.");
+      room.activeTurnName = "";
       touch(room);
       return json(res, 200, { room: serializeWheelRoom(room) });
     }
@@ -1796,11 +1845,12 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && url.pathname === "/api/bingo/sync") {
-      const { code, words } = await body(req);
+      const { code, words, preset } = await body(req);
       const room = getBingoRoom(code);
       const nextWords = normalizeBingoWords(words);
       const changed = (room.words || []).join("\n").toLowerCase() !== nextWords.join("\n").toLowerCase();
       room.words = nextWords;
+      room.preset = String(preset || "").trim();
       if (changed && !["live", "checking"].includes(room.status)) {
         room.cards = {};
         room.players.forEach((player) => ensureBingoCard(room, player.id));
@@ -2200,10 +2250,15 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && url.pathname === "/api/poll/reset") {
-      const { code } = await body(req);
+      const { code, clearTargets } = await body(req);
       const room = getPollRoom(code);
       room.status = "waiting";
       room.votes = [];
+      if (clearTargets) {
+        room.options = [];
+        room.candidatePlayerIds = [];
+        room.nomineePlayerIds = [];
+      }
       room.pollId = Number(room.pollId || 0) + 1;
       touch(room);
       return json(res, 200, { room: serializePollRoom(room) });

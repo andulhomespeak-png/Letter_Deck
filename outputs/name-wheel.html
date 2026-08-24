@@ -431,10 +431,11 @@
     }
 
     .connected-pill {
+      position: relative;
       min-height: 44px;
       display: flex;
       align-items: center;
-      padding: 8px 12px;
+      padding: 8px 68px 8px 12px;
       border-radius: 999px;
       color: var(--ink);
       font-weight: 1000;
@@ -452,6 +453,34 @@
       text-overflow: ellipsis;
       white-space: nowrap;
       text-align: left;
+    }
+
+    .turn-btn {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      min-height: 28px;
+      min-width: 48px;
+      padding: 0 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(8, 125, 255, 0.18);
+      color: var(--ink);
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 8px 18px rgba(16, 11, 47, 0.1);
+      font-size: 0.78rem;
+      font-weight: 1000;
+      transform: translateY(-50%);
+    }
+
+    .turn-btn:hover {
+      transform: translateY(-50%) translateY(-1px);
+    }
+
+    .turn-btn.is-active {
+      color: #fff;
+      border-color: rgba(25, 200, 117, 0.45);
+      background: linear-gradient(135deg, #22d77b, #069b54);
+      box-shadow: 0 10px 20px rgba(25, 200, 117, 0.24);
     }
 
     .connected-empty {
@@ -929,6 +958,8 @@
     let names = [];
     let connectedPlayers = [];
     let playerFilter = "";
+    let connectedListSignature = "";
+    let turnRequestInFlight = false;
     let spinningNames = null;
     let removeWinner = false;
     let pendingRemovalName = "";
@@ -943,6 +974,7 @@
     let lastTickBoundary = null;
     let pollTimer = null;
     let syncTimer = null;
+    let lastHandledSpinCommandId = 0;
     let audioContext = null;
     let editingNames = false;
     let namesDirty = false;
@@ -988,10 +1020,13 @@
     }
 
     function setNames(nextNames, updateInput = true) {
-      names = normalize(nextNames);
+      const normalizedNames = normalize(nextNames);
+      const changed = normalizedNames.join("\n") !== names.join("\n");
+      names = normalizedNames;
       if (updateInput && namesInput.value !== names.join("\n")) {
         namesInput.value = names.join("\n");
       }
+      if (!changed && updateInput) return;
       render();
     }
 
@@ -1084,6 +1119,10 @@
         .replace(/"/g, "&quot;");
     }
 
+    function sameName(a, b) {
+      return String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
+    }
+
     function getJoinUrl() {
       if (!room) return "";
       return `${baseUrl}/name-wheel-student.html?code=${encodeURIComponent(room.code)}`;
@@ -1099,6 +1138,13 @@
       const players = filter
         ? connectedPlayers.filter((player) => String(player.name || "").toLowerCase().includes(filter))
         : connectedPlayers;
+      const signature = `${target.id || "players"}|${filter}|${room?.activeTurnName || ""}|${players.map((player) => player.name).join("|")}`;
+      if (target === connectedList && signature === connectedListSignature) {
+        return;
+      }
+      if (target === connectedList) {
+        connectedListSignature = signature;
+      }
       if (!players.length) {
         target.innerHTML = `<p class="connected-empty">Connected players will appear here.</p>`;
         return;
@@ -1106,6 +1152,7 @@
       target.innerHTML = players.map((player) => `
         <div class="connected-pill">
           <span class="connected-name">${escapeHtml(player.name)}</span>
+          <button class="turn-btn ${sameName(room?.activeTurnName, player.name) ? "is-active" : ""}" type="button" data-turn-name="${escapeHtml(player.name)}">Turn</button>
         </div>
       `).join("");
     }
@@ -1196,6 +1243,7 @@
         try {
           const existing = await api(`/api/wheel/room?code=${encodeURIComponent(savedCode)}`, null, "GET");
           room = existing.room;
+          lastHandledSpinCommandId = Number(room.spinCommandId || 0);
           connectedPlayers = room.players || [];
           await importClassroomPlayers();
           mergeNames(room.names);
@@ -1207,6 +1255,7 @@
       }
       const data = await api("/api/wheel/create-room");
       room = data.room;
+      lastHandledSpinCommandId = Number(room.spinCommandId || 0);
       connectedPlayers = room.players || [];
       await importClassroomPlayers();
       await syncNamesNow();
@@ -1438,19 +1487,63 @@
         connectedPlayers = room.players || [];
         await importClassroomPlayers();
         mergeNames(room.names);
+        processRemoteSpinCommand();
       } catch (_) {
         room = null;
         qrVisible = false;
         localStorage.removeItem(storageKey);
         render();
       } finally {
-        pollTimer = setTimeout(pollRoom, 1200);
+        pollTimer = setTimeout(pollRoom, 300);
       }
     }
 
     function startPolling() {
       clearTimeout(pollTimer);
       pollTimer = setTimeout(pollRoom, 700);
+    }
+
+    async function togglePlayerTurn(name) {
+      if (!room || !name || turnRequestInFlight) return;
+      turnRequestInFlight = true;
+      const previousTurnName = room.activeTurnName || "";
+      room.activeTurnName = sameName(previousTurnName, name) ? "" : name;
+      connectedListSignature = "";
+      render();
+      try {
+        const data = await api("/api/wheel/set-turn", { code: room.code, name });
+        room = data.room;
+        connectedPlayers = room.players || [];
+        render();
+      } catch (_) {
+        if (room) room.activeTurnName = previousTurnName;
+        render();
+      } finally {
+        turnRequestInFlight = false;
+      }
+    }
+
+    async function consumeActiveTurn() {
+      const turnName = room?.activeTurnName || "";
+      if (!room || !turnName) return;
+      try {
+        const data = await api("/api/wheel/consume-turn", { code: room.code, name: turnName });
+        room = data.room;
+        connectedPlayers = room.players || [];
+      } catch (_) {
+        if (room) room.activeTurnName = "";
+      }
+      render();
+    }
+
+    function processRemoteSpinCommand() {
+      const commandId = Number(room?.spinCommandId || 0);
+      if (!commandId || commandId <= lastHandledSpinCommandId) return;
+      const pendingCommands = Math.min(6, commandId - lastHandledSpinCommandId);
+      lastHandledSpinCommandId = commandId;
+      for (let index = 0; index < pendingCommands; index += 1) {
+        spin();
+      }
     }
 
     function spin() {
@@ -1504,7 +1597,10 @@
     function armBoostWindow() {
       spinStartedAt = performance.now();
       clearTimeout(boostWindowTimer);
-      boostWindowTimer = setTimeout(render, boostWindowMs + 30);
+      boostWindowTimer = setTimeout(() => {
+        consumeActiveTurn();
+        render();
+      }, boostWindowMs + 30);
     }
 
     namesInput.addEventListener("input", () => {
@@ -1522,6 +1618,15 @@
     playerFilterInput.addEventListener("input", () => {
       playerFilter = playerFilterInput.value;
       renderConnectedList();
+    });
+
+    document.addEventListener("click", (event) => {
+      const turnBtn = event.target.closest("[data-turn-name]");
+      if (!turnBtn) return;
+      event.preventDefault();
+      event.stopPropagation();
+      turnBtn.blur();
+      togglePlayerTurn(turnBtn.dataset.turnName || "");
     });
 
     namesInput.addEventListener("focus", () => {
@@ -1686,6 +1791,7 @@
         try {
           const data = await api(`/api/wheel/room?code=${encodeURIComponent(savedCode)}`, null, "GET");
           room = data.room;
+          lastHandledSpinCommandId = Number(room.spinCommandId || 0);
           connectedPlayers = room.players || [];
           await importClassroomPlayers();
           mergeNames(room.names);
