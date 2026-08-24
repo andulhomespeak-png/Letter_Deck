@@ -16,17 +16,23 @@
     }
 
     * { box-sizing: border-box; }
+    html {
+      min-height: 100%;
+      overflow-y: auto;
+    }
 
     body {
       margin: 0;
-      min-height: 100svh;
+      min-height: calc(100svh + 1px);
       font-family: "Trebuchet MS", "Segoe UI", sans-serif;
       color: var(--ink);
       background:
         radial-gradient(circle at 50% 20%, rgba(255, 37, 65, 0.32), transparent 34%),
         radial-gradient(circle at 18% 84%, rgba(8, 125, 255, 0.25), transparent 32%),
         linear-gradient(145deg, #fff3d2, #eaf7ff 48%, #ffe1e8);
-      overflow: hidden;
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior-y: auto;
     }
 
     .screen {
@@ -332,7 +338,11 @@
     const code = String(params.get("code") || "").toUpperCase();
     const autoName = String(params.get("name") || "").trim();
     const classroomCode = String(params.get("classroom") || "").toUpperCase();
+    const classroomPlayerId = params.get("classroomPlayerId") || (classroomCode ? localStorage.getItem(`friendzy-player-${classroomCode}`) || "" : "");
     const shouldAutoJoin = params.get("auto") === "1";
+    const savedFriendzyName = classroomCode ? String(localStorage.getItem(`friendzy-name-${classroomCode}`) || "").trim() : "";
+    const effectiveAutoName = autoName || savedFriendzyName;
+    const effectiveShouldAutoJoin = shouldAutoJoin || (!!classroomCode && !!effectiveAutoName);
     const joinView = document.getElementById("joinView");
     const gameView = document.getElementById("gameView");
     const nameInput = document.getElementById("nameInput");
@@ -379,7 +389,7 @@
     }
 
     function requireFriendzyJoin() {
-      if (shouldAutoJoin && autoName) return false;
+      if (effectiveShouldAutoJoin && effectiveAutoName) return false;
       if (classroomCode) {
         window.location.replace(`./student-hub.html?code=${encodeURIComponent(classroomCode)}`);
         return true;
@@ -404,12 +414,20 @@
       window.location.href = `./student-hub.html?code=${encodeURIComponent(classroomCode)}`;
     }
 
+    function getSyncedActivityUrl(activeToolCode) {
+      return `./buzzer-student.html?code=${encodeURIComponent(activeToolCode)}&name=${encodeURIComponent(effectiveAutoName)}&classroom=${encodeURIComponent(classroomCode)}&classroomPlayerId=${encodeURIComponent(classroomPlayerId)}&auto=1`;
+    }
+
     async function pollClassroomRoute() {
       if (!classroomCode) return;
       try {
         const data = await api(`/api/classroom/room?code=${encodeURIComponent(classroomCode)}`, null, "GET");
         const activeTool = String(data.room?.activeTool || "standby");
         const activeToolCode = String(data.room?.activeToolCode || "");
+        if (activeTool === "buzzer" && activeToolCode && activeToolCode !== code && effectiveAutoName) {
+          window.location.replace(getSyncedActivityUrl(activeToolCode));
+          return;
+        }
         if (activeTool !== "buzzer" || activeToolCode !== code) {
           returnToClassroomHub();
           return;
@@ -419,6 +437,31 @@
         return;
       } finally {
         classroomPollTimer = setTimeout(pollClassroomRoute, 1000);
+      }
+    }
+
+    async function syncClassroomBeforeJoin() {
+      if (!classroomCode) return true;
+      try {
+        const data = await api(`/api/classroom/room?code=${encodeURIComponent(classroomCode)}`, null, "GET");
+        const activeTool = String(data.room?.activeTool || "standby");
+        const activeToolCode = String(data.room?.activeToolCode || "");
+        if (activeTool !== "buzzer" || !activeToolCode) {
+          returnToClassroomHub();
+          return false;
+        }
+        if (activeToolCode !== code) {
+          if (effectiveAutoName) {
+            window.location.replace(getSyncedActivityUrl(activeToolCode));
+          } else {
+            returnToClassroomHub();
+          }
+          return false;
+        }
+        return true;
+      } catch (_) {
+        returnToClassroomHub();
+        return false;
       }
     }
 
@@ -621,8 +664,7 @@
         });
       }
     });
-    buzzBtn.addEventListener("pointerdown", (event) => {
-      event.preventDefault();
+    buzzBtn.addEventListener("pointerdown", () => {
       buzz();
     });
 
@@ -642,30 +684,35 @@
       }
     }, 12000);
 
-    if (requireFriendzyJoin()) {
-      nameInput.disabled = true;
-      joinBtn.disabled = true;
-    } else if (!code) {
-      nameInput.disabled = true;
-      joinBtn.disabled = true;
-      joinError.textContent = "Missing room code.";
-    } else if (autoName) {
-      nameInput.value = autoName;
-      if (shouldAutoJoin) {
+    async function bootFromFriendzy() {
+      const isSynced = await syncClassroomBeforeJoin();
+      if (!isSynced) return;
+      if (requireFriendzyJoin()) {
+        nameInput.disabled = true;
         joinBtn.disabled = true;
-        joinRoom().catch((error) => {
-          joinBtn.disabled = false;
-          joinError.textContent = error.message || "Could not join room.";
-        });
+      } else if (!code) {
+        nameInput.disabled = true;
+        joinBtn.disabled = true;
+        joinError.textContent = "Missing room code.";
+      } else if (effectiveAutoName) {
+        nameInput.value = effectiveAutoName;
+        if (effectiveShouldAutoJoin) {
+          joinBtn.disabled = true;
+          joinRoom().catch((error) => {
+            joinBtn.disabled = false;
+            joinError.textContent = error.message || "Could not join room.";
+          });
+        }
+      }
+      if (classroomCode) {
+        clearTimeout(classroomPollTimer);
+        pollClassroomRoute();
       }
     }
-    if (classroomCode) {
-      clearTimeout(classroomPollTimer);
-      pollClassroomRoute();
-    }
+    bootFromFriendzy();
 
     window.addEventListener("pageshow", (event) => {
-      if (!classroomCode || !event.persisted) return;
+      if (!classroomCode) return;
       clearTimeout(classroomPollTimer);
       pollClassroomRoute();
     });

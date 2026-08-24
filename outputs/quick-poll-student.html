@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Quick Poll</title>
-  <link rel="icon" type="image/png" href="./friendzy-logo.png">
+  <link rel="icon" type="image/png" href="./quick-poll-student-logo.png">
   <style>
     :root {
       --ink: #100b2f;
@@ -48,6 +48,24 @@
       grid-template-rows: auto auto minmax(0, 1fr) auto;
       gap: 16px;
       overflow: hidden;
+    }
+
+    .hero {
+      display: grid;
+      place-items: center;
+      min-height: 0;
+      width: 100%;
+      justify-self: center;
+      overflow: visible;
+    }
+
+    .tool-logo {
+      display: block;
+      width: min(100%, 420px);
+      max-height: clamp(180px, 37dvh, 330px);
+      justify-self: center;
+      object-fit: contain;
+      filter: drop-shadow(0 18px 28px rgba(16, 11, 47, 0.18));
     }
 
     .form {
@@ -200,22 +218,20 @@
     }
 
     .hidden { display: none !important; }
+    .reconnect { display: none !important; }
   </style>
 </head>
 <body>
   <main class="card">
+    <section class="hero" aria-label="Quick Poll">
+      <img class="tool-logo" src="./quick-poll-student-logo.png" alt="Quick Poll">
+    </section>
+
     <form class="form" id="joinForm">
       <p>Connect through the Friendzy QR.</p>
       <input id="nameInput" type="hidden" name="name" autocomplete="name" placeholder="Your name">
       <button id="joinBtn" hidden type="submit">Join</button>
     </form>
-
-    <section class="reconnect hidden" id="reconnectPanel">
-      <p>This device is connected as <strong id="savedNameText">Player</strong>. You will continue participating under this name.</p>
-      <div class="reconnect-actions">
-        <button id="continueBtn" type="button">Continue</button>
-      </div>
-    </section>
 
     <section class="options" id="options"></section>
 
@@ -231,14 +247,14 @@
     const code = String(params.get("code") || "").toUpperCase();
     const autoName = String(params.get("name") || "").trim();
     const classroomCode = String(params.get("classroom") || "").toUpperCase();
+    const classroomPlayerId = Number(params.get("classroomPlayerId") || 0);
     const shouldAutoJoin = params.get("auto") === "1";
     const playerKey = `quick-poll-player-${code}`;
     const nameKey = `quick-poll-name-${code}`;
     const voteKey = `quick-poll-vote-${code}`;
     const joinForm = document.getElementById("joinForm");
-    const reconnectPanel = document.getElementById("reconnectPanel");
-    const savedNameText = document.getElementById("savedNameText");
-    const continueBtn = document.getElementById("continueBtn");
+    const reconnectPanel = { classList: { add() {}, remove() {} } };
+    const continueBtn = { disabled: false, addEventListener() {} };
     const nameInput = document.getElementById("nameInput");
     const joinBtn = document.getElementById("joinBtn");
     const optionsEl = document.getElementById("options");
@@ -256,7 +272,6 @@
 
     if (playerName) {
       nameInput.value = playerName;
-      savedNameText.textContent = playerName;
     } else if (autoName) {
       nameInput.value = autoName;
     }
@@ -311,7 +326,7 @@
     }
 
     function requireFriendzyJoin() {
-      if (shouldAutoJoin && autoName) return false;
+      if ((shouldAutoJoin && autoName) || playerName) return false;
       if (classroomCode) {
         window.location.replace(`./student-hub.html?code=${encodeURIComponent(classroomCode)}`);
         return true;
@@ -343,8 +358,8 @@
         nominationPanel.classList.add("hidden");
         resetNominationButton();
         joinForm.classList.add("hidden");
-        reconnectPanel.classList.remove("hidden");
-        hideMessage();
+        reconnectPanel.classList.add("hidden");
+        setMessage(playerName ? `You are connected as ${playerName}. Wait for the teacher to start.` : "Syncing with Friendzy.", playerName ? "good" : "");
         return;
       }
       joinForm.classList.add("hidden");
@@ -404,7 +419,7 @@
       joinBtn.disabled = true;
       continueBtn.disabled = true;
       try {
-        const data = await api("/api/poll/join", { code, name, playerId });
+        const data = await api("/api/poll/join", { code, name, playerId, classroomPlayerId });
         room = data.room;
         playerId = data.player.id;
         playerName = data.player.name;
@@ -512,12 +527,13 @@
     }
 
     window.addEventListener("load", async () => {
+      reconnectPanel.classList.add("hidden");
       if (!playerName) {
         requireFriendzyJoin();
       } else {
         joinForm.classList.add("hidden");
-        reconnectPanel.classList.remove("hidden");
-        hideMessage();
+        reconnectPanel.classList.add("hidden");
+        setMessage(`You are connected as ${playerName}. Wait for the teacher to start.`, "good");
       }
       pollRoom();
     });

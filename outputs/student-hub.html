@@ -232,7 +232,8 @@
 
     function goToTool(toolCode, path) {
       if (!toolCode || !playerName) return;
-      const target = `./${path}?code=${encodeURIComponent(toolCode)}&name=${encodeURIComponent(playerName)}&classroom=${encodeURIComponent(code)}&auto=1`;
+      const playerId = localStorage.getItem(playerKey) || "";
+      const target = `./${path}?code=${encodeURIComponent(toolCode)}&name=${encodeURIComponent(playerName)}&classroom=${encodeURIComponent(code)}&classroomPlayerId=${encodeURIComponent(playerId)}&auto=1`;
       window.location.href = target;
     }
 

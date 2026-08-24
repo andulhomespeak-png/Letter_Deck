@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Spin the Wheel</title>
-  <link rel="icon" type="image/png" href="./friendzy-logo.png">
+  <link rel="icon" type="image/png" href="./spin-the-wheel-student-logo.png">
   <style>
     :root {
       --ink: #100b2f;
@@ -45,9 +45,27 @@
       box-shadow: 0 28px 80px rgba(16, 11, 47, 0.18);
       backdrop-filter: blur(18px);
       display: grid;
-      grid-template-rows: auto 1fr auto;
-      gap: 18px;
+      grid-template-rows: auto auto 1fr auto;
+      gap: clamp(12px, 3.5vw, 18px);
       overflow: hidden;
+    }
+
+    .hero {
+      display: grid;
+      place-items: center;
+      min-height: 0;
+      width: 100%;
+      justify-self: center;
+      overflow: visible;
+    }
+
+    .tool-logo {
+      display: block;
+      width: min(100%, 420px);
+      max-height: clamp(190px, 39dvh, 340px);
+      justify-self: center;
+      object-fit: contain;
+      filter: drop-shadow(0 18px 28px rgba(16, 11, 47, 0.18));
     }
 
     .form {
@@ -166,7 +184,7 @@
     }
 
     .card.is-submitted {
-      grid-template-rows: auto 1fr;
+      grid-template-rows: auto 1fr auto;
     }
 
     .card.is-submitted .form {
@@ -189,6 +207,10 @@
 </head>
 <body>
   <main class="card">
+    <section class="hero" aria-label="Spin the Wheel">
+      <img class="tool-logo" src="./spin-the-wheel-student-logo.png" alt="Spin the Wheel">
+    </section>
+
     <form class="form" id="joinForm">
       <p>Connect through the Friendzy QR.</p>
       <input id="nameInput" type="hidden" name="name" autocomplete="name" placeholder="Your name">
@@ -308,8 +330,10 @@
       submitName(input.value.trim());
     });
 
+    const arrivedFromFriendzy = shouldAutoJoin && !!autoName;
+
     window.addEventListener("load", () => {
-      if (requireFriendzyJoin()) {
+      if (!arrivedFromFriendzy && requireFriendzyJoin()) {
         input.disabled = true;
         submitBtn.disabled = true;
         return;
@@ -320,11 +344,9 @@
       }
     });
 
-    if (!submittedName && !requireFriendzyJoin() && autoName) {
+    if (!submittedName && arrivedFromFriendzy) {
       input.value = autoName;
-      if (shouldAutoJoin) {
-        submitName(autoName);
-      }
+      submitName(autoName);
     }
     if (classroomCode) {
       clearTimeout(classroomPollTimer);

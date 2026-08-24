@@ -1282,11 +1282,13 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && url.pathname === "/api/live/join") {
-      const { code, teamName, reconnect } = await body(req);
+      const { code, teamName, reconnect, classroomPlayerId } = await body(req);
       const room = getRoom(code);
       const clean = String(teamName || "").trim();
+      const requestedClassroomId = Number(classroomPlayerId || 0);
       if (!clean) throw new Error("Team name is required");
-      const existingPlayer = room.players.find((item) => item.teamName.toLowerCase() === clean.toLowerCase());
+      const existingPlayer = room.players.find((item) => requestedClassroomId && Number(item.classroomPlayerId || 0) === requestedClassroomId)
+        || room.players.find((item) => item.teamName.toLowerCase() === clean.toLowerCase());
       if (existingPlayer && !reconnect) {
         return json(res, 409, {
           error: "A participant with this name is already connected.",
@@ -1307,11 +1309,12 @@ const server = http.createServer(async (req, res) => {
       let player = existingPlayer || null;
       if (!player) {
         team.members += 1;
-        player = { id: `player-${room.nextPlayerId++}`, teamId: team.id, teamName: team.name };
+        player = { id: `player-${room.nextPlayerId++}`, teamId: team.id, teamName: team.name, classroomPlayerId: requestedClassroomId || undefined };
         room.players.push(player);
       } else {
         player.teamId = team.id;
         player.teamName = team.name;
+        if (requestedClassroomId) player.classroomPlayerId = requestedClassroomId;
       }
       touch(room);
       broadcastRoom(room);
@@ -1348,13 +1351,18 @@ const server = http.createServer(async (req, res) => {
             classroomPlayerId: sourcePlayer.id
           });
           changed = true;
+        } else if (Number(existingPlayer.classroomPlayerId || 0) !== Number(sourcePlayer.id || 0)) {
+          existingPlayer.classroomPlayerId = sourcePlayer.id;
+          existingPlayer.teamId = team.id;
+          existingPlayer.teamName = team.name;
+          changed = true;
         }
       });
       if (changed) {
         touch(room);
         broadcastRoom(room);
       }
-      return json(res, 200, { room: serialize(room) });
+      return json(res, 200, { room: serialize(room), changed });
     }
 
     if (req.method === "POST" && url.pathname === "/api/live/submit") {
@@ -1806,21 +1814,28 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && url.pathname === "/api/bingo/join") {
-      const { code, name, playerId } = await body(req);
+      const { code, name, playerId, classroomPlayerId } = await body(req);
       const room = getBingoRoom(code);
       const clean = String(name || "").trim();
       if (!clean) throw new Error("Name is required");
       const requestedId = Number(playerId || 0);
-      let player = room.players.find((item) => Number(item.id) === requestedId);
+      const requestedClassroomId = Number(classroomPlayerId || 0);
+      let player = room.players.find((item) => Number(item.id) === requestedId)
+        || room.players.find((item) => requestedClassroomId && Number(item.classroomPlayerId) === requestedClassroomId);
       const duplicate = room.players.find((item) => item !== player && String(item.name || "").trim().toLowerCase() === clean.toLowerCase());
-      if (duplicate) throw new Error("A participant with this name is already connected.");
+      if (duplicate && requestedClassroomId) {
+        player = duplicate;
+      } else if (duplicate) {
+        throw new Error("A participant with this name is already connected.");
+      }
       if (!player) {
-        player = { id: room.nextPlayerId || 1, name: clean, bingos: 0, joinedAt: Date.now(), updatedAt: Date.now() };
+        player = { id: room.nextPlayerId || 1, name: clean, bingos: 0, joinedAt: Date.now(), updatedAt: Date.now(), classroomPlayerId: requestedClassroomId || undefined };
         room.nextPlayerId = Number(player.id) + 1;
         room.players.push(player);
       } else {
         player.name = clean;
         player.bingos = Number(player.bingos || 0);
+        if (requestedClassroomId) player.classroomPlayerId = requestedClassroomId;
         player.updatedAt = Date.now();
       }
       ensureBingoCard(room, player.id);
@@ -1849,8 +1864,9 @@ const server = http.createServer(async (req, res) => {
           room.nextPlayerId = Number(player.id) + 1;
           room.players.push(player);
           changed = true;
-        } else if (!Number.isFinite(Number(player.bingos))) {
-          player.bingos = 0;
+        } else if (Number(player.classroomPlayerId || 0) !== Number(sourcePlayer.id || 0) || !Number.isFinite(Number(player.bingos))) {
+          player.classroomPlayerId = sourcePlayer.id;
+          if (!Number.isFinite(Number(player.bingos))) player.bingos = 0;
           player.updatedAt = Date.now();
           changed = true;
         }
@@ -2065,20 +2081,27 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && url.pathname === "/api/poll/join") {
-      const { code, name, playerId } = await body(req);
+      const { code, name, playerId, classroomPlayerId } = await body(req);
       const room = getPollRoom(code);
       const clean = String(name || "").trim();
       if (!clean) throw new Error("Name is required");
       const requestedId = Number(playerId || 0);
-      let player = room.players.find((item) => item.id === requestedId);
+      const requestedClassroomId = Number(classroomPlayerId || 0);
+      let player = room.players.find((item) => item.id === requestedId)
+        || room.players.find((item) => requestedClassroomId && Number(item.classroomPlayerId) === requestedClassroomId);
       const duplicate = room.players.find((item) => item !== player && String(item.name || "").trim().toLowerCase() === clean.toLowerCase());
-      if (duplicate) throw new Error("A participant with this name is already connected.");
+      if (duplicate && requestedClassroomId) {
+        player = duplicate;
+      } else if (duplicate) {
+        throw new Error("A participant with this name is already connected.");
+      }
       if (!player) {
-        player = { id: room.nextPlayerId || 1, name: clean, joinedAt: Date.now(), updatedAt: Date.now() };
+        player = { id: room.nextPlayerId || 1, name: clean, joinedAt: Date.now(), updatedAt: Date.now(), classroomPlayerId: requestedClassroomId || undefined };
         room.nextPlayerId = player.id + 1;
         room.players.push(player);
       } else {
         player.name = clean;
+        if (requestedClassroomId) player.classroomPlayerId = requestedClassroomId;
         player.updatedAt = Date.now();
       }
       const playerIds = new Set(room.players.map((item) => Number(item.id)));
@@ -2107,6 +2130,10 @@ const server = http.createServer(async (req, res) => {
           };
           room.nextPlayerId = Number(player.id) + 1;
           room.players.push(player);
+          changed = true;
+        } else if (Number(player.classroomPlayerId || 0) !== Number(sourcePlayer.id || 0)) {
+          player.classroomPlayerId = sourcePlayer.id;
+          player.updatedAt = Date.now();
           changed = true;
         }
       });

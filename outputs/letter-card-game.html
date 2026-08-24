@@ -1634,6 +1634,7 @@
     let celebratingTeamId = "";
     let liveRoom = null;
     let livePollTimer = null;
+    let classroomImportTimer = null;
     let liveSocket = null;
     let liveSocketActive = false;
     let liveEnabled = window.location.protocol.startsWith("http");
@@ -2170,6 +2171,9 @@
         return;
       }
       const nextLetters = liveRoom.letters.slice(0, maxActiveLetters);
+      if (!nextLetters.length && activeLetters.length && liveRoom.status !== "finished") {
+        return;
+      }
       if (nextLetters.join("|") === activeLetters.join("|")) {
         return;
       }
@@ -2266,6 +2270,7 @@
     function disconnectLiveRoom() {
       closeLiveSocket();
       stopLivePolling();
+      stopClassroomImportPolling();
     }
 
     function clearPersistedLiveRoomCode() {
@@ -2389,9 +2394,17 @@
       } catch (_) {}
     }
 
+    function getLiveTeamSignature(room = liveRoom) {
+      return (room?.teams || [])
+        .map((team) => `${team.id}:${String(team.name || "").trim()}:${Number(team.members || 0)}:${Number(team.score || 0)}`)
+        .sort()
+        .join("|");
+    }
+
     async function importClassroomPlayers() {
       const classroomCode = window.localStorage.getItem(classroomStorageKey);
       if (!liveEnabled || !liveRoom || !classroomCode) return false;
+      const beforeSignature = getLiveTeamSignature();
       try {
         const data = await liveApi("/api/live/import-classroom", { code: liveRoom.code, classroomCode });
         liveRoom = data.room;
@@ -2400,10 +2413,30 @@
         syncLiveTeamsIntoScores();
         syncActiveLettersFromRoom();
         applyLiveRoomFeedback();
-        return true;
+        return !!data.changed || beforeSignature !== getLiveTeamSignature();
       } catch (_) {
         return false;
       }
+    }
+
+    function stopClassroomImportPolling() {
+      if (classroomImportTimer) {
+        clearInterval(classroomImportTimer);
+        classroomImportTimer = null;
+      }
+    }
+
+    function startClassroomImportPolling() {
+      if (classroomImportTimer || !window.localStorage.getItem(classroomStorageKey)) {
+        return;
+      }
+      classroomImportTimer = setInterval(() => {
+        importClassroomPlayers()
+          .then((changed) => {
+            if (changed) render();
+          })
+          .catch(() => {});
+      }, 1500);
     }
 
     function connectLiveSocket() {
@@ -2529,6 +2562,7 @@
         pollLiveRoom();
       }
       setClassroomTool("letter-clash", liveRoom.code).catch(() => {});
+      startClassroomImportPolling();
       return liveRoom;
     }
 
@@ -2548,6 +2582,9 @@
         render();
         return;
       }
+      fillLettersToTarget();
+      lastRenderedLettersKey = "";
+      await syncLiveRoom(liveRoom.status || "waiting");
       const data = await liveApi("/api/live/start", { code: liveRoom.code });
       liveRoom = data.room;
       persistLiveRoomCode();
@@ -3059,39 +3096,19 @@
       if (liveRoom?.status === "live") {
         return;
       }
-      const confirmed = await openConfirm({
-        title: "Start Live Game?",
-        text: "Waiting screens will switch to answer mode for connected students.",
-        confirmLabel: "Start"
-      });
-      if (confirmed) {
-        startLiveGame().then(() => {
-          qrOverlay.classList.add("hidden");
-        }).catch(() => {});
-      }
+      startLiveGame().then(() => {
+        qrOverlay.classList.add("hidden");
+      }).catch(() => {});
     });
     qrLiveBtn.addEventListener("click", async () => {
       if (liveRoom?.status === "live") {
         return;
       }
-      const confirmed = await openConfirm({
-        title: "Start Live Game?",
-        text: "Waiting screens will switch to answer mode for connected students.",
-        confirmLabel: "Start"
-      });
-      if (confirmed) {
-        startLiveGame().then(() => {
-          qrOverlay.classList.add("hidden");
-        }).catch(() => {});
-      }
+      startLiveGame().then(() => {
+        qrOverlay.classList.add("hidden");
+      }).catch(() => {});
     });
     homeBtn.addEventListener("click", async () => {
-      const confirmed = await openConfirm({
-        title: "Go Home?",
-        text: "Connected students will return to the Friendzy standby screen.",
-        confirmLabel: "Home"
-      });
-      if (!confirmed) return;
       setClassroomTool("standby", "").finally(() => {
         allowConfirmedNavigation = true;
         window.location.href = liveEnabled ? "/" : "./index.html";
@@ -3219,9 +3236,12 @@
     });
 
     window.addEventListener("friendzy:players-updated", () => {
-      importClassroomPlayers().then((changed) => {
-        if (changed) render();
-      });
+      ensureLiveRoom()
+        .then(() => importClassroomPlayers())
+        .then((changed) => {
+          if (changed) render();
+        })
+        .catch(() => {});
     });
 
     podiumResetBtn.addEventListener("click", async () => {

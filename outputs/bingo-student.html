@@ -446,6 +446,7 @@
     const params = new URLSearchParams(window.location.search);
     const code = String(params.get("code") || "").toUpperCase();
     const classroomCode = String(params.get("classroom") || "").toUpperCase();
+    const classroomPlayerId = Number(params.get("classroomPlayerId") || 0);
     const autoName = String(params.get("name") || "").trim();
     const isAuto = params.get("auto") === "1";
     const playerKey = `bingo-player-${code}`;
@@ -561,7 +562,7 @@
       joinBtn.disabled = true;
       try {
         const savedId = Number(localStorage.getItem(playerKey) || 0);
-        const data = await api("/api/bingo/join", { code, name, playerId: savedId });
+        const data = await api("/api/bingo/join", { code, name, playerId: savedId, classroomPlayerId });
         room = data.room;
         player = data.player;
         localStorage.setItem(playerKey, String(player.id));

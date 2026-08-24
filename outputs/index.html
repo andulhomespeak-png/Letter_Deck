@@ -98,6 +98,12 @@
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: clamp(18px, 3vw, 30px);
+      opacity: 0;
+      transition: opacity 160ms ease;
+    }
+
+    .grid.is-ready {
+      opacity: 1;
     }
 
     .activity {
@@ -161,7 +167,13 @@
       width: min(96%, 420px);
       max-height: 260px;
       object-fit: contain;
+      opacity: 0;
       filter: drop-shadow(0 22px 30px rgba(7, 20, 60, 0.2));
+      transition: opacity 160ms ease;
+    }
+
+    .activity-logo.is-loaded {
+      opacity: 1;
     }
 
     .buzzer-logo,
@@ -272,6 +284,31 @@
     </section>
   </main>
 
+  <script>
+    const logoImages = Array.from(document.querySelectorAll(".activity-logo"));
+    const grid = document.querySelector(".grid");
+    let pending = logoImages.length;
+    const markGridReady = () => {
+      pending -= 1;
+      if (pending <= 0) grid?.classList.add("is-ready");
+    };
+    logoImages.forEach((image) => {
+      const show = () => image.classList.add("is-loaded");
+      if (image.complete && image.naturalWidth) {
+        show();
+        markGridReady();
+      } else if (image.complete) {
+        markGridReady();
+      } else {
+        image.addEventListener("load", () => {
+          show();
+          markGridReady();
+        }, { once: true });
+        image.addEventListener("error", markGridReady, { once: true });
+      }
+    });
+    if (!logoImages.length) grid?.classList.add("is-ready");
+  </script>
   <script src="./friendzy-panel.js"></script>
 </body>
 </html>
