@@ -25,6 +25,7 @@ const STUDENT_HUB_HTML = path.join(ROOT, "student-hub.html");
 const WORDS_JS = path.join(ROOT, "english-words.js");
 const LEARNED_WORDS_JSON = path.join(ROOT, "learned-words.json");
 const ROOM_TTL_MS = 60 * 60 * 1000;
+const CLASSROOM_ROOM_TTL_MS = 12 * 60 * 60 * 1000;
 
 const rooms = new Map();
 const roomSockets = new Map();
@@ -394,7 +395,7 @@ function createBuzzerRoom() {
     winner: null,
     buzzes: [],
     lockedOutPlayers: [],
-    buzzerHeld: false,
+    buzzerHeld: true,
     nextPlayerId: 1,
     roundStartedAt: 0,
     updatedAt: Date.now()
@@ -466,7 +467,7 @@ function cleanupRooms() {
     bingoRooms.delete(code);
   });
   classroomRooms.forEach((room, code) => {
-    if (now - Number(room.updatedAt || 0) < ROOM_TTL_MS) {
+    if (now - Number(room.updatedAt || 0) < CLASSROOM_ROOM_TTL_MS) {
       return;
     }
     classroomRooms.delete(code);
@@ -1181,7 +1182,9 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "GET" && url.pathname === "/api/classroom/room") {
-      return json(res, 200, { room: serializeClassroomRoom(getClassroomRoom(url.searchParams.get("code"))) });
+      const room = getClassroomRoom(url.searchParams.get("code"));
+      touch(room);
+      return json(res, 200, { room: serializeClassroomRoom(room) });
     }
 
     if (req.method === "POST" && url.pathname === "/api/classroom/set-tool") {
@@ -1601,25 +1604,11 @@ const server = http.createServer(async (req, res) => {
       const room = getBuzzerRoom(code);
       if (!room.players.length) throw new Error("Add participants before going live");
       room.status = "live";
-      room.roundId += 1;
-      room.winner = null;
-      room.buzzes = [];
-      room.lockedOutPlayers = [];
+      if (!room.roundId) {
+        room.roundId = 1;
+      }
+      room.buzzerHeld = false;
       room.roundStartedAt = Date.now();
-      touch(room);
-      broadcastBuzzerRoom(room);
-      return json(res, 200, { room: serializeBuzzerRoom(room) });
-    }
-
-    if (req.method === "POST" && url.pathname === "/api/buzzer/reset-round") {
-      const { code } = await body(req);
-      const room = getBuzzerRoom(code);
-      room.roundId += 1;
-      room.winner = null;
-      room.buzzes = [];
-      room.lockedOutPlayers = [];
-      room.roundStartedAt = Date.now();
-      room.status = room.status === "waiting" ? "waiting" : "live";
       touch(room);
       broadcastBuzzerRoom(room);
       return json(res, 200, { room: serializeBuzzerRoom(room) });
@@ -1633,7 +1622,7 @@ const server = http.createServer(async (req, res) => {
       room.winner = null;
       room.buzzes = [];
       room.lockedOutPlayers = [];
-      room.buzzerHeld = false;
+      room.buzzerHeld = true;
       room.roundStartedAt = 0;
       room.players.forEach((player) => {
         player.score = 0;
@@ -1710,9 +1699,11 @@ const server = http.createServer(async (req, res) => {
           lockedOutPlayers.push(player.id);
         }
         room.lockedOutPlayers = lockedOutPlayers;
+        room.buzzerHeld = false;
       } else {
         room.roundId += 1;
         room.lockedOutPlayers = [];
+        room.buzzerHeld = true;
       }
       room.winner = null;
       room.buzzes = [];

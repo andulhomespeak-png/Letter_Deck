@@ -512,8 +512,16 @@
       body: payload ? JSON.stringify(payload) : undefined
     });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Request failed");
+    if (!response.ok) {
+      const error = new Error(data.error || "Request failed");
+      error.status = response.status;
+      throw error;
+    }
     return data;
+  }
+
+  function isMissingRoomError(error) {
+    return /room not found/i.test(String(error?.message || ""));
   }
 
   async function hydrateBaseUrl() {
@@ -637,8 +645,19 @@
         room = existing.room;
         render();
         return room;
-      } catch (_) {
-        localStorage.removeItem(storageKey);
+      } catch (error) {
+        if (isMissingRoomError(error)) {
+          localStorage.removeItem(storageKey);
+        } else {
+          room = {
+            code: savedCode,
+            players: [],
+            activeTool: "standby",
+            activeToolCode: ""
+          };
+          render();
+          return room;
+        }
       }
     }
     const data = await api("/api/classroom/create-room");
@@ -654,10 +673,12 @@
       const data = await api(`/api/classroom/room?code=${encodeURIComponent(room.code)}`, null, "GET");
       room = data.room;
       render();
-    } catch (_) {
-      room = null;
-      localStorage.removeItem(storageKey);
-      await ensureRoom();
+    } catch (error) {
+      if (isMissingRoomError(error)) {
+        room = null;
+        localStorage.removeItem(storageKey);
+        await ensureRoom();
+      }
     } finally {
       pollTimer = setTimeout(pollRoom, 1200);
     }

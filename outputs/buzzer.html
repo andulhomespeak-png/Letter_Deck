@@ -67,6 +67,14 @@
       gap: 10px;
     }
 
+    .score-config {
+      display: grid;
+      grid-template-columns: auto 126px;
+      align-items: stretch;
+      gap: 6px;
+      min-width: 0;
+    }
+
     .status {
       min-width: 104px;
       padding: 8px 14px;
@@ -74,6 +82,7 @@
       background: rgba(255,255,255,0.82);
       border: 1px solid var(--line);
       box-shadow: inset 0 -10px 20px rgba(8, 125, 255, 0.06);
+      text-align: center;
     }
 
     .status-label {
@@ -125,7 +134,13 @@
       padding: 0 12px;
     }
 
-    .actions .hold.is-active {
+    .actions .ready-toggle.is-ready {
+      color: #fff;
+      background: linear-gradient(135deg, var(--green), #039b52);
+      box-shadow: 0 14px 30px rgba(25, 200, 117, 0.24);
+    }
+
+    .actions .ready-toggle.is-hold {
       color: #fff;
       background: linear-gradient(135deg, var(--red), #a8001a);
       box-shadow: 0 14px 30px rgba(255, 37, 65, 0.24);
@@ -133,51 +148,70 @@
 
     .points-panel {
       min-width: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding-block: 3px;
+      display: grid;
+      grid-template-rows: repeat(2, minmax(0, 1fr));
+      align-items: stretch;
+      gap: 4px;
     }
 
-    .point-option {
-      min-width: 58px;
-      min-height: 42px;
-      padding: 0 12px;
-      box-shadow: none;
-      border: 1px solid var(--line);
-    }
-
-    .point-option.is-selected {
-      color: #fff;
-      background: linear-gradient(135deg, var(--blue), #3024d8);
-      border-color: transparent;
-      box-shadow: 0 12px 28px rgba(48, 36, 216, 0.22);
-    }
-
-    .custom-points {
-      width: 124px;
+    .point-control {
       min-width: 0;
-      min-height: 42px;
+      min-height: 0;
       border: 1px solid var(--line);
       border-radius: 999px;
-      padding: 0 12px;
+      background: rgba(255,255,255,0.94);
+      box-shadow: inset 0 0 0 1px rgba(16, 11, 47, 0.04);
+      display: grid;
+      grid-template-columns: minmax(42px, 1fr) auto minmax(30px, 0.72fr);
+      align-items: center;
+      gap: 3px;
+      padding: 0 8px;
+    }
+
+    .point-control span {
+      font-weight: 1000;
+      color: var(--muted);
+      line-height: 1;
+      font-size: 0.72rem;
+    }
+
+    .point-control .point-sign {
+      font-size: 0.82rem;
+      text-align: center;
+    }
+
+    .point-control .point-word {
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .point-control.is-correct .point-sign,
+    .point-control.is-correct .point-word {
+      color: #058247;
+    }
+
+    .point-control.is-wrong .point-sign,
+    .point-control.is-wrong .point-word {
+      color: var(--red);
+    }
+
+    .point-control input {
+      width: 100%;
+      min-width: 0;
+      border: 0;
+      outline: 0;
+      padding: 0;
       font: inherit;
+      font-size: 0.88rem;
       font-weight: 1000;
       text-align: center;
       color: var(--ink);
-      background: rgba(255,255,255,0.94);
-      box-shadow: inset 0 0 0 1px rgba(16, 11, 47, 0.04);
+      background: transparent;
     }
 
     button:hover { transform: translateY(-2px); }
     button:active { transform: translateY(1px); }
     button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
-
-    .live {
-      color: #fff;
-      background: linear-gradient(135deg, var(--green), #039b52);
-    }
 
     .danger {
       color: #fff;
@@ -538,14 +572,12 @@
         padding-inline: 9px;
       }
 
-      .point-option {
-        min-width: 48px;
-        padding-inline: 9px;
+      .score-config {
+        grid-template-columns: auto 112px;
       }
 
-      .custom-points {
-        width: 108px;
-        padding-inline: 8px;
+      .point-control {
+        padding-inline: 6px;
       }
     }
 
@@ -563,17 +595,8 @@
         min-width: 68px;
       }
 
-      .point-option,
-      .custom-points {
-        min-height: 38px;
-      }
-
-      .point-option {
-        min-width: 50px;
-      }
-
-      .custom-points {
-        width: 104px;
+      .point-control {
+        min-height: 0;
       }
 
       .winner {
@@ -653,15 +676,18 @@
         grid-template-columns: 1fr;
       }
 
-      .points-panel,
+      .score-config,
       .actions {
         justify-content: stretch;
       }
 
       .actions button,
-      .point-option,
-      .custom-points {
+      .point-control {
         flex: 1 1 0;
+      }
+
+      .score-config {
+        grid-template-columns: minmax(0, 1fr) 118px;
       }
 
       .app {
@@ -686,19 +712,26 @@
   <main class="app">
     <section class="main">
       <div class="topbar">
-        <div class="status">
-          <p class="status-label">Round</p>
-          <p class="status-main" id="statusMain">0</p>
-        </div>
-        <div class="points-panel" aria-label="Point value">
-          <button class="point-option" data-points="1" type="button">1</button>
-          <button class="point-option is-selected" data-points="50" type="button">50</button>
-          <button class="point-option" data-points="100" type="button">100</button>
-          <input class="custom-points" id="customPointsInput" type="number" min="1" max="10000" step="1" placeholder="Custom" aria-label="Custom points">
+        <div class="score-config">
+          <div class="status">
+            <p class="status-label">Round</p>
+            <p class="status-main" id="statusMain">0</p>
+          </div>
+          <div class="points-panel" aria-label="Point values">
+            <label class="point-control is-correct" title="Correct answer points">
+              <span class="point-word">Right</span>
+              <span class="point-sign">+</span>
+              <input id="correctPointsInput" type="number" min="1" max="10000" step="1" value="50" aria-label="Correct answer points">
+            </label>
+            <label class="point-control is-wrong" title="Wrong answer penalty">
+              <span class="point-word">Wrong</span>
+              <span class="point-sign">-</span>
+              <input id="wrongPointsInput" type="number" min="1" max="10000" step="1" value="25" aria-label="Wrong answer penalty">
+            </label>
+          </div>
         </div>
         <div class="actions">
-          <button id="liveBtn" class="live" type="button">Live</button>
-          <button id="holdBtn" class="hold" type="button">Hold</button>
+          <button id="readyBtn" class="ready-toggle is-hold" type="button">Ready</button>
           <button id="clearBtn" type="button">Clear</button>
           <button id="homeBtn" type="button">Home</button>
         </div>
@@ -757,15 +790,14 @@
     const winnerCard = document.getElementById("winnerCard");
     const winnerName = document.getElementById("winnerName");
     const idleState = document.getElementById("idleState");
-    const liveBtn = document.getElementById("liveBtn");
-    const holdBtn = document.getElementById("holdBtn");
+    const readyBtn = document.getElementById("readyBtn");
     const clearBtn = document.getElementById("clearBtn");
     const homeBtn = document.getElementById("homeBtn");
     const awardPointBtn = document.getElementById("awardPointBtn");
     const passTurnBtn = document.getElementById("passTurnBtn");
     const removePointBtn = document.getElementById("removePointBtn");
-    const pointOptionBtns = Array.from(document.querySelectorAll("[data-points]"));
-    const customPointsInput = document.getElementById("customPointsInput");
+    const correctPointsInput = document.getElementById("correctPointsInput");
+    const wrongPointsInput = document.getElementById("wrongPointsInput");
 
     const storageKey = "letter-clash-buzzer-room-code";
     const classroomStorageKey = "friendzy-classroom-code";
@@ -777,7 +809,8 @@
     let lastWinnerId = "";
     let wakeLock = null;
     let classroomImportInFlight = false;
-    let pointValue = 50;
+    let correctPointValue = 50;
+    let wrongPointValue = 25;
     const turnAlarmSound = new Audio("buzzer-turn-alarm.wav");
     turnAlarmSound.preload = "auto";
     turnAlarmSound.volume = 1;
@@ -917,17 +950,17 @@
       } catch (_) {}
     }
 
-    function setPointValue(value, mode = "preset") {
-      const nextValue = Math.max(1, Math.min(10000, Math.trunc(Number(value) || 50)));
-      pointValue = nextValue;
-      pointOptionBtns.forEach((button) => {
-        button.classList.toggle("is-selected", mode === "preset" && Number(button.dataset.points) === pointValue);
-      });
-      if (mode !== "custom") {
-        customPointsInput.value = "";
-      }
-      awardPointBtn.textContent = `+${pointValue}`;
-      removePointBtn.textContent = `-${pointValue}`;
+    function normalizePointValue(value, fallback) {
+      return Math.max(1, Math.min(10000, Math.trunc(Number(value) || fallback)));
+    }
+
+    function syncPointButtons() {
+      correctPointValue = normalizePointValue(correctPointsInput.value, 50);
+      wrongPointValue = normalizePointValue(wrongPointsInput.value, 25);
+      correctPointsInput.value = correctPointValue;
+      wrongPointsInput.value = wrongPointValue;
+      awardPointBtn.textContent = `+${correctPointValue}`;
+      removePointBtn.textContent = `-${wrongPointValue}`;
     }
 
     function render() {
@@ -936,11 +969,12 @@
         return;
       }
       localStorage.setItem(storageKey, room.code);
-      liveBtn.disabled = !room.players.length || room.status === "live";
-      holdBtn.disabled = false;
+      const isReady = room.status === "live" && !room.buzzerHeld;
+      readyBtn.disabled = !room.players.length;
+      readyBtn.textContent = isReady ? "Hold" : "Ready";
+      readyBtn.classList.toggle("is-ready", !isReady);
+      readyBtn.classList.toggle("is-hold", isReady);
       clearBtn.disabled = !room.players.length;
-      holdBtn.textContent = room.buzzerHeld ? "Held" : "Hold";
-      holdBtn.classList.toggle("is-active", !!room.buzzerHeld);
       statusMain.textContent = room.roundId || 0;
 
       if (room.winner) {
@@ -982,11 +1016,11 @@
     }
 
     function renderNoRoom() {
-      liveBtn.disabled = true;
-      holdBtn.disabled = true;
+      readyBtn.disabled = true;
       clearBtn.disabled = true;
-      holdBtn.textContent = "Hold";
-      holdBtn.classList.remove("is-active");
+      readyBtn.textContent = "Ready";
+      readyBtn.classList.remove("is-ready");
+      readyBtn.classList.add("is-hold");
       statusMain.textContent = "0";
       lastWinnerId = "";
       winnerCard.classList.add("hidden");
@@ -1135,21 +1169,30 @@
       render();
     }
 
-    liveBtn.addEventListener("click", async () => {
-      await startLive();
-    });
-
-    holdBtn.addEventListener("click", async () => {
+    readyBtn.addEventListener("click", async () => {
       if (!room) return;
-      const previousHeld = !!room.buzzerHeld;
-      room.buzzerHeld = !previousHeld;
+      if (room.status !== "live") {
+        await startLive();
+        return;
+      }
+      const nextHeld = !room.buzzerHeld;
+      room.buzzerHeld = nextHeld;
       render();
       const data = await api("/api/buzzer/hold", {
         code: room.code,
-        held: room.buzzerHeld
+        held: nextHeld
       });
       room = data.room;
       render();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.code !== "Space") return;
+      const editable = event.target.closest("input, textarea, select, [contenteditable='true']");
+      if (editable) return;
+      if (!room || readyBtn.disabled) return;
+      event.preventDefault();
+      readyBtn.click();
     });
 
     clearBtn.addEventListener("click", async () => {
@@ -1208,8 +1251,9 @@
     }
 
     awardPointBtn.addEventListener("click", () => {
+      syncPointButtons();
       playAwardSound();
-      resolveCurrentTurn(pointValue).catch(() => {});
+      resolveCurrentTurn(correctPointValue).catch(() => {});
     });
 
     passTurnBtn.addEventListener("click", () => {
@@ -1217,19 +1261,26 @@
     });
 
     removePointBtn.addEventListener("click", () => {
+      syncPointButtons();
       playWrongSound();
-      resolveCurrentTurn(-pointValue).catch(() => {});
+      resolveCurrentTurn(-wrongPointValue).catch(() => {});
     });
 
-    pointOptionBtns.forEach((button) => {
-      button.addEventListener("click", () => {
-        setPointValue(button.dataset.points, "preset");
+    correctPointsInput.addEventListener("change", syncPointButtons);
+    wrongPointsInput.addEventListener("change", syncPointButtons);
+    [correctPointsInput, wrongPointsInput].forEach((input) => {
+      input.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        syncPointButtons();
+        input.blur();
       });
     });
-
-    customPointsInput.addEventListener("input", () => {
-      if (!customPointsInput.value) return;
-      setPointValue(customPointsInput.value, "custom");
+    correctPointsInput.addEventListener("input", () => {
+      awardPointBtn.textContent = `+${normalizePointValue(correctPointsInput.value, correctPointValue)}`;
+    });
+    wrongPointsInput.addEventListener("input", () => {
+      removePointBtn.textContent = `-${normalizePointValue(wrongPointsInput.value, wrongPointValue)}`;
     });
 
     document.addEventListener("pointerdown", unlockAudio, { once: true });
@@ -1259,7 +1310,7 @@
         statusMain.textContent = error.message || "Could not create buzzer room.";
       });
     requestWakeLock();
-    setPointValue(50, "preset");
+    syncPointButtons();
     startClassroomImportTimer();
   </script>
   <script src="./friendzy-panel.js"></script>
