@@ -62,7 +62,7 @@
 
     .topbar {
       display: grid;
-      grid-template-columns: auto auto minmax(0, 1fr) auto;
+      grid-template-columns: auto minmax(0, 1fr) auto;
       align-items: center;
       gap: 10px;
     }
@@ -115,6 +115,8 @@
       background: rgba(255,255,255,0.94);
       box-shadow: 0 12px 26px rgba(16, 11, 47, 0.12);
       cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
       transition: transform 120ms ease, filter 120ms ease, opacity 120ms ease;
     }
 
@@ -136,23 +138,6 @@
       justify-content: center;
       gap: 8px;
       padding-block: 3px;
-    }
-
-    .scorer-toggle {
-      min-height: 42px;
-      min-width: 108px;
-      padding: 0 14px;
-      border: 1px solid transparent;
-      color: #fff;
-      background: linear-gradient(135deg, var(--green), #039b52);
-      box-shadow: 0 12px 28px rgba(3, 155, 82, 0.2);
-    }
-
-    .scorer-toggle.is-off {
-      color: var(--ink);
-      background: rgba(255,255,255,0.94);
-      border-color: var(--line);
-      box-shadow: none;
     }
 
     .point-option {
@@ -266,12 +251,6 @@
     .score-actions .minus {
       color: #fff;
       background: linear-gradient(135deg, var(--red), #a8001a);
-    }
-
-    .no-score-next {
-      width: min(260px, 100%);
-      min-height: 52px;
-      font-size: clamp(1rem, 1.5vw, 1.35rem);
     }
 
     .idle {
@@ -432,29 +411,29 @@
       min-height: 0;
       overflow-y: auto;
       overscroll-behavior: contain;
-      scrollbar-gutter: stable;
+      scrollbar-gutter: stable both-edges;
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
       align-content: start;
       gap: 8px;
-      padding-right: 3px;
+      padding-inline: 3px;
     }
 
     .player {
       min-height: 42px;
       border-radius: 16px;
-      padding: 8px 10px 8px 14px;
+      padding: 8px 14px;
       background: rgba(255,255,255,0.84);
       border: 1px solid var(--line);
       display: grid;
-      grid-template-columns: 28px minmax(0, 1fr) auto 28px;
+      grid-template-columns: 28px minmax(0, 1fr) auto;
       align-items: center;
       gap: 8px;
       font-weight: 1000;
     }
 
-    .player.no-score {
-      grid-template-columns: minmax(0, 1fr) 28px;
+    .player.no-rank {
+      grid-template-columns: minmax(0, 1fr) auto;
     }
 
     .player.is-locked {
@@ -481,8 +460,9 @@
 
     .player-score {
       min-width: 48px;
-      padding: 5px 9px;
+      padding: 5px 8px;
       border-radius: 999px;
+      justify-self: end;
       text-align: center;
       color: var(--ink);
       background: rgba(25, 200, 117, 0.14);
@@ -544,7 +524,7 @@
       }
 
       .topbar {
-        grid-template-columns: auto minmax(256px, 0.82fr) minmax(214px, 0.72fr) auto;
+        grid-template-columns: auto minmax(256px, 1fr) auto;
         gap: 6px;
       }
 
@@ -556,11 +536,6 @@
       .actions button {
         min-width: 66px;
         padding-inline: 9px;
-      }
-
-      .scorer-toggle {
-        min-width: 92px;
-        padding-inline: 10px;
       }
 
       .point-option {
@@ -588,7 +563,6 @@
         min-width: 68px;
       }
 
-      .scorer-toggle,
       .point-option,
       .custom-points {
         min-height: 38px;
@@ -615,8 +589,7 @@
         font-size: clamp(2.4rem, 6.6vw, 5.6rem);
       }
 
-      .score-actions button,
-      .no-score-next {
+      .score-actions button {
         min-height: 46px;
       }
 
@@ -670,8 +643,7 @@
         gap: 8px;
       }
 
-      .score-actions button,
-      .no-score-next {
+      .score-actions button {
         min-height: 40px;
       }
     }
@@ -681,7 +653,6 @@
         grid-template-columns: 1fr;
       }
 
-      .scorer-toggle,
       .points-panel,
       .actions {
         justify-content: stretch;
@@ -719,7 +690,6 @@
           <p class="status-label">Round</p>
           <p class="status-main" id="statusMain">0</p>
         </div>
-        <button class="scorer-toggle" id="scorerToggleBtn" type="button">Scorer On</button>
         <div class="points-panel" aria-label="Point value">
           <button class="point-option" data-points="1" type="button">1</button>
           <button class="point-option is-selected" data-points="50" type="button">50</button>
@@ -729,6 +699,7 @@
         <div class="actions">
           <button id="liveBtn" class="live" type="button">Live</button>
           <button id="holdBtn" class="hold" type="button">Hold</button>
+          <button id="clearBtn" type="button">Clear</button>
           <button id="homeBtn" type="button">Home</button>
         </div>
       </div>
@@ -750,7 +721,6 @@
               <button id="passTurnBtn" type="button">Pass</button>
               <button class="minus" id="removePointBtn" type="button">-1</button>
             </div>
-            <button class="no-score-next hidden" id="noScoreNextBtn" type="button">Next</button>
           </div>
         </div>
       </div>
@@ -760,7 +730,6 @@
     <aside class="scoreboard" aria-label="Buzzer ranking">
       <div class="scoreboard-head">
         <h2>Players</h2>
-        <span class="scoreboard-note">Ranking</span>
       </div>
       <div class="players" id="players"></div>
     </aside>
@@ -790,14 +759,11 @@
     const idleState = document.getElementById("idleState");
     const liveBtn = document.getElementById("liveBtn");
     const holdBtn = document.getElementById("holdBtn");
+    const clearBtn = document.getElementById("clearBtn");
     const homeBtn = document.getElementById("homeBtn");
-    const scorerToggleBtn = document.getElementById("scorerToggleBtn");
     const awardPointBtn = document.getElementById("awardPointBtn");
     const passTurnBtn = document.getElementById("passTurnBtn");
     const removePointBtn = document.getElementById("removePointBtn");
-    const scoreActions = document.querySelector(".score-actions");
-    const pointsPanel = document.querySelector(".points-panel");
-    const noScoreNextBtn = document.getElementById("noScoreNextBtn");
     const pointOptionBtns = Array.from(document.querySelectorAll("[data-points]"));
     const customPointsInput = document.getElementById("customPointsInput");
 
@@ -811,7 +777,6 @@
     let lastWinnerId = "";
     let wakeLock = null;
     let classroomImportInFlight = false;
-    let scorerEnabled = true;
     let pointValue = 50;
     const turnAlarmSound = new Audio("buzzer-turn-alarm.wav");
     turnAlarmSound.preload = "auto";
@@ -973,14 +938,9 @@
       localStorage.setItem(storageKey, room.code);
       liveBtn.disabled = !room.players.length || room.status === "live";
       holdBtn.disabled = false;
+      clearBtn.disabled = !room.players.length;
       holdBtn.textContent = room.buzzerHeld ? "Held" : "Hold";
       holdBtn.classList.toggle("is-active", !!room.buzzerHeld);
-      pointsPanel.classList.toggle("hidden", !scorerEnabled);
-      scoreActions.classList.toggle("hidden", !scorerEnabled);
-      noScoreNextBtn.classList.toggle("hidden", scorerEnabled);
-      scorerToggleBtn.textContent = scorerEnabled ? "Scorer On" : "Scorer Off";
-      scorerToggleBtn.classList.toggle("is-off", !scorerEnabled);
-
       statusMain.textContent = room.roundId || 0;
 
       if (room.winner) {
@@ -1000,22 +960,22 @@
         idleState.classList.remove("hidden");
       }
 
+      const didPlay = (player) => !!player.hasPlayed || Number(player.score || 0) !== 0;
       const sortedPlayers = room.players.slice().sort((a, b) => {
-        if (scorerEnabled) {
-          const scoreDiff = Number(b.score || 0) - Number(a.score || 0);
-          if (scoreDiff) return scoreDiff;
-        }
+        const playedDiff = Number(didPlay(b)) - Number(didPlay(a));
+        if (playedDiff) return playedDiff;
+        const scoreDiff = Number(b.score || 0) - Number(a.score || 0);
+        if (scoreDiff) return scoreDiff;
         return String(a.name || "").localeCompare(String(b.name || ""));
       });
+      const rankedPlayers = sortedPlayers.filter(didPlay);
       const lockedOutPlayers = Array.isArray(room.lockedOutPlayers) ? room.lockedOutPlayers : [];
       playersEl.innerHTML = sortedPlayers.length
         ? sortedPlayers.map((player, index) => `
-          <div class="player ${scorerEnabled ? "" : "no-score"} ${lockedOutPlayers.includes(player.id) ? "is-locked" : ""}">
-            ${scorerEnabled ? `<span class="rank">${index + 1}</span>` : ""}
+          <div class="player ${didPlay(player) ? "" : "no-rank"} ${lockedOutPlayers.includes(player.id) ? "is-locked" : ""}">
+            ${didPlay(player) ? `<span class="rank">${rankedPlayers.findIndex((item) => item.id === player.id) + 1}</span>` : ""}
             <span class="player-name">${escapeHtml(player.name)}</span>
-            ${scorerEnabled ? `<span class="player-score">${Number(player.score || 0)} pts</span>` : ""}
-            <button class="remove" type="button" data-player-id="${escapeHtml(player.id)}" title="Remove">×</button>
-            <button class="remove" type="button" data-player-id="${escapeHtml(player.id)}" title="Remove">×</button>
+            <span class="player-score">${Number(player.score || 0)} pts</span>
           </div>
         `).join("")
         : `<div class="empty">Waiting for players...</div>`;
@@ -1024,13 +984,9 @@
     function renderNoRoom() {
       liveBtn.disabled = true;
       holdBtn.disabled = true;
+      clearBtn.disabled = true;
       holdBtn.textContent = "Hold";
       holdBtn.classList.remove("is-active");
-      pointsPanel.classList.toggle("hidden", !scorerEnabled);
-      scoreActions.classList.toggle("hidden", !scorerEnabled);
-      noScoreNextBtn.classList.add("hidden");
-      scorerToggleBtn.textContent = scorerEnabled ? "Scorer On" : "Scorer Off";
-      scorerToggleBtn.classList.toggle("is-off", !scorerEnabled);
       statusMain.textContent = "0";
       lastWinnerId = "";
       winnerCard.classList.add("hidden");
@@ -1196,6 +1152,19 @@
       render();
     });
 
+    clearBtn.addEventListener("click", async () => {
+      if (!room) return;
+      const confirmed = await askConfirm({
+        title: "Clear buzzer scores?",
+        text: "This will reset rounds, points, current turn, and locked players. Connected players will stay in the room.",
+        confirmLabel: "Clear"
+      });
+      if (!confirmed) return;
+      const data = await api("/api/buzzer/clear-game", { code: room.code });
+      room = data.room;
+      render();
+    });
+
     window.addEventListener("friendzy:reset", () => {
       const oldCode = room?.code || localStorage.getItem(storageKey);
       disconnectRoom();
@@ -1247,10 +1216,6 @@
       resolveCurrentTurn(0).catch(() => {});
     });
 
-    noScoreNextBtn.addEventListener("click", () => {
-      resolveCurrentTurn(0).catch(() => {});
-    });
-
     removePointBtn.addEventListener("click", () => {
       playWrongSound();
       resolveCurrentTurn(-pointValue).catch(() => {});
@@ -1267,37 +1232,12 @@
       setPointValue(customPointsInput.value, "custom");
     });
 
-    scorerToggleBtn.addEventListener("click", () => {
-      scorerEnabled = !scorerEnabled;
-      render();
-    });
-
     document.addEventListener("pointerdown", unlockAudio, { once: true });
     ["click", "pointerdown", "touchstart", "keydown"].forEach((eventName) => {
       document.addEventListener(eventName, requestWakeLock, { passive: true });
     });
     window.addEventListener("focus", requestWakeLock);
     window.addEventListener("pageshow", requestWakeLock);
-
-    async function removePlayerById(playerId) {
-      const player = room.players.find((item) => item.id === playerId);
-      if (!player) return;
-      const confirmed = await askConfirm({
-        title: "Remove Participant?",
-        text: `${player.name} will be removed from this buzzer room.`,
-        confirmLabel: "Remove"
-      });
-      if (!confirmed) return;
-      const data = await api("/api/buzzer/remove-player", { code: room.code, playerId: player.id });
-      room = data.room;
-      render();
-    }
-
-    playersEl.addEventListener("click", async (event) => {
-      const button = event.target.closest("[data-player-id]");
-      if (!button) return;
-      removePlayerById(button.dataset.playerId).catch(() => {});
-    });
 
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") {

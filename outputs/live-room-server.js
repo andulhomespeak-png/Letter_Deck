@@ -1625,6 +1625,25 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { room: serializeBuzzerRoom(room) });
     }
 
+    if (req.method === "POST" && url.pathname === "/api/buzzer/clear-game") {
+      const { code } = await body(req);
+      const room = getBuzzerRoom(code);
+      room.status = "waiting";
+      room.roundId = 0;
+      room.winner = null;
+      room.buzzes = [];
+      room.lockedOutPlayers = [];
+      room.buzzerHeld = false;
+      room.roundStartedAt = 0;
+      room.players.forEach((player) => {
+        player.score = 0;
+        player.hasPlayed = false;
+      });
+      touch(room);
+      broadcastBuzzerRoom(room);
+      return json(res, 200, { room: serializeBuzzerRoom(room) });
+    }
+
     if (req.method === "POST" && url.pathname === "/api/buzzer/hold") {
       const { code, held } = await body(req);
       const room = getBuzzerRoom(code);
@@ -1684,6 +1703,7 @@ const server = http.createServer(async (req, res) => {
       if (!player) throw new Error("Participant not found");
       const scoreDelta = Math.max(-10000, Math.min(10000, Math.trunc(Number(delta) || 0)));
       player.score = Number(player.score || 0) + scoreDelta;
+      player.hasPlayed = true;
       if (scoreDelta < 0) {
         const lockedOutPlayers = Array.isArray(room.lockedOutPlayers) ? room.lockedOutPlayers : [];
         if (!lockedOutPlayers.includes(player.id)) {
