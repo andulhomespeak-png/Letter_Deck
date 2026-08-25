@@ -2222,7 +2222,8 @@ const server = http.createServer(async (req, res) => {
       const player = room.players.find((item) => Number(item.id) === id);
       if (!player) throw new Error("Join the poll before nominating yourself.");
       const nominees = new Set((room.nomineePlayerIds || []).map((item) => Number(item)));
-      if (nominees.has(id)) {
+      const candidates = new Set((room.candidatePlayerIds || []).map((item) => Number(item)));
+      if (nominees.has(id) || candidates.has(id)) {
         return json(res, 200, { room: serializePollRoom(room), alreadyNominated: true });
       }
       nominees.add(id);

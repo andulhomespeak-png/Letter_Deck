@@ -369,7 +369,8 @@
       const alreadyVoted = votedPollId === pollId;
       const candidates = room?.candidates || [];
       const nomineeIds = (room?.nomineePlayerIds || []).map((id) => Number(id));
-      const isNominated = nomineeIds.includes(Number(playerId));
+      const candidateIds = (room?.candidatePlayerIds || []).map((id) => Number(id));
+      const isNominated = nomineeIds.includes(Number(playerId)) || candidateIds.includes(Number(playerId));
       if (status !== "voting") {
         optionsEl.innerHTML = "";
         const canNominate = !!room?.nominationMode;

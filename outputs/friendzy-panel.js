@@ -24,6 +24,30 @@
   let baseUrl = window.location.origin;
   let pollTimer = null;
   let lastPlayersSignature = "";
+  let wakeLock = null;
+
+  async function requestFriendzyWakeLock() {
+    if (!("wakeLock" in navigator) || document.visibilityState !== "visible") return;
+    try {
+      if (wakeLock && !wakeLock.released) return;
+      wakeLock = await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener("release", () => {
+        wakeLock = null;
+      });
+    } catch (_) {
+      wakeLock = null;
+    }
+  }
+
+  ["pointerdown", "keydown", "touchstart"].forEach((eventName) => {
+    document.addEventListener(eventName, requestFriendzyWakeLock, { passive: true });
+  });
+  window.addEventListener("focus", requestFriendzyWakeLock);
+  window.addEventListener("pageshow", requestFriendzyWakeLock);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") requestFriendzyWakeLock();
+  });
+  requestFriendzyWakeLock();
 
   const style = document.createElement("style");
   style.textContent = `

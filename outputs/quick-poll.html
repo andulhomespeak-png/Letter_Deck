@@ -407,7 +407,7 @@
       border-radius: 18px;
       font-weight: 1000;
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto auto;
+      grid-template-columns: minmax(0, 1fr) auto;
       align-items: center;
       gap: 10px;
       background:
@@ -433,30 +433,24 @@
     }
 
     .player-tag {
-      min-width: 72px;
+      min-width: 82px;
       min-height: 30px;
       padding: 0 10px;
       border-radius: 999px;
       display: grid;
       place-items: center;
       color: #fff;
-      background: rgba(255,255,255,0.2);
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.32);
-      font-size: 0.72rem;
+      background: rgba(255,255,255,0.22);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.34);
+      font-size: 0.74rem;
       letter-spacing: 0.04em;
       text-transform: uppercase;
     }
 
-    .remove-player {
-      width: 30px;
-      height: 30px;
-      min-height: 30px;
-      padding: 0;
-      display: grid;
-      place-items: center;
+    .player-tag.is-votable {
       color: #fff;
-      background: linear-gradient(135deg, var(--red), #a8001a);
-      box-shadow: 0 10px 20px rgba(168, 0, 26, 0.18);
+      background: linear-gradient(135deg, var(--green), #039b52);
+      box-shadow: 0 10px 20px rgba(25, 200, 117, 0.24), inset 0 0 0 1px rgba(255,255,255,0.34);
     }
 
     .player[draggable="true"] {
@@ -613,7 +607,7 @@
             <span class="self-switch-knob" aria-hidden="true"></span>
           </button>
           <button class="nomination-toggle" id="nominationToggleBtn" type="button" aria-pressed="false">
-            <span class="mode-label">Nomination</span>
+            <span class="mode-label">Self-nomination</span>
             <span class="nomination-value" id="nominationValue">Off</span>
           </button>
         </div>
@@ -733,14 +727,16 @@
       const nomineeIds = nominationMode ? new Set(nomineePlayerIds.map((id) => Number(id))) : new Set();
       playersList.innerHTML = players.length
         ? players.slice().sort((a, b) => {
-          const nomineeDiff = Number(nomineeIds.has(Number(b.id))) - Number(nomineeIds.has(Number(a.id)));
+          const aIsPendingNominee = nomineeIds.has(Number(a.id)) && !candidateIds.has(Number(a.id));
+          const bIsPendingNominee = nomineeIds.has(Number(b.id)) && !candidateIds.has(Number(b.id));
+          const nomineeDiff = Number(bIsPendingNominee) - Number(aIsPendingNominee);
           if (nomineeDiff) return nomineeDiff;
           return a.name.localeCompare(b.name);
         }).map((player) => {
-          const isNominee = nomineeIds.has(Number(player.id));
           const isCandidate = candidateIds.has(Number(player.id));
-          const tag = isNominee ? `<span class="player-tag">Nominated</span>` : (isCandidate ? `<span class="player-tag">Votable</span>` : "");
-          return `<div class="player ${isNominee ? "is-nominee" : ""}" draggable="true" data-player-id="${player.id}"><span class="player-name">${escapeHtml(player.name)}</span>${tag}<button class="remove-player" type="button" data-player-id="${player.id}" aria-label="Remove ${escapeHtml(player.name)}">X</button></div>`;
+          const isNominee = nomineeIds.has(Number(player.id)) && !isCandidate;
+          const tag = isCandidate ? `<span class="player-tag is-votable">Votable</span>` : (isNominee ? `<span class="player-tag">Nominated</span>` : "");
+          return `<div class="player ${isNominee ? "is-nominee" : ""}" draggable="true" data-player-id="${player.id}"><span class="player-name">${escapeHtml(player.name)}</span>${tag}</div>`;
         }).join("")
         : "";
     }
@@ -908,7 +904,6 @@
         return;
       }
       candidatePlayerIds = [...candidatePlayerIds, id];
-      nomineePlayerIds = nomineePlayerIds.filter((nomineeId) => Number(nomineeId) !== id);
       await syncSettings();
     }
 
@@ -954,10 +949,6 @@
     });
 
     playersList.addEventListener("dragstart", (event) => {
-      if (event.target.closest(".remove-player")) {
-        event.preventDefault();
-        return;
-      }
       const player = event.target.closest(".player[draggable='true']");
       if (!player) {
         return;
@@ -966,22 +957,6 @@
       event.dataTransfer.setData("text/plain", player.dataset.playerId || "");
       event.dataTransfer.effectAllowed = "move";
       currentDragAction = "add";
-    });
-
-    playersList.addEventListener("click", (event) => {
-      const button = event.target.closest(".remove-player");
-      if (!button) {
-        return;
-      }
-      const playerName = button.closest(".player")?.querySelector(".player-name")?.textContent?.trim() || "this player";
-      openConfirm({
-        title: "Remove Player?",
-        text: `Are you sure you want to remove ${playerName}?`,
-        confirmLabel: "Remove"
-      }).then((confirmed) => {
-        if (!confirmed) return;
-        removePlayer(button.dataset.playerId).catch((error) => alert(error.message || "Could not remove participant."));
-      });
     });
 
     results.addEventListener("dragstart", (event) => {
