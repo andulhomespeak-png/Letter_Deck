@@ -255,6 +255,24 @@
       animation: winnerPop 520ms cubic-bezier(0.18, 1.2, 0.28, 1) both;
     }
 
+    .winner.is-empty-round .winner-alarm,
+    .winner.is-empty-round .score-actions .plus,
+    .winner.is-empty-round .score-actions .minus {
+      display: none;
+    }
+
+    .winner.is-empty-round .score-actions {
+      grid-template-columns: minmax(150px, 240px);
+      justify-content: center;
+    }
+
+    .winner.is-empty-round .winner-name {
+      max-width: 720px;
+      font-size: clamp(2.1rem, 5vw, 4.6rem);
+      line-height: 0.95;
+      color: var(--blue);
+    }
+
     .winner-name {
       margin: 0;
       font-size: clamp(3rem, 8.5vw, 8rem);
@@ -375,7 +393,7 @@
         #fff;
       box-shadow: 0 30px 90px rgba(0, 0, 0, 0.34);
       border: 1px solid rgba(255,255,255,0.76);
-      animation: qrPop 180ms ease both;
+      animation: confirmPop 180ms ease both;
     }
 
     .confirm-title {
@@ -547,7 +565,7 @@
       to { opacity: 1; filter: blur(2px); }
     }
 
-    @keyframes qrPop {
+    @keyframes confirmPop {
       from { transform: scale(0.9); opacity: 0; }
       to { transform: scale(1); opacity: 1; }
     }
@@ -801,7 +819,6 @@
 
     const storageKey = "letter-clash-buzzer-room-code";
     const classroomStorageKey = "friendzy-classroom-code";
-    let buzzerBaseUrl = window.location.origin;
     let room = null;
     let socket = null;
     let pollTimer = null;
@@ -938,18 +955,6 @@
       } catch (_) {}
     }
 
-    async function hydrateBuzzerBaseUrl() {
-      try {
-        const data = await api("/api/live/server-info", null, "GET");
-        const onLocalHost = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
-        if (onLocalHost && data?.localOrigin) {
-          buzzerBaseUrl = data.localOrigin;
-        } else if (data?.publicOrigin) {
-          buzzerBaseUrl = data.publicOrigin;
-        }
-      } catch (_) {}
-    }
-
     function normalizePointValue(value, fallback) {
       return Math.max(1, Math.min(10000, Math.trunc(Number(value) || fallback)));
     }
@@ -976,10 +981,13 @@
       readyBtn.classList.toggle("is-hold", isReady);
       clearBtn.disabled = !room.players.length;
       statusMain.textContent = room.roundId || 0;
+      const lockedOutPlayers = getLockedOutPlayers();
+      const noPlayersLeft = hasNoPlayersLeftToBuzz();
 
       if (room.winner) {
         idleState.classList.add("hidden");
         winnerCard.classList.remove("hidden");
+        winnerCard.classList.remove("is-empty-round");
         winnerName.textContent = room.winner.playerName;
         if (room.winner.id !== lastWinnerId) {
           lastWinnerId = room.winner.id;
@@ -988,9 +996,16 @@
           winnerCard.offsetHeight;
           winnerCard.classList.add("is-hot");
         }
+      } else if (noPlayersLeft) {
+        lastWinnerId = "";
+        idleState.classList.add("hidden");
+        winnerCard.classList.remove("hidden", "is-hot");
+        winnerCard.classList.add("is-empty-round");
+        winnerName.textContent = "No participants left to buzz this round.";
       } else {
         lastWinnerId = "";
         winnerCard.classList.add("hidden");
+        winnerCard.classList.remove("is-empty-round");
         idleState.classList.remove("hidden");
       }
 
@@ -1003,7 +1018,6 @@
         return String(a.name || "").localeCompare(String(b.name || ""));
       });
       const rankedPlayers = sortedPlayers.filter(didPlay);
-      const lockedOutPlayers = Array.isArray(room.lockedOutPlayers) ? room.lockedOutPlayers : [];
       playersEl.innerHTML = sortedPlayers.length
         ? sortedPlayers.map((player, index) => `
           <div class="player ${didPlay(player) ? "" : "no-rank"} ${lockedOutPlayers.includes(player.id) ? "is-locked" : ""}">
@@ -1026,6 +1040,19 @@
       winnerCard.classList.add("hidden");
       idleState.classList.remove("hidden");
       playersEl.innerHTML = `<div class="empty">Open Friendzy to connect players.</div>`;
+    }
+
+    function getLockedOutPlayers() {
+      return Array.isArray(room?.lockedOutPlayers) ? room.lockedOutPlayers : [];
+    }
+
+    function hasNoPlayersLeftToBuzz() {
+      const lockedOutPlayers = getLockedOutPlayers();
+      return room?.status === "live"
+        && !room.buzzerHeld
+        && !room.winner
+        && room.players.length > 0
+        && room.players.every((player) => lockedOutPlayers.includes(player.id));
     }
 
     function disconnectRoom() {
@@ -1187,12 +1214,30 @@
     });
 
     document.addEventListener("keydown", (event) => {
-      if (event.code !== "Space") return;
       const editable = event.target.closest("input, textarea, select, [contenteditable='true']");
       if (editable) return;
-      if (!room || readyBtn.disabled) return;
-      event.preventDefault();
-      readyBtn.click();
+      if (!confirmOverlay.classList.contains("hidden")) return;
+      if (event.code === "Space") {
+        if (!room || readyBtn.disabled) return;
+        event.preventDefault();
+        readyBtn.click();
+        return;
+      }
+      const key = String(event.key || "").toLowerCase();
+      if (key === "r" && room?.winner) {
+        event.preventDefault();
+        awardPointBtn.click();
+        return;
+      }
+      if (key === "w" && room?.winner) {
+        event.preventDefault();
+        removePointBtn.click();
+        return;
+      }
+      if (key === "p" && (room?.winner || hasNoPlayersLeftToBuzz())) {
+        event.preventDefault();
+        passTurnBtn.click();
+      }
     });
 
     clearBtn.addEventListener("click", async () => {
@@ -1250,6 +1295,13 @@
       render();
     }
 
+    async function passCurrentRound() {
+      if (!room) return;
+      const data = await api("/api/buzzer/pass", { code: room.code });
+      room = data.room;
+      render();
+    }
+
     awardPointBtn.addEventListener("click", () => {
       syncPointButtons();
       playAwardSound();
@@ -1257,7 +1309,11 @@
     });
 
     passTurnBtn.addEventListener("click", () => {
-      resolveCurrentTurn(0).catch(() => {});
+      if (room?.winner) {
+        resolveCurrentTurn(0).catch(() => {});
+        return;
+      }
+      passCurrentRound().catch(() => {});
     });
 
     removePointBtn.addEventListener("click", () => {
@@ -1299,7 +1355,7 @@
       }
     });
 
-    hydrateBuzzerBaseUrl()
+    Promise.resolve()
       .then(async () => {
         await initRoom();
         if (localStorage.getItem(classroomStorageKey)) {

@@ -1355,39 +1355,67 @@ const server = http.createServer(async (req, res) => {
       const { code, classroomCode } = await body(req);
       const room = getRoom(code);
       const classroom = getClassroomRoom(classroomCode);
-      let changed = false;
+      const previousTeams = Array.isArray(room.teams) ? room.teams : [];
+      const previousPlayers = Array.isArray(room.players) ? room.players : [];
+      const nextTeams = [];
+      const nextPlayers = [];
+      const usedTeamIds = new Set();
+      const usedNames = new Set();
       (classroom.players || []).forEach((sourcePlayer) => {
         const clean = String(sourcePlayer.name || "").trim();
         if (!clean) return;
-        let team = room.teams.find((item) => String(item.name || "").trim().toLowerCase() === clean.toLowerCase());
-        if (!team) {
-          let index = room.teams.length + 1;
-          let id = `team-${index}`;
-          while (room.teams.some((item) => item.id === id)) {
+        const nameKey = clean.toLowerCase();
+        if (usedNames.has(nameKey)) return;
+        usedNames.add(nameKey);
+        const existingPlayer = previousPlayers.find((item) => Number(item.classroomPlayerId || 0) === Number(sourcePlayer.id || 0))
+          || previousPlayers.find((item) => sameName(item.teamName, clean));
+        const existingTeam = previousTeams.find((item) => existingPlayer?.teamId && item.id === existingPlayer.teamId)
+          || previousTeams.find((item) => sameName(item.name, clean));
+        let teamId = existingTeam?.id || "";
+        if (!teamId || usedTeamIds.has(teamId)) {
+          let index = nextTeams.length + 1;
+          teamId = `team-${index}`;
+          while (usedTeamIds.has(teamId) || previousTeams.some((item) => item.id === teamId)) {
             index += 1;
-            id = `team-${index}`;
+            teamId = `team-${index}`;
           }
-          team = { id, name: clean, members: 0, score: 0 };
-          room.teams.push(team);
-          changed = true;
         }
-        const existingPlayer = room.players.find((item) => String(item.teamName || "").trim().toLowerCase() === clean.toLowerCase());
-        if (!existingPlayer) {
-          team.members = Number(team.members || 0) + 1;
-          room.players.push({
-            id: `player-${room.nextPlayerId++}`,
-            teamId: team.id,
-            teamName: team.name,
-            classroomPlayerId: sourcePlayer.id
-          });
-          changed = true;
-        } else if (Number(existingPlayer.classroomPlayerId || 0) !== Number(sourcePlayer.id || 0)) {
-          existingPlayer.classroomPlayerId = sourcePlayer.id;
-          existingPlayer.teamId = team.id;
-          existingPlayer.teamName = team.name;
-          changed = true;
-        }
+        usedTeamIds.add(teamId);
+        const team = {
+          id: teamId,
+          name: clean,
+          members: 1,
+          score: Number(existingTeam?.score || 0)
+        };
+        nextTeams.push(team);
+        nextPlayers.push({
+          id: existingPlayer?.id || `player-${room.nextPlayerId++}`,
+          teamId: team.id,
+          teamName: team.name,
+          classroomPlayerId: sourcePlayer.id
+        });
       });
+      const previousSignature = previousPlayers
+        .map((player) => `${Number(player.classroomPlayerId || 0)}:${String(player.teamName || "").trim()}`)
+        .sort()
+        .join("|");
+      const nextSignature = nextPlayers
+        .map((player) => `${Number(player.classroomPlayerId || 0)}:${String(player.teamName || "").trim()}`)
+        .sort()
+        .join("|");
+      const removedTeamIds = new Set(previousTeams
+        .filter((team) => !nextTeams.some((item) => item.id === team.id))
+        .map((team) => team.id));
+      const removedPlayerIds = new Set(previousPlayers
+        .filter((player) => !nextPlayers.some((item) => item.id === player.id))
+        .map((player) => player.id));
+      room.teams = nextTeams;
+      room.players = nextPlayers;
+      room.submissions = (room.submissions || []).filter((submission) => !removedTeamIds.has(submission.teamId) && !removedPlayerIds.has(submission.playerId));
+      room.podium = (room.podium || []).filter((item) => !removedTeamIds.has(item.id));
+      if (removedTeamIds.has(room.lastSuccess?.teamId)) room.lastSuccess = null;
+      if (removedTeamIds.has(room.lastFeedback?.teamId)) room.lastFeedback = null;
+      const changed = previousSignature !== nextSignature;
       if (changed) {
         touch(room);
         broadcastRoom(room);
@@ -1585,26 +1613,42 @@ const server = http.createServer(async (req, res) => {
       const { code, classroomCode } = await body(req);
       const room = getBuzzerRoom(code);
       const classroom = getClassroomRoom(classroomCode);
-      let changed = false;
-      (classroom.players || []).forEach((sourcePlayer) => {
-        const clean = String(sourcePlayer.name || "").trim();
-        if (!clean) return;
-        let player = room.players.find((item) => String(item.name || "").trim().toLowerCase() === clean.toLowerCase());
-        if (!player) {
-          player = {
-            id: `buzzer-player-${room.nextPlayerId++}`,
+      const previousPlayers = Array.isArray(room.players) ? room.players : [];
+      const usedNames = new Set();
+      const nextPlayers = (classroom.players || [])
+        .map((sourcePlayer) => {
+          const clean = String(sourcePlayer.name || "").trim();
+          if (!clean) return null;
+          const nameKey = clean.toLowerCase();
+          if (usedNames.has(nameKey)) return null;
+          usedNames.add(nameKey);
+          const existing = previousPlayers.find((player) => Number(player.classroomPlayerId || 0) === Number(sourcePlayer.id || 0))
+            || previousPlayers.find((player) => sameName(player.name, clean));
+          return {
+            id: existing?.id || `buzzer-player-${room.nextPlayerId++}`,
             name: clean,
-            score: 0,
-            joinedAt: sourcePlayer.joinedAt || Date.now(),
+            score: Number(existing?.score || 0),
+            joinedAt: existing?.joinedAt || sourcePlayer.joinedAt || Date.now(),
             classroomPlayerId: sourcePlayer.id
           };
-          room.players.push(player);
-          changed = true;
-        } else if (!Number.isFinite(Number(player.score))) {
-          player.score = 0;
-          changed = true;
-        }
-      });
+        })
+        .filter(Boolean);
+      const previousSignature = previousPlayers
+        .map((player) => `${Number(player.classroomPlayerId || 0)}:${String(player.name || "").trim()}`)
+        .sort()
+        .join("|");
+      const nextSignature = nextPlayers
+        .map((player) => `${Number(player.classroomPlayerId || 0)}:${String(player.name || "").trim()}`)
+        .sort()
+        .join("|");
+      const nextIds = new Set(nextPlayers.map((player) => player.id));
+      room.players = nextPlayers;
+      room.buzzes = (room.buzzes || []).filter((buzz) => nextIds.has(buzz.playerId));
+      room.lockedOutPlayers = (room.lockedOutPlayers || []).filter((id) => nextIds.has(id));
+      if (room.winner && !nextIds.has(room.winner.playerId)) {
+        room.winner = null;
+      }
+      const changed = previousSignature !== nextSignature;
       if (changed) {
         touch(room);
         broadcastBuzzerRoom(room);
@@ -1727,6 +1771,21 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { room: serializeBuzzerRoom(room) });
     }
 
+    if (req.method === "POST" && url.pathname === "/api/buzzer/pass") {
+      const { code } = await body(req);
+      const room = getBuzzerRoom(code);
+      if (room.status !== "live") throw new Error("Buzzer is not live");
+      room.roundId += 1;
+      room.lockedOutPlayers = [];
+      room.buzzerHeld = true;
+      room.winner = null;
+      room.buzzes = [];
+      room.roundStartedAt = Date.now();
+      touch(room);
+      broadcastBuzzerRoom(room);
+      return json(res, 200, { room: serializeBuzzerRoom(room) });
+    }
+
     if (req.method === "POST" && url.pathname === "/api/buzzer/remove-player") {
       const { code, playerId, name } = await body(req);
       const room = getBuzzerRoom(code);
@@ -1788,20 +1847,33 @@ const server = http.createServer(async (req, res) => {
       const { code, classroomCode } = await body(req);
       const room = getWheelRoom(code);
       const classroom = getClassroomRoom(classroomCode);
-      let changed = false;
-      (classroom.players || []).forEach((sourcePlayer) => {
-        const clean = String(sourcePlayer.name || "").trim();
-        if (!clean) return;
-        const alreadyExists = (room.players || []).some((player) => String(player.name || "").trim().toLowerCase() === clean.toLowerCase());
-        if (!alreadyExists) {
-          room.players.push({
+      const previousPlayers = Array.isArray(room.players) ? room.players : [];
+      const nextPlayers = (classroom.players || [])
+        .map((sourcePlayer) => {
+          const clean = String(sourcePlayer.name || "").trim();
+          if (!clean) return null;
+          const existing = previousPlayers.find((player) => Number(player.classroomPlayerId || 0) === Number(sourcePlayer.id || 0))
+            || previousPlayers.find((player) => sameName(player.name, clean));
+          return {
             name: clean,
-            joinedAt: sourcePlayer.joinedAt || Date.now(),
+            joinedAt: existing?.joinedAt || sourcePlayer.joinedAt || Date.now(),
             classroomPlayerId: sourcePlayer.id
-          });
-          changed = true;
-        }
-      });
+          };
+        })
+        .filter(Boolean);
+      const previousSignature = previousPlayers
+        .map((player) => `${Number(player.classroomPlayerId || 0)}:${String(player.name || "").trim()}`)
+        .sort()
+        .join("|");
+      const nextSignature = nextPlayers
+        .map((player) => `${Number(player.classroomPlayerId || 0)}:${String(player.name || "").trim()}`)
+        .sort()
+        .join("|");
+      room.players = nextPlayers;
+      if (room.activeTurnName && !room.players.some((player) => sameName(player.name, room.activeTurnName))) {
+        room.activeTurnName = "";
+      }
+      const changed = previousSignature !== nextSignature;
       if (changed) touch(room);
       return json(res, 200, { room: serializeWheelRoom(room) });
     }
@@ -1921,31 +1993,52 @@ const server = http.createServer(async (req, res) => {
       const { code, classroomCode } = await body(req);
       const room = getBingoRoom(code);
       const classroom = getClassroomRoom(classroomCode);
-      let changed = false;
-      (classroom.players || []).forEach((sourcePlayer) => {
-        const clean = String(sourcePlayer.name || "").trim();
-        if (!clean) return;
-        let player = room.players.find((item) => String(item.name || "").trim().toLowerCase() === clean.toLowerCase());
-        if (!player) {
-          player = {
-            id: room.nextPlayerId || 1,
+      const previousPlayers = Array.isArray(room.players) ? room.players : [];
+      const usedNames = new Set();
+      const nextPlayers = (classroom.players || [])
+        .map((sourcePlayer) => {
+          const clean = String(sourcePlayer.name || "").trim();
+          if (!clean) return null;
+          const nameKey = clean.toLowerCase();
+          if (usedNames.has(nameKey)) return null;
+          usedNames.add(nameKey);
+          const existing = previousPlayers.find((player) => Number(player.classroomPlayerId || 0) === Number(sourcePlayer.id || 0))
+            || previousPlayers.find((player) => sameName(player.name, clean));
+          const player = {
+            id: existing?.id || room.nextPlayerId || 1,
             name: clean,
-            bingos: 0,
-            joinedAt: sourcePlayer.joinedAt || Date.now(),
+            bingos: Number(existing?.bingos || 0),
+            joinedAt: existing?.joinedAt || sourcePlayer.joinedAt || Date.now(),
             updatedAt: Date.now(),
             classroomPlayerId: sourcePlayer.id
           };
-          room.nextPlayerId = Number(player.id) + 1;
-          room.players.push(player);
-          changed = true;
-        } else if (Number(player.classroomPlayerId || 0) !== Number(sourcePlayer.id || 0) || !Number.isFinite(Number(player.bingos))) {
-          player.classroomPlayerId = sourcePlayer.id;
-          if (!Number.isFinite(Number(player.bingos))) player.bingos = 0;
-          player.updatedAt = Date.now();
-          changed = true;
-        }
-        ensureBingoCard(room, player.id);
+          if (!existing) room.nextPlayerId = Number(player.id) + 1;
+          ensureBingoCard(room, player.id);
+          return player;
+        })
+        .filter(Boolean);
+      const previousSignature = previousPlayers
+        .map((player) => `${Number(player.classroomPlayerId || 0)}:${String(player.name || "").trim()}`)
+        .sort()
+        .join("|");
+      const nextSignature = nextPlayers
+        .map((player) => `${Number(player.classroomPlayerId || 0)}:${String(player.name || "").trim()}`)
+        .sort()
+        .join("|");
+      const nextIds = new Set(nextPlayers.map((player) => String(player.id)));
+      room.players = nextPlayers;
+      Object.keys(room.cards || {}).forEach((id) => {
+        if (!nextIds.has(String(id))) delete room.cards[id];
       });
+      if (room.pendingClaim && !nextIds.has(String(room.pendingClaim.playerId || ""))) {
+        room.pendingClaim = null;
+        room.status = "live";
+      }
+      if (room.winner && !nextIds.has(String(room.winner.playerId || ""))) {
+        room.winner = null;
+        room.status = "setup";
+      }
+      const changed = previousSignature !== nextSignature;
       if (changed) touch(room);
       return json(res, 200, { room: serializeBingoRoom(room) });
     }
@@ -2189,31 +2282,47 @@ const server = http.createServer(async (req, res) => {
       const { code, classroomCode } = await body(req);
       const room = getPollRoom(code);
       const classroom = getClassroomRoom(classroomCode);
-      let changed = false;
-      (classroom.players || []).forEach((sourcePlayer) => {
-        const clean = String(sourcePlayer.name || "").trim();
-        if (!clean) return;
-        let player = room.players.find((item) => String(item.name || "").trim().toLowerCase() === clean.toLowerCase());
-        if (!player) {
-          player = {
-            id: room.nextPlayerId || 1,
+      const previousPlayers = Array.isArray(room.players) ? room.players : [];
+      const usedNames = new Set();
+      const nextPlayers = (classroom.players || [])
+        .map((sourcePlayer) => {
+          const clean = String(sourcePlayer.name || "").trim();
+          if (!clean) return null;
+          const nameKey = clean.toLowerCase();
+          if (usedNames.has(nameKey)) return null;
+          usedNames.add(nameKey);
+          const existing = previousPlayers.find((player) => Number(player.classroomPlayerId || 0) === Number(sourcePlayer.id || 0))
+            || previousPlayers.find((player) => sameName(player.name, clean));
+          const player = {
+            id: existing?.id || room.nextPlayerId || 1,
             name: clean,
-            joinedAt: sourcePlayer.joinedAt || Date.now(),
+            joinedAt: existing?.joinedAt || sourcePlayer.joinedAt || Date.now(),
             updatedAt: Date.now(),
             classroomPlayerId: sourcePlayer.id
           };
-          room.nextPlayerId = Number(player.id) + 1;
-          room.players.push(player);
-          changed = true;
-        } else if (Number(player.classroomPlayerId || 0) !== Number(sourcePlayer.id || 0)) {
-          player.classroomPlayerId = sourcePlayer.id;
-          player.updatedAt = Date.now();
-          changed = true;
-        }
-      });
+          if (!existing) room.nextPlayerId = Number(player.id) + 1;
+          return player;
+        })
+        .filter(Boolean);
+      const previousSignature = previousPlayers
+        .map((player) => `${Number(player.classroomPlayerId || 0)}:${String(player.name || "").trim()}`)
+        .sort()
+        .join("|");
+      const nextSignature = nextPlayers
+        .map((player) => `${Number(player.classroomPlayerId || 0)}:${String(player.name || "").trim()}`)
+        .sort()
+        .join("|");
+      room.players = nextPlayers;
       const playerIds = new Set(room.players.map((item) => Number(item.id)));
       room.candidatePlayerIds = (room.candidatePlayerIds || []).filter((id) => playerIds.has(Number(id)));
       room.nomineePlayerIds = (room.nomineePlayerIds || []).filter((id) => playerIds.has(Number(id)));
+      room.votes = (room.votes || []).filter((vote) => {
+        if (!playerIds.has(Number(vote.voterId))) return false;
+        const candidateId = String(vote.candidateId || "");
+        if (!candidateId.startsWith("player-")) return true;
+        return playerIds.has(Number(candidateId.replace("player-", "")));
+      });
+      const changed = previousSignature !== nextSignature;
       if (changed) touch(room);
       return json(res, 200, { room: serializePollRoom(room) });
     }

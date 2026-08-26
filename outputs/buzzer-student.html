@@ -376,7 +376,7 @@
     let wakeLock = null;
     let classroomPollTimer = null;
 
-    function leaveDeadRoom(message = "This room was reset. Scan the new QR to join again.") {
+    function leaveDeadRoom(message = "This room was reset. Join the Friendzy session again.") {
       if (classroomCode) {
         window.location.href = `./student-hub.html?code=${encodeURIComponent(classroomCode)}`;
         return;
@@ -516,7 +516,7 @@
 
     function render() {
       if (!room || !player) return;
-      roomLabel.textContent = `Room ${room.code}`;
+      roomLabel.textContent = `Room ${classroomCode || room.code}`;
       roundText.textContent = `Round ${room.roundId}`;
       const didPlay = (item) => !!item.hasPlayed || Number(item.score || 0) !== 0;
       const rankedPlayers = Array.isArray(room.players)
@@ -615,7 +615,7 @@
         room = data.room;
         render();
       } catch (_) {
-        leaveDeadRoom("This room is no longer available. Scan the new QR to join again.");
+        leaveDeadRoom("This room is no longer available. Join the Friendzy session again.");
       } finally {
         pollTimer = setTimeout(() => {
           pollTimer = null;

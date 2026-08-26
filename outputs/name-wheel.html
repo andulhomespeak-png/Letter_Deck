@@ -847,7 +847,7 @@
         </div>
       </header>
 
-      <section class="stage is-list-visible" id="stage">
+      <section class="stage" id="stage">
         <div class="wheel-wrap">
           <canvas id="wheelCanvas" width="1000" height="1000" aria-label="Name wheel"></canvas>
           <div class="wheel-ring"></div>
@@ -916,6 +916,7 @@
 
   <script>
     const storageKey = "name-wheel-room-code";
+    const listVisibilityStorageKey = "name-wheel-list-visibility";
     const classroomStorageKey = "friendzy-classroom-code";
     const colors = ["#087dff", "#ff2541", "#ff8a00", "#19c875", "#3024d8", "#ffd426", "#00b8ff", "#ff5db1"];
     const stage = document.getElementById("stage");
@@ -956,7 +957,7 @@
     let room = null;
     let baseUrl = window.location.origin;
     let qrVisible = false;
-    let listVisible = true;
+    let listVisible = localStorage.getItem(listVisibilityStorageKey) !== "hidden";
     let names = [];
     let connectedPlayers = [];
     let playerFilter = "";
@@ -1025,6 +1026,11 @@
       const normalizedNames = normalize(nextNames);
       const changed = normalizedNames.join("\n") !== names.join("\n");
       names = normalizedNames;
+      if (!names.length) {
+        listVisible = true;
+      } else {
+        listVisible = localStorage.getItem(listVisibilityStorageKey) !== "hidden";
+      }
       if (updateInput && namesInput.value !== names.join("\n")) {
         namesInput.value = names.join("\n");
       }
@@ -1657,6 +1663,7 @@
     });
     listToggleBtn.addEventListener("click", () => {
       listVisible = !listVisible;
+      localStorage.setItem(listVisibilityStorageKey, listVisible ? "visible" : "hidden");
       render();
     });
     addPlayersBtn.addEventListener("click", () => {
@@ -1680,6 +1687,7 @@
       if (!confirmed) return;
       names = [];
       namesInput.value = "";
+      localStorage.setItem(listVisibilityStorageKey, "visible");
       pendingRemovalName = "";
       removedNames.clear();
       namesDirty = false;
