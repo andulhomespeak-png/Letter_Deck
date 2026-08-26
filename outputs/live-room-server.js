@@ -9,6 +9,7 @@ const { URL } = require("url");
 const PORT = Number(process.env.PORT || 8787);
 const HOST = process.env.HOST || "0.0.0.0";
 const ROOT = path.join(__dirname);
+const SERVER_INSTANCE_ID = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 const TEACHER_HTML = path.join(ROOT, "letter-card-game.html");
 const STUDENT_HTML = path.join(ROOT, "student.html");
 const HOME_HTML = path.join(ROOT, "index.html");
@@ -24,6 +25,7 @@ const BINGO_STUDENT_HTML = path.join(ROOT, "bingo-student.html");
 const STUDENT_HUB_HTML = path.join(ROOT, "student-hub.html");
 const WORDS_JS = path.join(ROOT, "english-words.js");
 const LEARNED_WORDS_JSON = path.join(ROOT, "learned-words.json");
+const BUZZER_TRIVIA_JSON = path.join(ROOT, "buzzer-trivia.json");
 const ROOM_TTL_MS = 60 * 60 * 1000;
 const CLASSROOM_ROOM_TTL_MS = 12 * 60 * 60 * 1000;
 
@@ -35,6 +37,7 @@ const wheelRooms = new Map();
 const pollRooms = new Map();
 const bingoRooms = new Map();
 const classroomRooms = new Map();
+let buzzerTriviaBank = loadBuzzerTriviaBank();
 
 function loadDictionary() {
   const source = fs.readFileSync(WORDS_JS, "utf8");
@@ -67,6 +70,80 @@ function saveLearnedWords() {
     const values = Array.from(learnedWords).sort();
     fs.writeFileSync(LEARNED_WORDS_JSON, `${JSON.stringify(values, null, 2)}\n`, "utf8");
   } catch (_) {}
+}
+
+function normalizeBuzzerTriviaItem(item, index = 0) {
+  const category = String(item?.category || "General").trim() || "General";
+  const question = String(item?.question || "").trim();
+  const type = String(item?.type || "open").trim().toLowerCase() === "multiple" ? "multiple" : "open";
+  const options = (Array.isArray(item?.options) ? item.options : [])
+    .map((option) => String(option || "").trim())
+    .filter(Boolean)
+    .slice(0, 4);
+  const correctOptionIndex = Math.max(0, Math.min(3, Math.trunc(Number(item?.correctOptionIndex) || 0)));
+  const answer = type === "multiple" ? (options[correctOptionIndex] || "") : String(item?.answer || "").trim();
+  if (!question || !answer) return null;
+  if (type === "multiple" && options.length !== 4) return null;
+  return {
+    id: String(item?.id || `trivia-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 7)}`),
+    category,
+    type,
+    question,
+    answer,
+    options: type === "multiple" ? options : [],
+    correctOptionIndex: type === "multiple" ? correctOptionIndex : 0
+  };
+}
+
+function normalizeBuzzerTriviaBank(values) {
+  return (Array.isArray(values) ? values : [])
+    .map(normalizeBuzzerTriviaItem)
+    .filter(Boolean)
+    .slice(0, 500);
+}
+
+function loadBuzzerTriviaBank() {
+  try {
+    if (!fs.existsSync(BUZZER_TRIVIA_JSON)) {
+      return [];
+    }
+    return normalizeBuzzerTriviaBank(JSON.parse(fs.readFileSync(BUZZER_TRIVIA_JSON, "utf8")));
+  } catch (_) {
+    return [];
+  }
+}
+
+function saveBuzzerTriviaBank() {
+  try {
+    fs.writeFileSync(BUZZER_TRIVIA_JSON, `${JSON.stringify(buzzerTriviaBank, null, 2)}\n`, "utf8");
+  } catch (_) {}
+}
+
+function getBuzzerTriviaQuestion(room) {
+  if (!room?.triviaMode || !buzzerTriviaBank.length) return null;
+  const index = Math.max(0, Math.min(buzzerTriviaBank.length - 1, Number(room.triviaIndex || 0)));
+  const item = buzzerTriviaBank[index] || null;
+  if (!item) return null;
+  return {
+    id: item.id,
+    category: item.category,
+    type: item.type || "open",
+    question: item.question,
+    options: item.type === "multiple" ? item.options || [] : [],
+    correctOptionIndex: Number(item.correctOptionIndex || 0),
+    answer: room.triviaAnswerVisible ? item.answer : "",
+    answerVisible: !!room.triviaAnswerVisible,
+    attemptedOptionIndexes: Array.isArray(room.triviaAttemptedOptionIndexes) ? room.triviaAttemptedOptionIndexes : [],
+    index,
+    total: buzzerTriviaBank.length
+  };
+}
+
+function advanceBuzzerTrivia(room) {
+  if (!room?.triviaMode || !buzzerTriviaBank.length) return;
+  room.triviaIndex = (Number(room.triviaIndex || 0) + 1) % buzzerTriviaBank.length;
+  room.triviaAnswerVisible = false;
+  room.triviaAttemptedOptionIndexes = [];
 }
 
 function rememberDictionaryWord(rawWord) {
@@ -409,6 +486,10 @@ function createBuzzerRoom() {
     buzzes: [],
     lockedOutPlayers: [],
     buzzerHeld: true,
+    triviaMode: false,
+    triviaIndex: 0,
+    triviaAnswerVisible: false,
+    triviaAttemptedOptionIndexes: [],
     nextPlayerId: 1,
     roundStartedAt: 0,
     updatedAt: Date.now()
@@ -654,6 +735,8 @@ function serializeBuzzerRoom(room) {
     buzzes: room.buzzes.slice(0, 12),
     lockedOutPlayers: room.lockedOutPlayers || [],
     buzzerHeld: !!room.buzzerHeld,
+    triviaMode: !!room.triviaMode,
+    trivia: getBuzzerTriviaQuestion(room),
     roundStartedAt: room.roundStartedAt,
     updatedAt: room.updatedAt
   };
@@ -1170,6 +1253,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, {
         host: getLocalIp(),
         port: PORT,
+        instanceId: SERVER_INSTANCE_ID,
         localOrigin: `http://${getLocalIp()}:${PORT}`,
         publicOrigin,
         teacherUrl: `${publicOrigin}/`
@@ -1587,6 +1671,63 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { room: serializeBuzzerRoom(getBuzzerRoom(url.searchParams.get("code"))) });
     }
 
+    if (req.method === "GET" && url.pathname === "/api/buzzer/trivia-bank") {
+      return json(res, 200, { items: buzzerTriviaBank });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/buzzer/trivia-bank") {
+      const { items } = await body(req);
+      buzzerTriviaBank = normalizeBuzzerTriviaBank(items);
+      saveBuzzerTriviaBank();
+      buzzerRooms.forEach((room) => {
+        if (Number(room.triviaIndex || 0) >= buzzerTriviaBank.length) {
+          room.triviaIndex = 0;
+          room.triviaAnswerVisible = false;
+          touch(room);
+          broadcastBuzzerRoom(room);
+        } else if (room.triviaMode) {
+          broadcastBuzzerRoom(room);
+        }
+      });
+      return json(res, 200, { items: buzzerTriviaBank });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/buzzer/trivia-state") {
+      const { code, triviaMode, triviaIndex, reveal } = await body(req);
+      const room = getBuzzerRoom(code);
+      if (triviaMode !== undefined) {
+        room.triviaMode = !!triviaMode;
+        if (!room.triviaMode) {
+          room.triviaAnswerVisible = false;
+          room.triviaAttemptedOptionIndexes = [];
+        }
+      }
+      if (triviaIndex !== undefined && buzzerTriviaBank.length) {
+        room.triviaIndex = Math.max(0, Math.min(buzzerTriviaBank.length - 1, Math.trunc(Number(triviaIndex) || 0)));
+        room.triviaAnswerVisible = false;
+        room.triviaAttemptedOptionIndexes = [];
+      }
+      if (reveal !== undefined) {
+        room.triviaAnswerVisible = !!reveal;
+      }
+      touch(room);
+      broadcastBuzzerRoom(room);
+      return json(res, 200, { room: serializeBuzzerRoom(room), items: buzzerTriviaBank });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/buzzer/trivia-next") {
+      const { code, direction } = await body(req);
+      const room = getBuzzerRoom(code);
+      if (buzzerTriviaBank.length) {
+        const delta = Number(direction) < 0 ? -1 : 1;
+        room.triviaIndex = (Number(room.triviaIndex || 0) + delta + buzzerTriviaBank.length) % buzzerTriviaBank.length;
+        room.triviaAnswerVisible = false;
+      }
+      touch(room);
+      broadcastBuzzerRoom(room);
+      return json(res, 200, { room: serializeBuzzerRoom(room) });
+    }
+
     if (req.method === "POST" && url.pathname === "/api/buzzer/join") {
       const { code, name } = await body(req);
       const room = getBuzzerRoom(code);
@@ -1664,6 +1805,9 @@ const server = http.createServer(async (req, res) => {
       if (!room.roundId) {
         room.roundId = 1;
       }
+      if (room.triviaMode && room.triviaAnswerVisible) {
+        advanceBuzzerTrivia(room);
+      }
       room.buzzerHeld = false;
       room.roundStartedAt = Date.now();
       touch(room);
@@ -1680,6 +1824,8 @@ const server = http.createServer(async (req, res) => {
       room.buzzes = [];
       room.lockedOutPlayers = [];
       room.buzzerHeld = true;
+      room.triviaAnswerVisible = false;
+      room.triviaAttemptedOptionIndexes = [];
       room.roundStartedAt = 0;
       room.players.forEach((player) => {
         player.score = 0;
@@ -1693,6 +1839,9 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/api/buzzer/hold") {
       const { code, held } = await body(req);
       const room = getBuzzerRoom(code);
+      if (room.triviaMode && room.triviaAnswerVisible && !held) {
+        advanceBuzzerTrivia(room);
+      }
       room.buzzerHeld = !!held;
       if (!Array.isArray(room.lockedOutPlayers)) {
         room.lockedOutPlayers = [];
@@ -1740,7 +1889,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && url.pathname === "/api/buzzer/score") {
-      const { code, playerId, delta } = await body(req);
+      const { code, playerId, delta, selectedOptionIndex } = await body(req);
       const room = getBuzzerRoom(code);
       if (!room.winner || room.winner.playerId !== playerId) {
         throw new Error("Score can only be applied to the current turn holder");
@@ -1756,11 +1905,24 @@ const server = http.createServer(async (req, res) => {
           lockedOutPlayers.push(player.id);
         }
         room.lockedOutPlayers = lockedOutPlayers;
-        room.buzzerHeld = false;
+        if (room.triviaMode && selectedOptionIndex !== undefined) {
+          const attempted = Array.isArray(room.triviaAttemptedOptionIndexes) ? room.triviaAttemptedOptionIndexes : [];
+          const optionIndex = Math.trunc(Number(selectedOptionIndex));
+          if (Number.isFinite(optionIndex) && optionIndex >= 0 && !attempted.includes(optionIndex)) {
+            attempted.push(optionIndex);
+          }
+          room.triviaAttemptedOptionIndexes = attempted;
+        }
+        room.buzzerHeld = !!room.triviaMode;
       } else {
         room.roundId += 1;
         room.lockedOutPlayers = [];
         room.buzzerHeld = true;
+        if (room.triviaMode) {
+          room.triviaAnswerVisible = true;
+        } else {
+          advanceBuzzerTrivia(room);
+        }
       }
       room.winner = null;
       room.buzzes = [];
@@ -1781,6 +1943,7 @@ const server = http.createServer(async (req, res) => {
       room.winner = null;
       room.buzzes = [];
       room.roundStartedAt = Date.now();
+      advanceBuzzerTrivia(room);
       touch(room);
       broadcastBuzzerRoom(room);
       return json(res, 200, { room: serializeBuzzerRoom(room) });

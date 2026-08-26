@@ -202,7 +202,68 @@
     .pad {
       min-height: 0;
       display: grid;
-      place-items: center;
+      grid-template-rows: auto minmax(0, 1fr);
+      align-items: center;
+      justify-items: center;
+      gap: 12px;
+    }
+
+    .trivia-card {
+      width: min(94vw, 520px);
+      border-radius: 24px;
+      padding: 14px;
+      background: rgba(255,255,255,0.9);
+      border: 1px solid rgba(16, 11, 47, 0.1);
+      box-shadow: 0 14px 36px rgba(16, 11, 47, 0.12);
+      text-align: center;
+    }
+
+    .trivia-meta {
+      margin: 0 0 6px;
+      color: var(--blue);
+      font-size: 0.72rem;
+      font-weight: 1000;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .trivia-question {
+      margin: 0;
+      font-size: clamp(1.3rem, 7vw, 2.2rem);
+      line-height: 1;
+      font-weight: 1000;
+      overflow-wrap: anywhere;
+    }
+
+    .trivia-answer {
+      margin: 8px 0 0;
+      color: #058247;
+      font-weight: 1000;
+    }
+
+    .trivia-choice-list {
+      margin: 10px auto 0;
+      display: grid;
+      gap: 7px;
+    }
+
+    .trivia-choice {
+      border-radius: 14px;
+      padding: 9px 10px;
+      background: rgba(255,255,255,0.92);
+      border: 1px solid rgba(16, 11, 47, 0.1);
+      font-size: clamp(0.95rem, 4.4vw, 1.16rem);
+      font-weight: 1000;
+    }
+
+    .trivia-choice.is-attempted {
+      color: #fff;
+      background: linear-gradient(135deg, var(--red), #a8001a);
+    }
+
+    .trivia-choice.is-correct {
+      color: #fff;
+      background: linear-gradient(135deg, var(--green), #039b52);
     }
 
     .buzz {
@@ -276,6 +337,11 @@
       text-shadow: 0 4px 0 rgba(255, 212, 71, 0.44), 0 12px 26px rgba(153, 0, 21, 0.16);
     }
 
+    .turn-card.is-trivia .turn-name {
+      font-size: clamp(1.65rem, 8vw, 3.1rem);
+      line-height: 1;
+    }
+
     .turn-name {
       margin: 0;
       color: var(--red);
@@ -338,6 +404,11 @@
     </header>
 
     <section class="pad">
+      <div class="trivia-card hidden" id="triviaCard">
+        <p class="trivia-meta" id="triviaMeta">Trivia</p>
+        <p class="trivia-question" id="triviaQuestion">Question</p>
+        <p class="trivia-answer hidden" id="triviaAnswer"></p>
+      </div>
       <button class="buzz" id="buzzBtn" type="button" disabled>BUZZ</button>
       <div class="turn-card hidden" id="turnCard">
         <h1 class="turn-name" id="turnName">Player got the turn!</h1>
@@ -367,6 +438,10 @@
     const buzzBtn = document.getElementById("buzzBtn");
     const turnCard = document.getElementById("turnCard");
     const turnName = document.getElementById("turnName");
+    const triviaCard = document.getElementById("triviaCard");
+    const triviaMeta = document.getElementById("triviaMeta");
+    const triviaQuestion = document.getElementById("triviaQuestion");
+    const triviaAnswer = document.getElementById("triviaAnswer");
 
     let room = null;
     let player = null;
@@ -375,6 +450,15 @@
     let lastRoundSubmitted = 0;
     let wakeLock = null;
     let classroomPollTimer = null;
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
 
     function leaveDeadRoom(message = "This room was reset. Join the Friendzy session again.") {
       if (classroomCode) {
@@ -518,6 +602,22 @@
       if (!room || !player) return;
       roomLabel.textContent = `Room ${classroomCode || room.code}`;
       roundText.textContent = `Round ${room.roundId}`;
+      const trivia = room.trivia || null;
+      const attemptedTriviaOptions = Array.isArray(trivia?.attemptedOptionIndexes) ? trivia.attemptedOptionIndexes : [];
+      const showTriviaQuestion = !!room.triviaMode && !!trivia && (!room.buzzerHeld || !!room.winner || !!trivia.answerVisible || attemptedTriviaOptions.length > 0);
+      const hasTrivia = !!room.triviaMode && !!trivia && showTriviaQuestion;
+      triviaCard.classList.toggle("hidden", !showTriviaQuestion);
+      if (showTriviaQuestion) {
+        triviaMeta.textContent = `${trivia.category} - ${Number(trivia.index || 0) + 1}/${trivia.total}`;
+        const choices = trivia.type === "multiple"
+          ? `<div class="trivia-choice-list">${(trivia.options || []).map((option, index) => `
+            <div class="trivia-choice ${attemptedTriviaOptions.includes(index) ? "is-attempted" : ""} ${trivia.answerVisible && index === Number(trivia.correctOptionIndex || 0) ? "is-correct" : ""}">${escapeHtml(option)}</div>
+          `).join("")}</div>`
+          : "";
+        triviaQuestion.innerHTML = `${escapeHtml(trivia.question)}${choices}`;
+        triviaAnswer.textContent = trivia.answerVisible ? `Answer: ${trivia.answer}` : "";
+        triviaAnswer.classList.toggle("hidden", !trivia.answerVisible);
+      }
       const didPlay = (item) => !!item.hasPlayed || Number(item.score || 0) !== 0;
       const rankedPlayers = Array.isArray(room.players)
         ? room.players.slice().sort((a, b) => {
@@ -544,6 +644,7 @@
       turnCard.classList.toggle("hidden", !hasWinner && !isLockedOut && !isHeld);
       turnCard.classList.toggle("is-locked", isLockedOut);
       turnCard.classList.toggle("is-held", isHeld && !hasWinner && !isLockedOut);
+      turnCard.classList.toggle("is-trivia", hasTrivia);
 
       if (!isLive) {
         statusText.textContent = "";

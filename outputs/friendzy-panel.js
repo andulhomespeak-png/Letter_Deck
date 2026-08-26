@@ -20,6 +20,7 @@
   window.__friendzyPanelLoaded = true;
 
   const storageKey = "friendzy-classroom-code";
+  const serverInstanceStorageKey = "friendzy-server-instance-id";
   let room = null;
   let baseUrl = window.location.origin;
   let pollTimer = null;
@@ -504,6 +505,7 @@
   const largePlayers = document.getElementById("friendzyLargePlayers");
   const largeClose = document.getElementById("friendzyLargeClose");
   let qrVisible = true;
+  let serverInstanceId = "";
 
   async function api(path, payload = null, method = "POST") {
     const response = await fetch(path, {
@@ -528,6 +530,7 @@
     try {
       const data = await api("/api/live/server-info", null, "GET");
       const onLocalHost = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+      serverInstanceId = String(data?.instanceId || "");
       baseUrl = onLocalHost && data?.localOrigin ? data.localOrigin : (data?.publicOrigin || window.location.origin);
     } catch (_) {}
   }
@@ -638,8 +641,14 @@
   }
 
   async function ensureRoom() {
+    const savedServerInstanceId = localStorage.getItem(serverInstanceStorageKey) || "";
     const savedCode = localStorage.getItem(storageKey);
-    if (savedCode) {
+    const canReuseSavedCode = savedCode && (!serverInstanceId || savedServerInstanceId === serverInstanceId);
+    if (savedCode && !canReuseSavedCode) {
+      localStorage.removeItem(storageKey);
+      lastPlayersSignature = "";
+    }
+    if (canReuseSavedCode) {
       try {
         const existing = await api(`/api/classroom/room?code=${encodeURIComponent(savedCode)}`, null, "GET");
         room = existing.room;
@@ -663,6 +672,9 @@
     const data = await api("/api/classroom/create-room");
     room = data.room;
     localStorage.setItem(storageKey, room.code);
+    if (serverInstanceId) {
+      localStorage.setItem(serverInstanceStorageKey, serverInstanceId);
+    }
     render();
     return room;
   }

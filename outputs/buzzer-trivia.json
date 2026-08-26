@@ -1,0 +1,16 @@
+[
+  {
+    "id": "trivia-1787758890498-0-wl06u",
+    "category": "General",
+    "type": "multiple",
+    "question": "Which animal has three hearts?",
+    "answer": "Octopus",
+    "options": [
+      "Shark",
+      "Octopus",
+      "Penguin",
+      "Dolphin"
+    ],
+    "correctOptionIndex": 1
+  }
+]
