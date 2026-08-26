@@ -69,7 +69,7 @@
 
     .score-config {
       display: grid;
-      grid-template-columns: auto 126px;
+      grid-template-columns: auto auto auto 126px;
       align-items: stretch;
       gap: 6px;
       min-width: 0;
@@ -101,6 +101,68 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    .trivia-progress-panel {
+      min-width: 112px;
+    }
+
+    .shuffle-switch {
+      min-width: 118px;
+      padding: 8px 12px;
+      border-radius: 22px;
+      background: rgba(255,255,255,0.82);
+      border: 1px solid var(--line);
+      box-shadow: inset 0 -10px 20px rgba(8, 125, 255, 0.06);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .shuffle-switch-text {
+      color: var(--muted);
+      font-size: 0.7rem;
+      font-weight: 1000;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .shuffle-switch input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .shuffle-knob {
+      width: 44px;
+      height: 24px;
+      border-radius: 999px;
+      padding: 3px;
+      background: rgba(16, 11, 47, 0.18);
+      transition: background 160ms ease;
+    }
+
+    .shuffle-knob::before {
+      content: "";
+      display: block;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 4px 10px rgba(16, 11, 47, 0.22);
+      transition: transform 160ms ease;
+    }
+
+    .shuffle-switch input:checked + .shuffle-knob {
+      background: linear-gradient(135deg, var(--green), #039b52);
+    }
+
+    .shuffle-switch input:checked + .shuffle-knob::before {
+      transform: translateX(20px);
     }
 
     .actions {
@@ -242,19 +304,24 @@
     }
 
     .trivia-card {
-      width: min(900px, 94%);
-      border-radius: 24px;
-      padding: clamp(12px, 2vw, 18px);
+      width: min(1280px, 98%);
+      height: min(100%, 760px);
+      min-height: min(600px, 100%);
+      border-radius: clamp(24px, 3vw, 36px);
+      padding: clamp(20px, 2.6vw, 34px);
       background: rgba(255,255,255,0.88);
       border: 1px solid rgba(16, 11, 47, 0.1);
       box-shadow: 0 18px 42px rgba(16, 11, 47, 0.1);
       text-align: center;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto auto;
+      overflow: hidden;
     }
 
     .trivia-meta {
-      margin: 0 0 8px;
+      margin: 0 0 clamp(14px, 1.8vw, 24px);
       color: var(--blue);
-      font-size: 0.78rem;
+      font-size: clamp(1rem, 1.4vw, 1.35rem);
       font-weight: 1000;
       letter-spacing: 0.1em;
       text-transform: uppercase;
@@ -263,10 +330,23 @@
     .trivia-question {
       margin: 0;
       color: var(--ink);
-      font-size: clamp(1.5rem, 3.2vw, 3.25rem);
-      line-height: 1;
+      font-size: clamp(2.3rem, 4.2vw, 5.2rem);
+      line-height: 0.98;
       font-weight: 1000;
       overflow-wrap: anywhere;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      align-content: start;
+      gap: clamp(22px, 2.6vw, 36px);
+      min-height: 0;
+      height: 100%;
+    }
+
+    .trivia-question-text {
+      display: block;
+      max-height: 2.05em;
+      overflow: hidden;
+      padding: 0 clamp(12px, 2vw, 26px);
     }
 
     .trivia-answer {
@@ -277,20 +357,36 @@
     }
 
     .trivia-choice-list {
-      margin: 12px auto 0;
-      width: min(720px, 100%);
+      margin: 0 auto;
+      width: min(1120px, 100%);
+      height: 100%;
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
+      grid-template-rows: repeat(2, minmax(0, 1fr));
+      grid-auto-rows: minmax(0, 1fr);
+      gap: clamp(14px, 1.6vw, 22px);
+      min-height: 0;
     }
 
     .trivia-choice {
-      border-radius: 16px;
-      padding: 10px 12px;
+      border-radius: clamp(18px, 2vw, 28px);
+      padding: clamp(14px, 1.6vw, 24px);
       background: rgba(255,255,255,0.9);
-      border: 1px solid rgba(16, 11, 47, 0.12);
+      border: 2px solid rgba(16, 11, 47, 0.14);
+      color: var(--ink);
+      font-size: clamp(1.75rem, 2.6vw, 3.1rem);
       font-weight: 1000;
       cursor: pointer;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: center;
+      justify-items: start;
+      gap: clamp(12px, 1.4vw, 20px);
+      text-align: left;
+      line-height: 1;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
       transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
     }
 
@@ -298,6 +394,51 @@
       transform: translateY(-1px);
       border-color: rgba(8, 125, 255, 0.35);
       box-shadow: 0 10px 20px rgba(8, 125, 255, 0.12);
+    }
+
+    .trivia-choice.is-display {
+      cursor: default;
+      pointer-events: none;
+    }
+
+    .trivia-choice-letter {
+      display: inline-grid;
+      place-items: center;
+      width: 1.35em;
+      height: 1.35em;
+      border-radius: 999px;
+      color: #fff;
+      background: linear-gradient(135deg, var(--blue), #3024d8);
+      font-size: 0.72em;
+      text-transform: uppercase;
+      flex: 0 0 auto;
+    }
+
+    .trivia-choice-text {
+      min-width: 0;
+      max-height: 2.15em;
+      overflow: hidden;
+      text-align: left;
+    }
+
+    .trivia-choice.is-long {
+      font-size: clamp(1.4rem, 2.1vw, 2.45rem);
+      line-height: 1.02;
+    }
+
+    .trivia-choice.is-very-long {
+      font-size: clamp(1.15rem, 1.72vw, 2rem);
+      line-height: 1.02;
+    }
+
+    .trivia-question-text.is-long {
+      font-size: clamp(1.9rem, 3.2vw, 4rem);
+      line-height: 1.05;
+    }
+
+    .trivia-question-text.is-very-long {
+      font-size: clamp(1.55rem, 2.55vw, 3.2rem);
+      line-height: 1.06;
     }
 
     .trivia-choice.is-selected {
@@ -374,19 +515,103 @@
     }
 
     .winner.is-trivia-turn {
-      min-height: auto;
-      width: min(760px, 90%);
-      padding: clamp(12px, 2vw, 20px);
+      position: absolute;
+      inset: 0;
+      z-index: 30;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      border-radius: inherit;
+      padding: clamp(10px, 1.4vw, 18px);
+      background:
+        radial-gradient(circle at center, rgba(255, 233, 91, 0.22), transparent 28%),
+        linear-gradient(180deg, rgba(12, 8, 34, 0.34), rgba(12, 8, 34, 0.64));
+      box-shadow: none;
+      backdrop-filter: blur(10px);
+      overflow: hidden;
+    }
+
+    .winner.is-trivia-turn .winner-stack {
+      width: min(1180px, 98%);
+      height: 100%;
+      min-height: 0;
+      max-height: 100%;
+      padding: clamp(12px, 1.7vw, 24px);
+      border-radius: clamp(28px, 4vw, 46px);
+      background: rgba(255,255,255,0.94);
+      box-shadow: 0 34px 90px rgba(16, 11, 47, 0.34);
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+      align-content: stretch;
+      gap: clamp(8px, 1.1vw, 16px);
     }
 
     .winner.is-trivia-turn .winner-alarm {
-      width: clamp(74px, 10vw, 112px);
-      height: clamp(74px, 10vw, 112px);
+      width: clamp(58px, 6vw, 92px);
+      height: clamp(58px, 6vw, 92px);
     }
 
     .winner.is-trivia-turn .winner-name {
-      font-size: clamp(1.6rem, 4vw, 3.4rem);
+      font-size: clamp(2.4rem, 4.9vw, 5.7rem);
       line-height: 0.95;
+    }
+
+    .winner-trivia {
+      width: min(1180px, 100%);
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+      min-height: 0;
+      gap: clamp(10px, 1.2vw, 18px);
+    }
+
+    .winner-trivia-meta {
+      margin: 0;
+      color: var(--blue);
+      font-size: clamp(1rem, 1.25vw, 1.35rem);
+      font-weight: 1000;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .winner-trivia-question {
+      margin: 0;
+      color: var(--ink);
+      font-size: clamp(2rem, 3.3vw, 4.2rem);
+      line-height: 1;
+      font-weight: 1000;
+      max-height: 2.25em;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .winner-trivia-question.is-long {
+      font-size: clamp(1.65rem, 2.7vw, 3.3rem);
+    }
+
+    .winner-trivia-question.is-very-long {
+      font-size: clamp(1.35rem, 2.2vw, 2.7rem);
+    }
+
+    .winner-trivia-options {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-rows: repeat(2, minmax(0, 1fr));
+      grid-auto-rows: minmax(0, 1fr);
+      gap: clamp(14px, 1.6vw, 22px);
+      min-height: 0;
+      height: 100%;
+    }
+
+    .winner-trivia-options:empty {
+      display: none;
+    }
+
+    .winner-trivia-answer {
+      margin: 0;
+      color: #058247;
+      font-size: clamp(1rem, 1.5vw, 1.25rem);
+      font-weight: 1000;
     }
 
     .winner-name {
@@ -423,9 +648,9 @@
 
     .trivia-score-actions {
       display: grid;
-      grid-template-columns: repeat(3, minmax(92px, 1fr));
+      grid-template-columns: repeat(2, minmax(120px, 1fr));
       gap: 10px;
-      width: min(520px, 100%);
+      width: min(420px, 100%);
     }
 
     .trivia-score-actions button {
@@ -436,11 +661,6 @@
     .trivia-score-actions .check {
       color: #fff;
       background: linear-gradient(135deg, var(--green), #039b52);
-    }
-
-    .trivia-score-actions .wrong {
-      color: #fff;
-      background: linear-gradient(135deg, var(--red), #a8001a);
     }
 
     .idle {
@@ -557,6 +777,20 @@
       gap: 12px;
     }
 
+    .trivia-editor-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .trivia-editor-actions button {
+      min-height: 40px;
+      padding-inline: 14px;
+      font-size: 0.9rem;
+    }
+
     .trivia-editor-head .confirm-title {
       min-width: 0;
       margin-right: 8px;
@@ -582,6 +816,43 @@
       display: grid;
       gap: 12px;
       padding-right: 4px;
+    }
+
+    .easy-paste-card {
+      width: min(820px, 94vw);
+      max-height: min(86vh, 760px);
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+      gap: 10px;
+    }
+
+    .easy-paste-box {
+      width: 100%;
+      min-height: min(48vh, 430px);
+      resize: vertical;
+      border: 1px solid rgba(16, 11, 47, 0.16);
+      border-radius: 20px;
+      padding: 14px;
+      font: inherit;
+      font-weight: 800;
+      color: var(--ink);
+      background: rgba(255,255,255,0.96);
+      outline: 0;
+    }
+
+    .easy-paste-example {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 900;
+      line-height: 1.35;
+    }
+
+    .easy-paste-preview {
+      min-height: 22px;
+      margin: 0;
+      color: var(--blue);
+      font-weight: 1000;
     }
 
     .trivia-editor-item {
@@ -833,11 +1104,45 @@
       }
 
       .score-config {
-        grid-template-columns: auto 112px;
+        grid-template-columns: auto auto auto 112px;
       }
 
       .point-control {
         padding-inline: 6px;
+      }
+
+      .status {
+        min-width: 86px;
+        padding-inline: 10px;
+      }
+
+      .trivia-progress-panel {
+        min-width: 96px;
+      }
+
+      .shuffle-switch {
+        min-width: 104px;
+        padding-inline: 9px;
+      }
+
+      .trivia-card {
+        width: min(1040px, 98%);
+      }
+
+      .trivia-question {
+        font-size: clamp(2rem, 3.8vw, 4.2rem);
+      }
+
+      .trivia-choice {
+        font-size: clamp(1.45rem, 2.25vw, 2.55rem);
+      }
+
+      .trivia-choice.is-long {
+        font-size: clamp(1.22rem, 1.9vw, 2.1rem);
+      }
+
+      .trivia-choice.is-very-long {
+        font-size: clamp(1.02rem, 1.55vw, 1.75rem);
       }
     }
 
@@ -892,6 +1197,68 @@
         min-height: 36px;
         padding-block: 6px;
       }
+
+      .trivia-card {
+        min-height: min(500px, 100%);
+        padding: 18px;
+      }
+
+      .trivia-question {
+        font-size: clamp(1.85rem, 3.3vw, 3.75rem);
+        gap: 18px;
+      }
+
+      .trivia-choice-list {
+        gap: 12px;
+      }
+
+      .trivia-choice {
+        font-size: clamp(1.35rem, 2vw, 2.3rem);
+        padding: 12px 14px;
+      }
+
+      .trivia-choice.is-long {
+        font-size: clamp(1.14rem, 1.7vw, 1.9rem);
+      }
+
+      .trivia-choice.is-very-long {
+        font-size: clamp(0.98rem, 1.45vw, 1.62rem);
+      }
+
+      .winner.is-trivia-turn .winner-stack {
+        padding: 12px;
+        gap: 8px;
+      }
+
+      .winner.is-trivia-turn .winner-alarm {
+        width: clamp(48px, 5vw, 72px);
+        height: clamp(48px, 5vw, 72px);
+      }
+
+      .winner.is-trivia-turn .winner-name {
+        font-size: clamp(2rem, 4.2vw, 4.6rem);
+      }
+
+      .winner-trivia {
+        gap: 8px;
+      }
+
+      .winner-trivia-question {
+        font-size: clamp(1.65rem, 2.7vw, 3.2rem);
+        max-height: 2.05em;
+      }
+
+      .winner-trivia-question.is-long {
+        font-size: clamp(1.35rem, 2.25vw, 2.55rem);
+      }
+
+      .winner-trivia-question.is-very-long {
+        font-size: clamp(1.12rem, 1.85vw, 2.1rem);
+      }
+
+      .winner-trivia-options {
+        gap: 10px;
+      }
     }
 
     @media (max-height: 660px) and (min-width: 761px) {
@@ -929,6 +1296,78 @@
       .score-actions button {
         min-height: 40px;
       }
+
+      .trivia-card {
+        min-height: min(430px, 100%);
+        padding: 14px;
+      }
+
+      .trivia-meta {
+        margin-bottom: 10px;
+        font-size: 0.92rem;
+      }
+
+      .trivia-question {
+        font-size: clamp(1.55rem, 2.8vw, 3.1rem);
+        gap: 12px;
+      }
+
+      .trivia-choice-list {
+        gap: 10px;
+      }
+
+      .trivia-choice {
+        border-radius: 18px;
+        font-size: clamp(1.12rem, 1.75vw, 2rem);
+        padding: 10px 12px;
+      }
+
+      .trivia-choice.is-long {
+        font-size: clamp(1rem, 1.5vw, 1.65rem);
+      }
+
+      .trivia-choice.is-very-long {
+        font-size: clamp(0.88rem, 1.3vw, 1.4rem);
+      }
+
+      .winner.is-trivia-turn .winner-stack {
+        padding: 10px;
+        gap: 6px;
+      }
+
+      .winner.is-trivia-turn .winner-alarm {
+        width: clamp(42px, 4.5vw, 60px);
+        height: clamp(42px, 4.5vw, 60px);
+      }
+
+      .winner.is-trivia-turn .winner-name {
+        font-size: clamp(1.7rem, 3.7vw, 3.8rem);
+      }
+
+      .winner-trivia-meta {
+        font-size: 0.85rem;
+      }
+
+      .winner-trivia-question {
+        font-size: clamp(1.35rem, 2.3vw, 2.55rem);
+        max-height: 2em;
+      }
+
+      .winner-trivia-question.is-long {
+        font-size: clamp(1.15rem, 1.95vw, 2.1rem);
+      }
+
+      .winner-trivia-question.is-very-long {
+        font-size: clamp(1rem, 1.65vw, 1.8rem);
+      }
+
+      .winner-trivia-options {
+        gap: 8px;
+      }
+
+      .trivia-score-actions button {
+        min-height: 38px;
+      }
     }
 
     @media (max-width: 760px) {
@@ -947,7 +1386,11 @@
       }
 
       .score-config {
-        grid-template-columns: minmax(0, 1fr) 118px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .points-panel {
+        grid-column: 1 / -1;
       }
 
       .app {
@@ -977,6 +1420,15 @@
             <p class="status-label">Round</p>
             <p class="status-main" id="statusMain">0</p>
           </div>
+          <div class="status trivia-progress-panel hidden" id="triviaProgressPanel">
+            <p class="status-label">Questions</p>
+            <p class="status-main" id="triviaProgressText">0/0</p>
+          </div>
+          <label class="shuffle-switch hidden" id="triviaShuffleControl" title="Randomize trivia questions">
+            <span class="shuffle-switch-text">Shuffle</span>
+            <input id="triviaShuffleInput" type="checkbox" checked>
+            <span class="shuffle-knob" aria-hidden="true"></span>
+          </label>
           <div class="points-panel" aria-label="Point values">
             <label class="point-control is-correct" title="Correct answer points">
               <span class="point-word">Right</span>
@@ -1002,7 +1454,7 @@
       <div class="stage" id="stage">
         <div class="trivia-card hidden" id="triviaCard">
           <p class="trivia-meta" id="triviaMeta">Trivia</p>
-          <p class="trivia-question" id="triviaQuestion">Add a question to begin.</p>
+          <div class="trivia-question" id="triviaQuestion">Add a question to begin.</div>
           <p class="trivia-answer hidden" id="triviaAnswer"></p>
           <div class="trivia-tools">
             <button id="triviaPrevBtn" type="button">Prev</button>
@@ -1021,6 +1473,12 @@
               <img class="alarm-image" src="./buzzer-alarm-on.png" alt="">
             </div>
             <h2 class="winner-name" id="winnerName">Player</h2>
+            <div class="winner-trivia hidden" id="winnerTrivia">
+              <p class="winner-trivia-meta" id="winnerTriviaMeta">Trivia</p>
+              <p class="winner-trivia-question" id="winnerTriviaQuestion">Question</p>
+              <div class="winner-trivia-options" id="winnerTriviaOptions"></div>
+              <p class="winner-trivia-answer hidden" id="winnerTriviaAnswer"></p>
+            </div>
             <div class="score-actions">
               <button class="plus" id="awardPointBtn" type="button">+1</button>
               <button id="passTurnBtn" type="button">Pass</button>
@@ -1029,7 +1487,6 @@
             <div class="trivia-score-actions hidden" id="triviaScoreActions">
               <button class="check" id="triviaCheckBtn" type="button">Check</button>
               <button id="triviaPassBtn" type="button">Pass</button>
-              <button class="wrong" id="triviaWrongBtn" type="button">Wrong</button>
             </div>
           </div>
         </div>
@@ -1060,7 +1517,10 @@
     <div class="confirm-card trivia-editor-card" role="dialog" aria-modal="true" aria-labelledby="triviaEditorTitle">
       <div class="trivia-editor-head">
         <h2 class="confirm-title" id="triviaEditorTitle">Trivia Questions</h2>
-        <button id="triviaAddBtn" type="button">Add Question</button>
+        <div class="trivia-editor-actions">
+          <button id="triviaEasyPasteBtn" type="button">Easy Paste</button>
+          <button id="triviaAddBtn" type="button">Add Question</button>
+        </div>
       </div>
       <p class="trivia-editor-help">Build the question list for Trivia mode. Multiple choice questions need four options and one right answer.</p>
       <p class="trivia-editor-alert" id="triviaEditorAlert"></p>
@@ -1068,6 +1528,19 @@
       <div class="confirm-actions">
         <button class="confirm-cancel" id="triviaEditorCancelBtn" type="button">Cancel</button>
         <button class="danger" id="triviaEditorSaveBtn" type="button">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="confirm-overlay hidden" id="easyPasteOverlay" aria-hidden="true">
+    <div class="confirm-card easy-paste-card" role="dialog" aria-modal="true" aria-labelledby="easyPasteTitle">
+      <h2 class="confirm-title" id="easyPasteTitle">Easy Paste</h2>
+      <p class="easy-paste-example">Format: category, type, question, then answer/options. For multiple choice, put the correct option first or mark it with *.</p>
+      <textarea class="easy-paste-box" id="easyPasteInput" spellcheck="false" placeholder="General&#10;multiple options&#10;What is the capital of Canada?&#10;Ottawa&#10;Toronto&#10;Vancouver&#10;Montreal&#10;&#10;Vocabulary&#10;open question&#10;What does reliable mean?&#10;Able to be trusted"></textarea>
+      <p class="easy-paste-preview" id="easyPastePreview"></p>
+      <div class="confirm-actions">
+        <button class="confirm-cancel" id="easyPasteCancelBtn" type="button">Cancel</button>
+        <button class="danger" id="easyPasteImportBtn" type="button">Import</button>
       </div>
     </div>
   </div>
@@ -1082,6 +1555,11 @@
     const statusMain = document.getElementById("statusMain");
     const winnerCard = document.getElementById("winnerCard");
     const winnerName = document.getElementById("winnerName");
+    const winnerTrivia = document.getElementById("winnerTrivia");
+    const winnerTriviaMeta = document.getElementById("winnerTriviaMeta");
+    const winnerTriviaQuestion = document.getElementById("winnerTriviaQuestion");
+    const winnerTriviaOptions = document.getElementById("winnerTriviaOptions");
+    const winnerTriviaAnswer = document.getElementById("winnerTriviaAnswer");
     const idleState = document.getElementById("idleState");
     const readyBtn = document.getElementById("readyBtn");
     const clearBtn = document.getElementById("clearBtn");
@@ -1095,19 +1573,29 @@
     const triviaPrevBtn = document.getElementById("triviaPrevBtn");
     const triviaRevealBtn = document.getElementById("triviaRevealBtn");
     const triviaNextBtn = document.getElementById("triviaNextBtn");
+    const triviaProgressPanel = document.getElementById("triviaProgressPanel");
+    const triviaProgressText = document.getElementById("triviaProgressText");
+    const triviaShuffleControl = document.getElementById("triviaShuffleControl");
+    const triviaShuffleInput = document.getElementById("triviaShuffleInput");
     const triviaEditorOverlay = document.getElementById("triviaEditorOverlay");
     const triviaEditorList = document.getElementById("triviaEditorList");
     const triviaEditorAlert = document.getElementById("triviaEditorAlert");
+    const triviaEasyPasteBtn = document.getElementById("triviaEasyPasteBtn");
     const triviaAddBtn = document.getElementById("triviaAddBtn");
     const triviaEditorCancelBtn = document.getElementById("triviaEditorCancelBtn");
     const triviaEditorSaveBtn = document.getElementById("triviaEditorSaveBtn");
+    const easyPasteOverlay = document.getElementById("easyPasteOverlay");
+    const easyPasteInput = document.getElementById("easyPasteInput");
+    const easyPastePreview = document.getElementById("easyPastePreview");
+    const easyPasteCancelBtn = document.getElementById("easyPasteCancelBtn");
+    const easyPasteImportBtn = document.getElementById("easyPasteImportBtn");
     const awardPointBtn = document.getElementById("awardPointBtn");
     const passTurnBtn = document.getElementById("passTurnBtn");
     const removePointBtn = document.getElementById("removePointBtn");
     const triviaScoreActions = document.getElementById("triviaScoreActions");
     const triviaCheckBtn = document.getElementById("triviaCheckBtn");
     const triviaPassBtn = document.getElementById("triviaPassBtn");
-    const triviaWrongBtn = document.getElementById("triviaWrongBtn");
+    const pointsPanel = document.querySelector(".points-panel");
     const correctPointsInput = document.getElementById("correctPointsInput");
     const wrongPointsInput = document.getElementById("wrongPointsInput");
 
@@ -1124,6 +1612,7 @@
     let wrongPointValue = 25;
     let triviaItems = [];
     let selectedTriviaOptionIndex = -1;
+    const triviaPointScale = { 4: 75, 3: 50, 2: 25 };
     const turnAlarmSound = new Audio("buzzer-turn-alarm.wav");
     turnAlarmSound.preload = "auto";
     turnAlarmSound.volume = 1;
@@ -1343,6 +1832,161 @@
       });
     }
 
+    function getTriviaAttemptedIndexes() {
+      return Array.isArray(room?.trivia?.attemptedOptionIndexes) ? room.trivia.attemptedOptionIndexes : [];
+    }
+
+    function getTriviaAvailableOptionCount() {
+      const trivia = room?.trivia;
+      if (!trivia || trivia.type !== "multiple") return 0;
+      return Math.max(0, (trivia.options || []).length - getTriviaAttemptedIndexes().length);
+    }
+
+    function getTriviaCorrectPoints() {
+      if (room?.trivia?.type !== "multiple") return 50;
+      return triviaPointScale[getTriviaAvailableOptionCount()] || 0;
+    }
+
+    function getTextSizeClass(text, longAt = 54, veryLongAt = 86) {
+      const length = String(text || "").trim().length;
+      if (length >= veryLongAt) return "is-very-long";
+      if (length >= longAt) return "is-long";
+      return "";
+    }
+
+    function normalizeEasyPasteType(value) {
+      const clean = String(value || "").trim().toLowerCase();
+      if (["multiple", "multiple choice", "multiple options", "options", "mcq"].includes(clean)) return "multiple";
+      if (["open", "open question", "free", "free response"].includes(clean)) return "open";
+      return "";
+    }
+
+    function cleanEasyPasteOption(value) {
+      return String(value || "").trim().replace(/^\s*(?:[a-d][\).:-]\s*)/i, "").trim();
+    }
+
+    function shuffleImportedOptions(options, correctOptionIndex) {
+      const values = options.map((option, index) => ({ option, isCorrect: index === correctOptionIndex }));
+      for (let index = values.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [values[index], values[swapIndex]] = [values[swapIndex], values[index]];
+      }
+      return {
+        options: values.map((item) => item.option),
+        correctOptionIndex: Math.max(0, values.findIndex((item) => item.isCorrect))
+      };
+    }
+
+    function parseEasyPasteQuestions(rawText) {
+      const lines = String(rawText || "")
+        .replace(/\r/g, "")
+        .split("\n")
+        .map((line) => line.trim());
+      const blocks = [];
+      let current = [];
+      lines.forEach((line) => {
+        if (!line) {
+          if (current.length) blocks.push(current);
+          current = [];
+          return;
+        }
+        current.push(line);
+      });
+      if (current.length) blocks.push(current);
+
+      const expandedBlocks = [];
+      blocks.forEach((block) => {
+        if (block.length <= 7) {
+          expandedBlocks.push(block);
+          return;
+        }
+        let cursor = 0;
+        while (cursor < block.length) {
+          const type = normalizeEasyPasteType(block[cursor + 1]);
+          const size = type === "multiple" ? 7 : type === "open" ? 4 : block.length - cursor;
+          expandedBlocks.push(block.slice(cursor, cursor + size));
+          cursor += size;
+        }
+      });
+
+      const items = [];
+      const errors = [];
+      expandedBlocks.forEach((block, index) => {
+        const label = `Block ${index + 1}`;
+        const category = block[0] || "General";
+        const type = normalizeEasyPasteType(block[1]);
+        const question = block[2] || "";
+        if (!type) {
+          errors.push(`${label}: type must be open question or multiple options.`);
+          return;
+        }
+        if (!question) {
+          errors.push(`${label}: missing question.`);
+          return;
+        }
+        if (type === "open") {
+          const answer = block[3] || "";
+          if (!answer) {
+            errors.push(`${label}: missing answer.`);
+            return;
+          }
+          items.push({ category, type: "open", question, answer });
+          return;
+        }
+
+        if (block.length < 7) {
+          errors.push(`${label}: multiple options needs four options.`);
+          return;
+        }
+        const rawOptions = block.slice(3, 7);
+        let correctOptionIndex = rawOptions.findIndex((option) => /^\s*[*✓✔]/.test(option));
+        if (correctOptionIndex < 0) correctOptionIndex = 0;
+        const options = rawOptions.map((option) => cleanEasyPasteOption(option.replace(/^\s*[*✓✔]\s*/, "")));
+        if (options.some((option) => !option)) {
+          errors.push(`${label}: every option needs text.`);
+          return;
+        }
+        const shuffled = shuffleImportedOptions(options, correctOptionIndex);
+        items.push({
+          category,
+          type: "multiple",
+          question,
+          answer: shuffled.options[shuffled.correctOptionIndex],
+          options: shuffled.options,
+          correctOptionIndex: shuffled.correctOptionIndex
+        });
+      });
+
+      return { items, errors };
+    }
+
+    function renderWinnerTrivia() {
+      const trivia = room?.trivia || null;
+      const show = !!room?.triviaMode && !!room?.winner && !!trivia;
+      winnerTrivia.classList.toggle("hidden", !show);
+      if (!show) {
+        winnerTriviaOptions.innerHTML = "";
+        winnerTriviaAnswer.classList.add("hidden");
+        return;
+      }
+      winnerTriviaMeta.textContent = trivia.category || "Trivia";
+      winnerTriviaQuestion.textContent = trivia.question || "Question";
+      winnerTriviaQuestion.className = `winner-trivia-question ${getTextSizeClass(trivia.question, 74, 120)}`.trim();
+      const attemptedIndexes = getTriviaAttemptedIndexes();
+      winnerTriviaOptions.innerHTML = trivia.type === "multiple"
+        ? (trivia.options || []).map((option, index) => `
+          <button class="trivia-choice ${getTextSizeClass(option, 42, 72)} ${selectedTriviaOptionIndex === index ? "is-selected" : ""} ${attemptedIndexes.includes(index) ? "is-attempted" : ""} ${trivia.answerVisible && index === Number(trivia.correctOptionIndex || 0) ? "is-correct" : ""}" data-winner-trivia-choice="${index}" type="button" ${attemptedIndexes.includes(index) || trivia.answerVisible ? "disabled" : ""}>
+            <span class="trivia-choice-letter">${"ABCD"[index] || ""}</span><span class="trivia-choice-text">${escapeHtml(option)}</span>
+          </button>
+        `).join("")
+        : "";
+      winnerTriviaAnswer.textContent = trivia.answerVisible ? `Answer: ${trivia.answer}` : "";
+      winnerTriviaAnswer.classList.toggle("hidden", !trivia.answerVisible);
+      const correctPoints = getTriviaCorrectPoints();
+      triviaCheckBtn.textContent = correctPoints > 0 ? "Check" : "Reveal";
+      triviaCheckBtn.disabled = trivia.type === "multiple" && correctPoints > 0 && selectedTriviaOptionIndex < 0;
+    }
+
     function renderTrivia(showQuestion = false) {
       const trivia = room?.trivia || null;
       const isOn = !!room?.triviaMode;
@@ -1362,18 +2006,20 @@
         triviaRevealBtn.textContent = "Reveal";
         return;
       }
-      triviaMeta.textContent = `${trivia.category} - ${Number(trivia.index || 0) + 1}/${trivia.total}`;
-      const attemptedIndexes = Array.isArray(trivia.attemptedOptionIndexes) ? trivia.attemptedOptionIndexes : [];
+      triviaMeta.textContent = trivia.category || "Trivia";
+      const attemptedIndexes = getTriviaAttemptedIndexes();
       const choices = trivia.type === "multiple"
         ? `<div class="trivia-choice-list">${(trivia.options || []).map((option, index) => `
-          <button class="trivia-choice ${selectedTriviaOptionIndex === index ? "is-selected" : ""} ${attemptedIndexes.includes(index) ? "is-attempted" : ""} ${trivia.answerVisible && index === Number(trivia.correctOptionIndex || 0) ? "is-correct" : ""}" data-trivia-choice="${index}" type="button" ${attemptedIndexes.includes(index) || trivia.answerVisible ? "disabled" : ""}>${escapeHtml(option)}</button>
-        `).join("")}</div>`
+            <div class="trivia-choice is-display ${getTextSizeClass(option, 42, 72)} ${attemptedIndexes.includes(index) ? "is-attempted" : ""} ${trivia.answerVisible && index === Number(trivia.correctOptionIndex || 0) ? "is-correct" : ""}">
+              <span class="trivia-choice-letter">${"ABCD"[index] || ""}</span><span class="trivia-choice-text">${escapeHtml(option)}</span>
+            </div>
+          `).join("")}</div>`
         : "";
-      triviaQuestion.innerHTML = `${escapeHtml(trivia.question)}${choices}`;
+      triviaQuestion.innerHTML = `<span class="trivia-question-text ${getTextSizeClass(trivia.question, 70, 115)}">${escapeHtml(trivia.question)}</span>${choices}`;
       triviaAnswer.textContent = trivia.answerVisible ? `Answer: ${trivia.answer}` : "";
       triviaAnswer.classList.toggle("hidden", !trivia.answerVisible);
       triviaRevealBtn.textContent = trivia.answerVisible ? "Hide Answer" : "Reveal";
-      triviaCheckBtn.disabled = trivia.type === "multiple" && selectedTriviaOptionIndex < 0;
+      renderWinnerTrivia();
     }
 
     async function loadTriviaBank() {
@@ -1410,6 +2056,40 @@
       triviaEditorOverlay.setAttribute("aria-hidden", "true");
     }
 
+    function openEasyPaste() {
+      easyPastePreview.textContent = "";
+      easyPasteInput.value = "";
+      easyPasteOverlay.classList.remove("hidden");
+      easyPasteOverlay.setAttribute("aria-hidden", "false");
+      easyPasteInput.focus();
+    }
+
+    function closeEasyPaste() {
+      easyPasteOverlay.classList.add("hidden");
+      easyPasteOverlay.setAttribute("aria-hidden", "true");
+    }
+
+    function isBlankEditorItem(item) {
+      return !item.question && !item.answer && item.options.every((option) => !option);
+    }
+
+    function importEasyPasteQuestions() {
+      const { items, errors } = parseEasyPasteQuestions(easyPasteInput.value);
+      if (errors.length) {
+        easyPastePreview.textContent = errors.slice(0, 3).join(" ");
+        return;
+      }
+      if (!items.length) {
+        easyPastePreview.textContent = "Paste at least one question block.";
+        return;
+      }
+      const currentItems = getEditorDraftItems();
+      const keepCurrent = currentItems.filter((item) => !isBlankEditorItem(item));
+      renderTriviaEditorItems([...keepCurrent, ...items]);
+      triviaEditorAlert.textContent = `Imported ${items.length} question${items.length === 1 ? "" : "s"}. Review, then Save.`;
+      closeEasyPaste();
+    }
+
     async function updateTriviaState(payload) {
       if (!room) return;
       const data = await api("/api/buzzer/trivia-state", { code: room.code, ...payload });
@@ -1440,6 +2120,11 @@
       const showTriviaQuestion = !!room.triviaMode && (isReady || !!room.winner || !!room.trivia?.answerVisible || attemptedTriviaOptions.length > 0);
       renderTrivia(showTriviaQuestion);
       document.querySelector(".score-actions").classList.toggle("hidden", !!room.triviaMode);
+      pointsPanel.classList.toggle("hidden", !!room.triviaMode);
+      triviaProgressPanel.classList.toggle("hidden", !room.triviaMode);
+      triviaShuffleControl.classList.toggle("hidden", !room.triviaMode);
+      triviaProgressText.textContent = `${Number(room.triviaProgress?.used || 0)}/${Number(room.triviaProgress?.total || 0)}`;
+      triviaShuffleInput.checked = room.triviaShuffle !== false;
       triviaScoreActions.classList.toggle("hidden", !room.triviaMode);
       readyBtn.disabled = !room.players.length;
       readyBtn.textContent = isReady ? "Hold" : "Ready";
@@ -1456,6 +2141,7 @@
         winnerCard.classList.remove("is-empty-round");
         winnerCard.classList.toggle("is-trivia-turn", !!room.triviaMode);
         winnerName.textContent = room.winner.playerName;
+        renderWinnerTrivia();
         if (room.winner.id !== lastWinnerId) {
           lastWinnerId = room.winner.id;
           playTurnAlarmSound();
@@ -1469,11 +2155,13 @@
         winnerCard.classList.remove("hidden", "is-hot");
         winnerCard.classList.add("is-empty-round");
         winnerCard.classList.remove("is-trivia-turn");
+        winnerTrivia.classList.add("hidden");
         winnerName.textContent = "No participants left to buzz this round.";
       } else {
         lastWinnerId = "";
         winnerCard.classList.add("hidden");
         winnerCard.classList.remove("is-empty-round", "is-trivia-turn");
+        winnerTrivia.classList.add("hidden");
         idleState.classList.toggle("hidden", showTriviaQuestion);
       }
 
@@ -1509,6 +2197,9 @@
       idleState.classList.remove("hidden");
       triviaCard.classList.add("hidden");
       triviaScoreActions.classList.add("hidden");
+      pointsPanel.classList.remove("hidden");
+      triviaProgressPanel.classList.add("hidden");
+      triviaShuffleControl.classList.add("hidden");
       document.querySelector(".score-actions").classList.remove("hidden");
       triviaToggleBtn.classList.remove("is-on");
       triviaToggleBtn.textContent = "Trivia";
@@ -1689,8 +2380,14 @@
     triviaToggleBtn.addEventListener("click", () => {
       updateTriviaState({ triviaMode: !room?.triviaMode }).catch(() => {});
     });
+    triviaShuffleInput.addEventListener("change", () => {
+      updateTriviaState({ shuffle: triviaShuffleInput.checked }).catch(() => {
+        triviaShuffleInput.checked = room?.triviaShuffle !== false;
+      });
+    });
 
     triviaEditBtn.addEventListener("click", openTriviaEditor);
+    triviaEasyPasteBtn.addEventListener("click", openEasyPaste);
     triviaAddBtn.addEventListener("click", () => {
       triviaEditorAlert.textContent = "";
       triviaEditorList.appendChild(makeTriviaEditorItem({ category: "General", type: "open", question: "", answer: "" }, triviaEditorList.children.length));
@@ -1724,19 +2421,32 @@
     triviaEditorOverlay.addEventListener("click", (event) => {
       if (event.target === triviaEditorOverlay) closeTriviaEditor();
     });
+    easyPasteCancelBtn.addEventListener("click", closeEasyPaste);
+    easyPasteImportBtn.addEventListener("click", importEasyPasteQuestions);
+    easyPasteInput.addEventListener("input", () => {
+      const { items, errors } = parseEasyPasteQuestions(easyPasteInput.value);
+      easyPastePreview.textContent = errors.length ? errors[0] : items.length ? `${items.length} question${items.length === 1 ? "" : "s"} ready to import.` : "";
+    });
+    easyPasteOverlay.addEventListener("click", (event) => {
+      if (event.target === easyPasteOverlay) closeEasyPaste();
+    });
     triviaPrevBtn.addEventListener("click", () => moveTrivia(-1).catch(() => {}));
     triviaNextBtn.addEventListener("click", () => moveTrivia(1).catch(() => {}));
     triviaRevealBtn.addEventListener("click", () => {
       updateTriviaState({ reveal: !(room?.trivia?.answerVisible) }).catch(() => {});
     });
-    triviaCard.addEventListener("click", (event) => {
-      const choice = event.target.closest("[data-trivia-choice]");
+    winnerTriviaOptions.addEventListener("click", (event) => {
+      const choice = event.target.closest("[data-winner-trivia-choice]");
       if (!choice || !room?.triviaMode || room?.trivia?.answerVisible) return;
-      selectedTriviaOptionIndex = Number(choice.dataset.triviaChoice);
+      selectedTriviaOptionIndex = Number(choice.dataset.winnerTriviaChoice);
       render();
     });
 
     document.addEventListener("keydown", (event) => {
+      if (!easyPasteOverlay.classList.contains("hidden")) {
+        if (event.key === "Escape") closeEasyPaste();
+        return;
+      }
       if (!triviaEditorOverlay.classList.contains("hidden")) {
         if (event.key === "Escape") closeTriviaEditor();
         return;
@@ -1760,7 +2470,7 @@
       }
       if (key === "w" && room?.winner) {
         event.preventDefault();
-        (room.triviaMode ? triviaWrongBtn : removePointBtn).click();
+        if (!room.triviaMode) removePointBtn.click();
         return;
       }
       if (key === "p" && (room?.winner || hasNoPlayersLeftToBuzz())) {
@@ -1864,23 +2574,19 @@
     triviaCheckBtn.addEventListener("click", () => {
       if (!room?.winner || !room?.trivia) return;
       const isMultiple = room.trivia.type === "multiple";
+      const correctPoints = getTriviaCorrectPoints();
+      if (isMultiple && correctPoints <= 0) {
+        updateTriviaState({ reveal: true }).catch(() => {});
+        return;
+      }
       const isCorrect = !isMultiple || selectedTriviaOptionIndex === Number(room.trivia.correctOptionIndex || 0);
       if (isCorrect) {
-        syncPointButtons();
         playAwardSound();
-        resolveCurrentTurn(correctPointValue).catch(() => {});
+        resolveCurrentTurn(correctPoints).catch(() => {});
       } else {
-        syncPointButtons();
         playWrongSound();
-        resolveCurrentTurn(-wrongPointValue).catch(() => {});
+        resolveCurrentTurn(-25).catch(() => {});
       }
-    });
-
-    triviaWrongBtn.addEventListener("click", () => {
-      if (!room?.winner) return;
-      syncPointButtons();
-      playWrongSound();
-      resolveCurrentTurn(-wrongPointValue).catch(() => {});
     });
 
     triviaPassBtn.addEventListener("click", () => {

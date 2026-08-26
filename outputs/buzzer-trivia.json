@@ -1,16 +1,142 @@
 [
   {
-    "id": "trivia-1787758890498-0-wl06u",
-    "category": "General",
+    "id": "trivia-1787776777762-0-fsymq",
+    "category": "Animal Kingdom",
     "type": "multiple",
     "question": "Which animal has three hearts?",
     "answer": "Octopus",
     "options": [
       "Shark",
-      "Octopus",
+      "Dolphin",
       "Penguin",
-      "Dolphin"
+      "Octopus"
+    ],
+    "correctOptionIndex": 3
+  },
+  {
+    "id": "trivia-1787776777762-1-63lfz",
+    "category": "Animal Kingdom",
+    "type": "multiple",
+    "question": "Which of these animals cannot jump?",
+    "answer": "Elephant",
+    "options": [
+      "Hippo",
+      "Gorilla",
+      "Giraffe",
+      "Elephant"
+    ],
+    "correctOptionIndex": 3
+  },
+  {
+    "id": "trivia-1787776777762-2-yjcdy",
+    "category": "Animal Kingdom",
+    "type": "multiple",
+    "question": "What is a group of crows called?",
+    "answer": "A murder",
+    "options": [
+      "A squad",
+      "A swarm",
+      "A murder",
+      "A crowd"
+    ],
+    "correctOptionIndex": 2
+  },
+  {
+    "id": "trivia-1787776777762-3-7ktar",
+    "category": "Animal Kingdom",
+    "type": "multiple",
+    "question": "Which animal has fingerprints that are surprisingly similar to human fingerprints?",
+    "answer": "Koala",
+    "options": [
+      "Panda",
+      "Koala",
+      "Raccoon",
+      "Kangaroo"
     ],
     "correctOptionIndex": 1
+  },
+  {
+    "id": "trivia-1787776777762-4-xk86j",
+    "category": "Animal Kingdom",
+    "type": "multiple",
+    "question": "What is the fastest land animal?",
+    "answer": "Cheetah",
+    "options": [
+      "Horse",
+      "Lion",
+      "Cheetah",
+      "Greyhound"
+    ],
+    "correctOptionIndex": 2
+  },
+  {
+    "id": "trivia-1787776777762-5-asqlj",
+    "category": "Animal Kingdom",
+    "type": "multiple",
+    "question": "What is the largest animal known to have ever lived?",
+    "answer": "Blue whale",
+    "options": [
+      "African elephant",
+      "Great white shark",
+      "Blue whale",
+      "Giraffe"
+    ],
+    "correctOptionIndex": 2
+  },
+  {
+    "id": "trivia-1787776777762-6-0cgax",
+    "category": "Animal Kingdom",
+    "type": "multiple",
+    "question": "Which bird lays the largest eggs?",
+    "answer": "Ostrich",
+    "options": [
+      "Eagle",
+      "Flamingo",
+      "Ostrich",
+      "Penguin"
+    ],
+    "correctOptionIndex": 2
+  },
+  {
+    "id": "trivia-1787776777762-7-ijcgn",
+    "category": "Animal Kingdom",
+    "type": "multiple",
+    "question": "Which of these animals is the only mammal capable of true flight?",
+    "answer": "Bat",
+    "options": [
+      "Colugo",
+      "Bat",
+      "Sugar glider",
+      "Flying squirrel"
+    ],
+    "correctOptionIndex": 1
+  },
+  {
+    "id": "trivia-1787776777762-8-sfad8",
+    "category": "Animal Kingdom",
+    "type": "multiple",
+    "question": "Which animal can regrow parts of its heart, brain, and limbs?",
+    "answer": "Axolotl",
+    "options": [
+      "Sloth",
+      "Axolotl",
+      "Platypus",
+      "Chameleon"
+    ],
+    "correctOptionIndex": 1
+  },
+  {
+    "id": "trivia-1787776777762-9-40f9z",
+    "category": "Animal Kingdom",
+    "type": "multiple",
+    "question": "Which animal has black skin underneath its fur?",
+    "answer": "Polar bear",
+    "options": [
+      "Arctic fox",
+      "Snow leopard",
+      "Siberian tiger",
+      "Polar bear"
+    ],
+    "correctOptionIndex": 3
   }
 ]

@@ -139,11 +139,58 @@ function getBuzzerTriviaQuestion(room) {
   };
 }
 
+function getBuzzerTriviaUsedIndexes(room) {
+  if (!buzzerTriviaBank.length) return [];
+  const max = buzzerTriviaBank.length;
+  return Array.from(new Set((Array.isArray(room?.triviaUsedIndexes) ? room.triviaUsedIndexes : [])
+    .map((index) => Math.trunc(Number(index)))
+    .filter((index) => Number.isFinite(index) && index >= 0 && index < max)));
+}
+
+function markCurrentBuzzerTriviaUsed(room) {
+  if (!room?.triviaMode || !buzzerTriviaBank.length) return;
+  const index = Math.max(0, Math.min(buzzerTriviaBank.length - 1, Math.trunc(Number(room.triviaIndex || 0))));
+  const used = getBuzzerTriviaUsedIndexes(room);
+  if (!used.includes(index)) used.push(index);
+  room.triviaUsedIndexes = used;
+}
+
+function getBuzzerTriviaProgress(room) {
+  const used = getBuzzerTriviaUsedIndexes(room);
+  if (!room?.triviaMode || !buzzerTriviaBank.length) {
+    return { used: used.length, total: buzzerTriviaBank.length };
+  }
+  const current = Math.max(0, Math.min(buzzerTriviaBank.length - 1, Math.trunc(Number(room.triviaIndex || 0))));
+  const currentIsVisible = room.status === "live" || !!room.winner || !!room.triviaAnswerVisible || (room.triviaAttemptedOptionIndexes || []).length > 0;
+  const visibleUsed = currentIsVisible && !used.includes(current) ? used.length + 1 : used.length;
+  return { used: Math.min(visibleUsed, buzzerTriviaBank.length), total: buzzerTriviaBank.length };
+}
+
 function advanceBuzzerTrivia(room) {
   if (!room?.triviaMode || !buzzerTriviaBank.length) return;
-  room.triviaIndex = (Number(room.triviaIndex || 0) + 1) % buzzerTriviaBank.length;
+  let used = getBuzzerTriviaUsedIndexes(room);
+  if (used.length >= buzzerTriviaBank.length) {
+    used = [];
+  }
+  const available = buzzerTriviaBank
+    .map((_, index) => index)
+    .filter((index) => !used.includes(index));
+  if (available.length) {
+    if (room.triviaShuffle !== false) {
+      room.triviaIndex = available[Math.floor(Math.random() * available.length)];
+    } else {
+      const current = Math.max(0, Math.min(buzzerTriviaBank.length - 1, Math.trunc(Number(room.triviaIndex || 0))));
+      room.triviaIndex = available.find((index) => index > current) ?? available[0];
+    }
+  } else {
+    room.triviaIndex = 0;
+  }
+  room.triviaUsedIndexes = used;
   room.triviaAnswerVisible = false;
   room.triviaAttemptedOptionIndexes = [];
+  room.lockedOutPlayers = [];
+  room.winner = null;
+  room.buzzes = [];
 }
 
 function rememberDictionaryWord(rawWord) {
@@ -488,6 +535,8 @@ function createBuzzerRoom() {
     buzzerHeld: true,
     triviaMode: false,
     triviaIndex: 0,
+    triviaShuffle: true,
+    triviaUsedIndexes: [],
     triviaAnswerVisible: false,
     triviaAttemptedOptionIndexes: [],
     nextPlayerId: 1,
@@ -736,6 +785,8 @@ function serializeBuzzerRoom(room) {
     lockedOutPlayers: room.lockedOutPlayers || [],
     buzzerHeld: !!room.buzzerHeld,
     triviaMode: !!room.triviaMode,
+    triviaShuffle: room.triviaShuffle !== false,
+    triviaProgress: getBuzzerTriviaProgress(room),
     trivia: getBuzzerTriviaQuestion(room),
     roundStartedAt: room.roundStartedAt,
     updatedAt: room.updatedAt
@@ -1680,6 +1731,7 @@ const server = http.createServer(async (req, res) => {
       buzzerTriviaBank = normalizeBuzzerTriviaBank(items);
       saveBuzzerTriviaBank();
       buzzerRooms.forEach((room) => {
+        room.triviaUsedIndexes = getBuzzerTriviaUsedIndexes(room);
         if (Number(room.triviaIndex || 0) >= buzzerTriviaBank.length) {
           room.triviaIndex = 0;
           room.triviaAnswerVisible = false;
@@ -1693,10 +1745,18 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && url.pathname === "/api/buzzer/trivia-state") {
-      const { code, triviaMode, triviaIndex, reveal } = await body(req);
+      const { code, triviaMode, triviaIndex, reveal, shuffle } = await body(req);
       const room = getBuzzerRoom(code);
       if (triviaMode !== undefined) {
+        const wasTriviaMode = !!room.triviaMode;
         room.triviaMode = !!triviaMode;
+        if (!wasTriviaMode && room.triviaMode && buzzerTriviaBank.length && room.triviaShuffle !== false) {
+          const used = getBuzzerTriviaUsedIndexes(room);
+          const available = buzzerTriviaBank.map((_, index) => index).filter((index) => !used.includes(index));
+          room.triviaIndex = available.length
+            ? available[Math.floor(Math.random() * available.length)]
+            : Math.floor(Math.random() * buzzerTriviaBank.length);
+        }
         if (!room.triviaMode) {
           room.triviaAnswerVisible = false;
           room.triviaAttemptedOptionIndexes = [];
@@ -1706,6 +1766,9 @@ const server = http.createServer(async (req, res) => {
         room.triviaIndex = Math.max(0, Math.min(buzzerTriviaBank.length - 1, Math.trunc(Number(triviaIndex) || 0)));
         room.triviaAnswerVisible = false;
         room.triviaAttemptedOptionIndexes = [];
+      }
+      if (shuffle !== undefined) {
+        room.triviaShuffle = !!shuffle;
       }
       if (reveal !== undefined) {
         room.triviaAnswerVisible = !!reveal;
@@ -1722,6 +1785,7 @@ const server = http.createServer(async (req, res) => {
         const delta = Number(direction) < 0 ? -1 : 1;
         room.triviaIndex = (Number(room.triviaIndex || 0) + delta + buzzerTriviaBank.length) % buzzerTriviaBank.length;
         room.triviaAnswerVisible = false;
+        room.triviaAttemptedOptionIndexes = [];
       }
       touch(room);
       broadcastBuzzerRoom(room);
@@ -1826,6 +1890,7 @@ const server = http.createServer(async (req, res) => {
       room.buzzerHeld = true;
       room.triviaAnswerVisible = false;
       room.triviaAttemptedOptionIndexes = [];
+      room.triviaUsedIndexes = [];
       room.roundStartedAt = 0;
       room.players.forEach((player) => {
         player.score = 0;
@@ -1912,13 +1977,25 @@ const server = http.createServer(async (req, res) => {
             attempted.push(optionIndex);
           }
           room.triviaAttemptedOptionIndexes = attempted;
+          const trivia = getBuzzerTriviaQuestion(room);
+          const remainingOptions = Math.max(0, (trivia?.options || []).length - attempted.length);
+          if (trivia?.type === "multiple" && remainingOptions <= 1) {
+            markCurrentBuzzerTriviaUsed(room);
+            room.triviaAnswerVisible = true;
+            room.buzzerHeld = true;
+            room.roundId += 1;
+          } else {
+            room.buzzerHeld = true;
+          }
+        } else {
+          room.buzzerHeld = false;
         }
-        room.buzzerHeld = !!room.triviaMode;
       } else {
         room.roundId += 1;
         room.lockedOutPlayers = [];
         room.buzzerHeld = true;
         if (room.triviaMode) {
+          markCurrentBuzzerTriviaUsed(room);
           room.triviaAnswerVisible = true;
         } else {
           advanceBuzzerTrivia(room);
@@ -1943,6 +2020,7 @@ const server = http.createServer(async (req, res) => {
       room.winner = null;
       room.buzzes = [];
       room.roundStartedAt = Date.now();
+      markCurrentBuzzerTriviaUsed(room);
       advanceBuzzerTrivia(room);
       touch(room);
       broadcastBuzzerRoom(room);

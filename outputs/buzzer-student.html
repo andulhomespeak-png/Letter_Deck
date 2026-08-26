@@ -608,7 +608,7 @@
       const hasTrivia = !!room.triviaMode && !!trivia && showTriviaQuestion;
       triviaCard.classList.toggle("hidden", !showTriviaQuestion);
       if (showTriviaQuestion) {
-        triviaMeta.textContent = `${trivia.category} - ${Number(trivia.index || 0) + 1}/${trivia.total}`;
+        triviaMeta.textContent = trivia.category || "Trivia";
         const choices = trivia.type === "multiple"
           ? `<div class="trivia-choice-list">${(trivia.options || []).map((option, index) => `
             <div class="trivia-choice ${attemptedTriviaOptions.includes(index) ? "is-attempted" : ""} ${trivia.answerVisible && index === Number(trivia.correctOptionIndex || 0) ? "is-correct" : ""}">${escapeHtml(option)}</div>
@@ -744,7 +744,7 @@
     async function buzz() {
       if (!room || !player || buzzBtn.disabled) return;
       requestWakeLock();
-      lastRoundSubmitted = room.roundId;
+      const submittedRound = room.roundId;
       buzzBtn.disabled = true;
       try {
         const data = await api("/api/buzzer/buzz", {
@@ -755,6 +755,7 @@
         });
         room = data.room;
         if (data.accepted) {
+          lastRoundSubmitted = submittedRound;
           flash("good");
         } else if (data.held) {
           flash("bad");
