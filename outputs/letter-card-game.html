@@ -6,6 +6,13 @@
   <title>Letter Clash</title>
   <link rel="icon" type="image/png" href="./letter-clash-favicon.png">
   <style>
+    @font-face {
+      font-family: "Letter Card Font";
+      src: url("./archivo-800.ttf") format("truetype");
+      font-weight: 800;
+      font-style: normal;
+      font-display: swap;
+    }
     :root {
       --bg: #fff36b;
       --bg-deep: #ff8a00;
@@ -265,8 +272,9 @@
     .card[data-color="4"] { color: #ba60dc; }
 
     .card-letter {
+      font-family: "Letter Card Font", "Avenir Next Condensed", "Franklin Gothic Medium", "Trebuchet MS", sans-serif;
       font-size: clamp(7rem, 18vw, 14rem);
-      font-weight: 900;
+      font-weight: 800;
       letter-spacing: -0.08em;
       line-height: 0.9;
       position: relative;
@@ -274,6 +282,7 @@
     }
 
     .card-score {
+      font-family: "Letter Card Font", "Avenir Next Condensed", "Franklin Gothic Medium", "Trebuchet MS", sans-serif;
       position: absolute;
       top: 22px;
       right: 22px;
@@ -284,7 +293,7 @@
       border: 1px solid rgba(22, 15, 46, 0.08);
       color: rgba(22, 15, 46, 0.76);
       font-size: clamp(0.95rem, 1.6vw, 1.25rem);
-      font-weight: 900;
+      font-weight: 800;
       line-height: 1;
       text-align: center;
       box-shadow: 0 10px 18px rgba(31, 26, 23, 0.08);
@@ -424,6 +433,7 @@
     }
 
     .claim-letter-score {
+      font-family: "Letter Card Font", "Avenir Next Condensed", "Franklin Gothic Medium", "Trebuchet MS", sans-serif;
       position: absolute;
       top: 8px;
       right: 8px;
@@ -434,17 +444,18 @@
       border: 1px solid rgba(22, 15, 46, 0.08);
       color: rgba(22, 15, 46, 0.76);
       font-size: 0.72rem;
-      font-weight: 900;
+      font-weight: 800;
       line-height: 1;
       text-align: center;
       z-index: 1;
     }
 
     .claim-letter-glyph {
+      font-family: "Letter Card Font", "Avenir Next Condensed", "Franklin Gothic Medium", "Trebuchet MS", sans-serif;
       position: relative;
       z-index: 1;
       font-size: clamp(2.4rem, 4vw, 3.7rem);
-      font-weight: 900;
+      font-weight: 800;
       line-height: 0.9;
       letter-spacing: -0.08em;
     }

@@ -95,8 +95,11 @@ const winningScore = 500;
 const stealBonusPerLetter = 2;
 const definitionCache = new Map();
 
-function getDefinitionCandidates(rawWord) {
+function getDefinitionCandidates(rawWord, options = {}) {
   const key = String(rawWord || "").trim().toLowerCase();
+  if (options.exactOnly) {
+    return key ? [key] : [];
+  }
   return Array.from(new Set([
     key,
     key.endsWith("ing") && key.length > 5 ? key.slice(0, -3) : "",
@@ -119,7 +122,12 @@ function isDefinitionHeading(value) {
   return /^meanings? relating to\b/i.test(cleanDefinition(value));
 }
 
-function parseDictionaryApiDev(data) {
+function parseDictionaryApiDev(data, expectedWord = "") {
+  const returnedWord = String(data?.[0]?.word || "").trim().toLowerCase();
+  const expected = String(expectedWord || "").trim().toLowerCase();
+  if (expected && returnedWord && returnedWord !== expected) {
+    return "";
+  }
   const definitions = data?.[0]?.meanings?.flatMap((meaning) => meaning.definitions || [])
     ?.map((entry) => cleanDefinition(entry.definition))
     ?.filter(Boolean) || [];
@@ -136,7 +144,12 @@ function parseEnglishDictionaryApi(data) {
   return definitions.find((definition) => !isDefinitionHeading(definition)) || "";
 }
 
-function parseDatamuse(data) {
+function parseDatamuse(data, expectedWord = "") {
+  const returnedWord = String(data?.[0]?.word || "").trim().toLowerCase();
+  const expected = String(expectedWord || "").trim().toLowerCase();
+  if (!returnedWord || (expected && returnedWord !== expected)) {
+    return "";
+  }
   const definitions = data?.[0]?.defs || [];
   const definition = definitions.find((entry) => {
     const text = cleanDefinition(entry);
@@ -162,7 +175,7 @@ async function fetchJsonWithTimeout(url, timeoutMs = 3500) {
   }
 }
 
-async function lookupDefinition(rawWord) {
+async function lookupDefinition(rawWord, options = {}) {
   const key = String(rawWord || "").trim().toLowerCase();
   if (!key) {
     return "";
@@ -171,7 +184,7 @@ async function lookupDefinition(rawWord) {
     return definitionCache.get(key);
   }
 
-  for (const candidate of getDefinitionCandidates(key)) {
+  for (const candidate of getDefinitionCandidates(key, { exactOnly: !!options.exactOnly })) {
     const sources = [
       {
         url: `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(candidate)}`,
@@ -190,7 +203,7 @@ async function lookupDefinition(rawWord) {
     const [preferredSource, ...fallbackSources] = sources;
     try {
       const data = await fetchJsonWithTimeout(preferredSource.url, 1800);
-      const preferredDefinition = data ? preferredSource.parse(data) : "";
+      const preferredDefinition = data ? preferredSource.parse(data, candidate) : "";
       if (preferredDefinition) {
         definitionCache.set(key, preferredDefinition);
         definitionCache.set(candidate, preferredDefinition);
@@ -202,7 +215,7 @@ async function lookupDefinition(rawWord) {
     try {
       const definition = await Promise.any(fallbackSources.map(async (source) => {
         const data = await fetchJsonWithTimeout(source.url, 2500);
-        const parsed = data ? source.parse(data) : "";
+        const parsed = data ? source.parse(data, candidate) : "";
         if (!parsed) {
           throw new Error("Definition unavailable");
         }
@@ -226,7 +239,7 @@ async function validateDictionaryWord(rawWord) {
   if (dictionary.has(word)) {
     return { ok: true, definition: definitionCache.get(word) || "", learned: false };
   }
-  const definition = await lookupDefinition(word);
+  const definition = await lookupDefinition(word, { exactOnly: true });
   if (!definition) {
     return { ok: false, definition: "", learned: false };
   }
