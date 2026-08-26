@@ -585,6 +585,8 @@
     }
     .mobile-podium-actions {
       display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
     }
     .mobile-report-btn {
       background: linear-gradient(135deg, #2457ff, #4931df);
@@ -594,7 +596,7 @@
     .mobile-report-overlay {
       position: fixed;
       inset: 0;
-      z-index: 28;
+      z-index: 90;
       display: grid;
       place-items: center;
       padding: 16px;
@@ -718,6 +720,31 @@
       font-weight: 650;
       line-height: 1.35;
     }
+    .mobile-report-row.is-ranking {
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+    }
+    .mobile-report-card.is-ranking .mobile-report-kicker,
+    .mobile-report-card.is-ranking .mobile-report-subtitle {
+      display: none;
+    }
+    .mobile-report-row.is-ranking .mobile-report-team {
+      color: #2457ff;
+      font-size: clamp(1.5rem, 8vw, 2.25rem);
+      line-height: 0.9;
+      letter-spacing: -0.03em;
+    }
+    .mobile-report-row.is-ranking .mobile-report-word {
+      grid-column: auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .mobile-report-row.is-ranking .mobile-report-points {
+      font-size: 0.92rem;
+    }
     .mobile-report-empty {
       padding: 18px;
       border-radius: 17px;
@@ -826,6 +853,7 @@
       <div class="mobile-podium-stage" id="mobilePodiumStage"></div>
       <div class="mobile-podium-actions">
         <button class="mobile-report-btn" id="mobileReportBtn" type="button">Report</button>
+        <button class="mobile-report-btn" id="mobileRankingBtn" type="button">Ranking</button>
       </div>
     </div>
   </div>
@@ -930,8 +958,11 @@
     const mobilePodium = document.getElementById("mobilePodium");
     const mobilePodiumStage = document.getElementById("mobilePodiumStage");
     const mobileReportBtn = document.getElementById("mobileReportBtn");
+    const mobileRankingBtn = document.getElementById("mobileRankingBtn");
     const mobileReportOverlay = document.getElementById("mobileReportOverlay");
+    const mobileReportCard = mobileReportOverlay.querySelector(".mobile-report-card");
     const mobileReportCloseBtn = document.getElementById("mobileReportCloseBtn");
+    const mobileReportTitle = document.getElementById("mobileReportTitle");
     const mobileReportSubtitle = document.getElementById("mobileReportSubtitle");
     const mobileReportList = document.getElementById("mobileReportList");
     const confirmOverlay = document.getElementById("confirmOverlay");
@@ -958,6 +989,7 @@
     let audioCtx = null;
     let podiumSoundPlayed = false;
     let lastMobilePodiumKey = "";
+    let mobileOverlayMode = "";
     let confirmState = null;
     let claimTimer = null;
     let lastClaimOverlayId = "";
@@ -1357,6 +1389,8 @@
     }
 
     function renderMobileVocabularyReport() {
+      mobileReportCard.classList.remove("is-ranking");
+      mobileReportTitle.textContent = "Accepted Words";
       const entries = Array.isArray(room?.acceptedWords) ? room.acceptedWords.filter(Boolean) : [];
       if (!entries.length) {
         mobileReportSubtitle.textContent = "No accepted words yet.";
@@ -1384,14 +1418,47 @@
       mobileReportList.scrollTop = previousScrollTop;
     }
 
+    function renderMobileRanking() {
+      const rankedTeams = Array.isArray(room?.teams)
+        ? room.teams
+          .slice()
+          .sort((a, b) => (Number(b.score) - Number(a.score)) || String(a.name || "").localeCompare(String(b.name || "")))
+        : [];
+      mobileReportCard.classList.add("is-ranking");
+      mobileReportTitle.textContent = "Final Ranking";
+      if (!rankedTeams.length) {
+        mobileReportList.innerHTML = `<div class="mobile-report-empty">Final positions will appear here.</div>`;
+        return;
+      }
+      const previousScrollTop = mobileReportList.scrollTop;
+      mobileReportList.innerHTML = rankedTeams.map((team, index) => `
+        <div class="mobile-report-row is-ranking">
+          <div class="mobile-report-team">#${index + 1}</div>
+          <div class="mobile-report-word">${escapeHtml(team.name || "Player")}</div>
+          <div class="mobile-report-points">${Number(team.score) || 0} pts</div>
+        </div>
+      `).join("");
+      mobileReportList.scrollTop = previousScrollTop;
+    }
+
     function openMobileVocabularyReport() {
+      mobileOverlayMode = "report";
       renderMobileVocabularyReport();
       mobileReportOverlay.classList.remove("hidden");
       mobileReportOverlay.setAttribute("aria-hidden", "false");
       mobileReportCloseBtn.focus();
     }
 
+    function openMobileRanking() {
+      mobileOverlayMode = "ranking";
+      renderMobileRanking();
+      mobileReportOverlay.classList.remove("hidden");
+      mobileReportOverlay.setAttribute("aria-hidden", "false");
+      mobileReportCloseBtn.focus();
+    }
+
     function closeMobileVocabularyReport() {
+      mobileOverlayMode = "";
       mobileReportOverlay.classList.add("hidden");
       mobileReportOverlay.setAttribute("aria-hidden", "true");
     }
@@ -1444,7 +1511,11 @@
       }
       renderRank();
       if (!mobileReportOverlay.classList.contains("hidden")) {
-        renderMobileVocabularyReport();
+        if (mobileOverlayMode === "ranking") {
+          renderMobileRanking();
+        } else {
+          renderMobileVocabularyReport();
+        }
       }
       keepInputReady();
     }
@@ -1643,6 +1714,7 @@
       }
     });
     mobileReportBtn.addEventListener("click", openMobileVocabularyReport);
+    mobileRankingBtn.addEventListener("click", openMobileRanking);
     mobileReportCloseBtn.addEventListener("click", closeMobileVocabularyReport);
     mobileReportOverlay.addEventListener("click", (event) => {
       if (event.target === mobileReportOverlay) {

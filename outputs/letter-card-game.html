@@ -622,7 +622,7 @@
       display: grid;
       place-items: center;
       background: rgba(14, 10, 37, 0.7);
-      z-index: 38;
+      z-index: 90;
       padding: 24px;
     }
 
@@ -767,6 +767,34 @@
       color: var(--ink-soft);
       font-weight: 700;
       line-height: 1.35;
+    }
+
+    .report-row.is-ranking {
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .report-modal.is-ranking .report-kicker,
+    .report-modal.is-ranking .report-subtitle {
+      display: none;
+    }
+
+    .report-row.is-ranking .report-team {
+      color: var(--blue);
+      font-size: clamp(1.65rem, 3vw, 2.5rem);
+      line-height: 0.9;
+      letter-spacing: -0.03em;
+    }
+
+    .report-row.is-ranking .report-word {
+      color: var(--ink);
+      font-size: clamp(1.15rem, 2vw, 1.6rem);
+      letter-spacing: 0;
+    }
+
+    .report-row.is-ranking .report-points {
+      font-size: clamp(1rem, 1.5vw, 1.18rem);
     }
 
     .report-definition.is-missing {
@@ -1537,6 +1565,7 @@
       <div class="podium-stage" id="podiumStage"></div>
       <div class="podium-actions">
         <button class="secondary" id="podiumReportBtn" type="button">Report</button>
+        <button class="secondary" id="podiumRankingBtn" type="button">Ranking</button>
         <button class="secondary" id="podiumCloseBtn" type="button">Close</button>
         <button class="accent" id="podiumResetBtn" type="button">Play Again</button>
       </div>
@@ -1616,9 +1645,12 @@
     const podiumStage = document.getElementById("podiumStage");
     const podiumSubtitle = document.getElementById("podiumSubtitle");
     const podiumReportBtn = document.getElementById("podiumReportBtn");
+    const podiumRankingBtn = document.getElementById("podiumRankingBtn");
     const podiumCloseBtn = document.getElementById("podiumCloseBtn");
     const podiumResetBtn = document.getElementById("podiumResetBtn");
     const reportOverlay = document.getElementById("reportOverlay");
+    const reportModal = reportOverlay.querySelector(".report-modal");
+    const reportTitle = document.getElementById("reportTitle");
     const reportSubtitle = document.getElementById("reportSubtitle");
     const reportList = document.getElementById("reportList");
     const closeReportBtn = document.getElementById("closeReportBtn");
@@ -1638,6 +1670,7 @@
     let lastHandledLiveFeedbackId = "";
     let matchFinished = false;
     let lastPodiumKey = "";
+    let dismissedPodiumKey = "";
     let podiumSoundPlayed = false;
     let wakeLockSentinel = null;
     let successHistory = [];
@@ -1710,9 +1743,13 @@
       return matchFinished || (liveRoom?.status || "") === "finished";
     }
 
+    function getCurrentPodiumKey() {
+      return getScoreboardTeams().slice(0, 3).map((team) => `${team.id}:${team.score}`).join("|");
+    }
+
     function renderPodium() {
       const ranked = getScoreboardTeams().slice(0, 3);
-      const podiumKey = ranked.map((team) => `${team.id}:${team.score}`).join("|");
+      const podiumKey = getCurrentPodiumKey();
       if (podiumKey && podiumKey === lastPodiumKey) {
         return;
       }
@@ -1747,6 +1784,11 @@
     function updatePodiumVisibility() {
       if (isGameFinished()) {
         stopBackgroundLoop();
+        const podiumKey = getCurrentPodiumKey();
+        if (podiumKey && podiumKey === dismissedPodiumKey) {
+          podiumOverlay.classList.remove("is-visible");
+          return;
+        }
         renderPodium();
         podiumOverlay.classList.add("is-visible");
         if (!podiumSoundPlayed) {
@@ -1757,6 +1799,7 @@
       }
       podiumSoundPlayed = false;
       lastPodiumKey = "";
+      dismissedPodiumKey = "";
       podiumOverlay.classList.remove("is-visible");
     }
 
@@ -1905,6 +1948,8 @@
       if (!reportSubtitle || !reportList) {
         return;
       }
+      reportModal.classList.remove("is-ranking");
+      if (reportTitle) reportTitle.textContent = "Accepted Words";
       if (!successHistory.length) {
         reportSubtitle.textContent = "No accepted words yet.";
         reportList.innerHTML = `<div class="report-empty">Accepted words will appear here with their meanings.</div>`;
@@ -1931,9 +1976,37 @@
       }).join("");
     }
 
+    function renderRanking() {
+      if (!reportSubtitle || !reportList) {
+        return;
+      }
+      const ranked = getScoreboardTeams();
+      reportModal.classList.add("is-ranking");
+      if (reportTitle) reportTitle.textContent = "Final Ranking";
+      if (!ranked.length) {
+        reportList.innerHTML = `<div class="report-empty">Final positions will appear here.</div>`;
+        return;
+      }
+      reportList.innerHTML = ranked.map((team, index) => `
+        <div class="report-row is-ranking">
+          <div class="report-team">#${index + 1}</div>
+          <div class="report-word">${escapeHtml(team.name || "Player")}</div>
+          <div class="report-points">${Number(team.score) || 0} pts</div>
+        </div>
+      `).join("");
+    }
+
     function openReport() {
       syncSuccessHistoryFromRoom();
       renderReport();
+      reportOverlay.classList.remove("hidden");
+      reportOverlay.classList.add("is-visible");
+      reportOverlay.setAttribute("aria-hidden", "false");
+      closeReportBtn.focus();
+    }
+
+    function openRanking() {
+      renderRanking();
       reportOverlay.classList.remove("hidden");
       reportOverlay.classList.add("is-visible");
       reportOverlay.setAttribute("aria-hidden", "false");
@@ -2664,6 +2737,7 @@
       closeReport();
       podiumSoundPlayed = false;
       lastPodiumKey = "";
+      dismissedPodiumKey = "";
       try {
         podiumFanfare.pause();
         podiumFanfare.currentTime = 0;
@@ -3006,7 +3080,9 @@
     });
     closeReportBtn.addEventListener("click", closeReport);
     podiumReportBtn.addEventListener("click", openReport);
+    podiumRankingBtn.addEventListener("click", openRanking);
     podiumCloseBtn.addEventListener("click", () => {
+      dismissedPodiumKey = getCurrentPodiumKey();
       podiumOverlay.classList.remove("is-visible");
     });
     clearGameBtn.addEventListener("click", async () => {
