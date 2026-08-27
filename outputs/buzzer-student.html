@@ -37,10 +37,10 @@
 
     .screen {
       min-height: 100svh;
-      padding: max(16px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom));
+      padding: max(10px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
       display: grid;
       grid-template-rows: auto 1fr;
-      gap: 14px;
+      gap: 8px;
     }
 
     .join,
@@ -109,10 +109,10 @@
     }
 
     .status {
-      padding: 14px;
+      padding: 9px;
       display: grid;
-      grid-template-columns: minmax(0, 1.25fr) minmax(96px, 0.75fr);
-      gap: 12px;
+      grid-template-columns: minmax(0, 1.35fr) minmax(82px, 0.65fr);
+      gap: 8px;
       align-items: stretch;
     }
 
@@ -122,15 +122,15 @@
 
     .kicker {
       color: var(--muted);
-      font-size: 0.72rem;
+      font-size: 0.62rem;
       font-weight: 1000;
       text-transform: uppercase;
       letter-spacing: 0.12em;
     }
 
     .main-status {
-      margin-top: 2px;
-      font-size: clamp(1.25rem, 7vw, 2.3rem);
+      margin-top: 1px;
+      font-size: clamp(1rem, 5vw, 1.55rem);
       font-weight: 1000;
       line-height: 0.95;
       overflow-wrap: anywhere;
@@ -144,9 +144,9 @@
     }
 
     .rank-block {
-      gap: 5px;
-      padding: 12px 14px;
-      border-radius: 22px;
+      gap: 3px;
+      padding: 8px 10px;
+      border-radius: 18px;
       background:
         linear-gradient(135deg, rgba(255,255,255,0.98), rgba(255, 244, 206, 0.94)),
         radial-gradient(circle at 18% 0%, rgba(255, 37, 65, 0.18), transparent 44%);
@@ -155,14 +155,14 @@
 
     .room-block {
       justify-items: end;
-      gap: 6px;
+      gap: 4px;
       text-align: right;
     }
 
     .round {
       min-width: 0;
-      padding: 9px 11px;
-      border-radius: 18px;
+      padding: 7px 9px;
+      border-radius: 14px;
       background: #fff;
       text-align: center;
       font-weight: 1000;
@@ -175,25 +175,25 @@
       border-radius: 0;
       background: transparent;
       color: var(--ink);
-      font-size: clamp(1.72rem, 9vw, 3rem);
+      font-size: clamp(1rem, 5.5vw, 1.65rem);
       line-height: 0.95;
       font-weight: 1000;
       text-align: left;
       box-shadow: none;
-      letter-spacing: -0.055em;
+      letter-spacing: 0;
       text-transform: uppercase;
       text-shadow: 0 3px 0 rgba(255, 212, 71, 0.38);
     }
 
     .score-line {
       color: var(--muted);
-      font-size: clamp(0.95rem, 4.6vw, 1.25rem);
+      font-size: clamp(0.78rem, 3.5vw, 0.96rem);
       font-weight: 1000;
     }
 
     .room-code {
       color: var(--muted);
-      font-size: 0.78rem;
+      font-size: 0.66rem;
       font-weight: 1000;
       letter-spacing: 0.08em;
       text-transform: uppercase;
@@ -205,13 +205,13 @@
       grid-template-rows: auto minmax(0, 1fr);
       align-items: center;
       justify-items: center;
-      gap: 12px;
+      gap: 8px;
     }
 
     .trivia-card {
       width: min(94vw, 520px);
-      border-radius: 24px;
-      padding: 14px;
+      border-radius: 18px;
+      padding: 10px 12px;
       background: rgba(255,255,255,0.9);
       border: 1px solid rgba(16, 11, 47, 0.1);
       box-shadow: 0 14px 36px rgba(16, 11, 47, 0.12);
@@ -219,9 +219,9 @@
     }
 
     .trivia-meta {
-      margin: 0 0 6px;
+      margin: 0 0 4px;
       color: var(--blue);
-      font-size: 0.72rem;
+      font-size: 0.62rem;
       font-weight: 1000;
       letter-spacing: 0.1em;
       text-transform: uppercase;
@@ -229,53 +229,62 @@
 
     .trivia-question {
       margin: 0;
-      font-size: clamp(1.3rem, 7vw, 2.2rem);
-      line-height: 1;
+      font-size: clamp(1.05rem, 5.5vw, 1.65rem);
+      line-height: 1.05;
       font-weight: 1000;
       overflow-wrap: anywhere;
     }
 
     .trivia-answer {
-      margin: 8px 0 0;
+      margin: 6px 0 0;
       color: #058247;
       font-weight: 1000;
     }
 
     .trivia-choice-list {
-      margin: 10px auto 0;
+      margin: 7px auto 0;
       display: grid;
-      gap: 7px;
+      gap: 4px;
+      text-align: left;
+      width: min(100%, 420px);
     }
 
     .trivia-choice {
-      border-radius: 14px;
-      padding: 9px 10px;
-      background: rgba(255,255,255,0.92);
-      border: 1px solid rgba(16, 11, 47, 0.1);
-      font-size: clamp(0.95rem, 4.4vw, 1.16rem);
+      display: grid;
+      grid-template-columns: 1.7em minmax(0, 1fr);
+      gap: 6px;
+      padding: 0;
+      background: transparent;
+      border: 0;
+      font-size: clamp(0.86rem, 3.8vw, 1rem);
       font-weight: 1000;
+      line-height: 1.15;
+    }
+
+    .trivia-choice-letter {
+      color: var(--blue);
     }
 
     .trivia-choice.is-attempted {
-      color: #fff;
-      background: linear-gradient(135deg, var(--red), #a8001a);
+      color: var(--red);
+      text-decoration: line-through;
     }
 
     .trivia-choice.is-correct {
-      color: #fff;
-      background: linear-gradient(135deg, var(--green), #039b52);
+      color: #058247;
+      text-decoration: none;
     }
 
     .buzz {
-      width: min(82vw, 430px);
+      width: min(72vw, 350px);
       aspect-ratio: 1;
       border-radius: 50%;
       color: #fff;
-      font-size: clamp(3.1rem, 18vw, 6.5rem);
+      font-size: clamp(2.55rem, 15vw, 5.1rem);
       letter-spacing: 0;
       background: radial-gradient(circle at 35% 25%, #ffb3bf, var(--red) 50%, #990015);
       box-shadow: 0 28px 0 #7d0717, 0 48px 90px rgba(153, 0, 21, 0.38);
-      border: 12px solid rgba(255,255,255,0.7);
+      border: 10px solid rgba(255,255,255,0.7);
       transition: transform 18ms linear, box-shadow 70ms ease, filter 120ms ease, opacity 120ms ease;
       touch-action: manipulation;
       -webkit-tap-highlight-color: transparent;
@@ -363,6 +372,98 @@
       animation: flashBad 520ms ease both;
     }
 
+    .mobile-podium {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: grid;
+      place-items: center;
+      padding: max(14px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom));
+      background: rgba(16, 11, 47, 0.44);
+      backdrop-filter: blur(10px);
+    }
+
+    .mobile-podium-card {
+      width: min(94vw, 460px);
+      max-height: 92svh;
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+      gap: 10px;
+      padding: 18px;
+      border-radius: 28px;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(255, 212, 71, 0.36), transparent 38%),
+        linear-gradient(145deg, rgba(255,255,255,0.97), rgba(235,247,255,0.96));
+      box-shadow: 0 24px 70px rgba(16, 11, 47, 0.28);
+      text-align: center;
+      overflow: hidden;
+    }
+
+    .mobile-podium-kicker {
+      margin: 0;
+      color: var(--blue);
+      font-size: 0.72rem;
+      font-weight: 1000;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .mobile-podium-title {
+      margin: 0;
+      color: var(--ink);
+      font-size: clamp(2.5rem, 14vw, 4.8rem);
+      line-height: 0.86;
+      font-weight: 1000;
+      text-shadow: 0 6px 0 rgba(255, 212, 71, 0.36);
+    }
+
+    .mobile-podium-list {
+      min-height: 0;
+      overflow: auto;
+      display: grid;
+      align-content: start;
+      gap: 8px;
+      padding: 2px;
+    }
+
+    .mobile-podium-row {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      padding: 10px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.9);
+      border: 1px solid rgba(16, 11, 47, 0.1);
+      text-align: left;
+    }
+
+    .mobile-podium-rank {
+      color: var(--red);
+      font-size: clamp(1.35rem, 7vw, 2.1rem);
+      font-weight: 1000;
+    }
+
+    .mobile-podium-name {
+      min-width: 0;
+      color: var(--ink);
+      font-weight: 1000;
+      overflow-wrap: anywhere;
+    }
+
+    .mobile-podium-score {
+      color: #058247;
+      font-weight: 1000;
+      white-space: nowrap;
+    }
+
+    .mobile-podium-actions button {
+      min-height: 48px;
+      color: #fff;
+      background: linear-gradient(135deg, var(--blue), #3024d8);
+      box-shadow: 0 12px 24px rgba(48, 36, 216, 0.22);
+    }
+
     .hidden { display: none !important; }
 
     @keyframes flashGood {
@@ -415,6 +516,17 @@
       </div>
     </section>
   </main>
+
+  <div class="mobile-podium hidden" id="mobilePodium">
+    <div class="mobile-podium-card">
+      <p class="mobile-podium-kicker">Game Over</p>
+      <h2 class="mobile-podium-title" id="mobilePodiumTitle">Top 3</h2>
+      <div class="mobile-podium-list" id="mobilePodiumList"></div>
+      <div class="mobile-podium-actions">
+        <button id="mobileRankingBtn" type="button">Ranking</button>
+      </div>
+    </div>
+  </div>
   <script>
     const params = new URLSearchParams(window.location.search);
     const code = String(params.get("code") || "").toUpperCase();
@@ -442,12 +554,17 @@
     const triviaMeta = document.getElementById("triviaMeta");
     const triviaQuestion = document.getElementById("triviaQuestion");
     const triviaAnswer = document.getElementById("triviaAnswer");
+    const mobilePodium = document.getElementById("mobilePodium");
+    const mobilePodiumTitle = document.getElementById("mobilePodiumTitle");
+    const mobilePodiumList = document.getElementById("mobilePodiumList");
+    const mobileRankingBtn = document.getElementById("mobileRankingBtn");
 
     let room = null;
     let player = null;
     let socket = null;
     let pollTimer = null;
     let lastRoundSubmitted = 0;
+    let showFullPodiumRanking = false;
     let wakeLock = null;
     let classroomPollTimer = null;
 
@@ -598,8 +715,26 @@
       } catch (_) {}
     }
 
+    function renderMobilePodium() {
+      const ranked = Array.isArray(room?.podium) ? room.podium : [];
+      const hasPodium = ranked.length > 0;
+      mobilePodium.classList.toggle("hidden", !hasPodium);
+      if (!hasPodium) return;
+      const visible = showFullPodiumRanking ? ranked : ranked.slice(0, 3);
+      mobilePodiumTitle.textContent = showFullPodiumRanking ? "Ranking" : "Top 3";
+      mobileRankingBtn.textContent = showFullPodiumRanking ? "Top 3" : "Ranking";
+      mobilePodiumList.innerHTML = visible.map((player, index) => `
+        <div class="mobile-podium-row">
+          <div class="mobile-podium-rank">#${index + 1}</div>
+          <div class="mobile-podium-name">${escapeHtml(player.name || "Player")}</div>
+          <div class="mobile-podium-score">${Number(player.score || 0)} pts</div>
+        </div>
+      `).join("");
+    }
+
     function render() {
       if (!room || !player) return;
+      renderMobilePodium();
       roomLabel.textContent = `Room ${classroomCode || room.code}`;
       roundText.textContent = `Round ${room.roundId}`;
       const trivia = room.trivia || null;
@@ -609,9 +744,13 @@
       triviaCard.classList.toggle("hidden", !showTriviaQuestion);
       if (showTriviaQuestion) {
         triviaMeta.textContent = trivia.category || "Trivia";
+        const optionLetters = ["A", "B", "C", "D"];
         const choices = trivia.type === "multiple"
           ? `<div class="trivia-choice-list">${(trivia.options || []).map((option, index) => `
-            <div class="trivia-choice ${attemptedTriviaOptions.includes(index) ? "is-attempted" : ""} ${trivia.answerVisible && index === Number(trivia.correctOptionIndex || 0) ? "is-correct" : ""}">${escapeHtml(option)}</div>
+            <div class="trivia-choice ${attemptedTriviaOptions.includes(index) ? "is-attempted" : ""} ${trivia.answerVisible && index === Number(trivia.correctOptionIndex || 0) ? "is-correct" : ""}">
+              <span class="trivia-choice-letter">${optionLetters[index] || ""}</span>
+              <span>${escapeHtml(option)}</span>
+            </div>
           `).join("")}</div>`
           : "";
         triviaQuestion.innerHTML = `${escapeHtml(trivia.question)}${choices}`;
@@ -641,7 +780,7 @@
       const alreadyPressed = lastRoundSubmitted === room.roundId;
       buzzBtn.disabled = !isLive || hasWinner || alreadyPressed || isLockedOut || isHeld;
       buzzBtn.classList.toggle("hidden", hasWinner || isLockedOut || isHeld);
-      turnCard.classList.toggle("hidden", !hasWinner && !isLockedOut && !isHeld);
+      turnCard.classList.toggle("hidden", (!hasWinner && !isLockedOut && !isHeld) || (showTriviaQuestion && isHeld && !hasWinner && !isLockedOut));
       turnCard.classList.toggle("is-locked", isLockedOut);
       turnCard.classList.toggle("is-held", isHeld && !hasWinner && !isLockedOut);
       turnCard.classList.toggle("is-trivia", hasTrivia);
@@ -794,6 +933,10 @@
     buzzBtn.addEventListener("pointerup", releaseBuzzPress, { passive: true });
     buzzBtn.addEventListener("pointercancel", releaseBuzzPress, { passive: true });
     buzzBtn.addEventListener("pointerleave", releaseBuzzPress, { passive: true });
+    mobileRankingBtn.addEventListener("click", () => {
+      showFullPodiumRanking = !showFullPodiumRanking;
+      renderMobilePodium();
+    });
 
     ["click", "pointerdown", "touchstart", "keydown"].forEach((eventName) => {
       document.addEventListener(eventName, requestWakeLock, { passive: true });

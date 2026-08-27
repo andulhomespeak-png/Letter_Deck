@@ -473,6 +473,106 @@
       font-size: 0.9rem;
     }
 
+    .buzzer-podium-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 55;
+      display: grid;
+      place-items: center;
+      padding: clamp(18px, 4vw, 44px);
+      background: rgba(16, 11, 47, 0.42);
+      backdrop-filter: blur(10px);
+    }
+
+    .buzzer-podium-overlay.hidden {
+      display: none;
+    }
+
+    .buzzer-podium-card {
+      width: min(980px, 96vw);
+      max-height: min(820px, 92vh);
+      max-height: min(820px, 92dvh);
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+      gap: 14px;
+      padding: clamp(22px, 3vw, 34px);
+      border-radius: clamp(26px, 4vw, 42px);
+      background:
+        radial-gradient(circle at 50% 0%, rgba(255, 212, 71, 0.34), transparent 38%),
+        linear-gradient(145deg, rgba(255,255,255,0.96), rgba(235, 247, 255, 0.96));
+      box-shadow: 0 30px 90px rgba(16, 11, 47, 0.28);
+      text-align: center;
+    }
+
+    .buzzer-podium-kicker {
+      margin: 0;
+      color: var(--blue);
+      font-weight: 1000;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .buzzer-podium-title {
+      margin: 0;
+      color: var(--ink);
+      font-size: clamp(2.7rem, 6vw, 6.6rem);
+      line-height: 0.86;
+      font-weight: 1000;
+      text-shadow: 0 8px 0 rgba(255, 212, 71, 0.32);
+    }
+
+    .buzzer-podium-stage {
+      min-height: 0;
+      overflow: auto;
+      display: grid;
+      align-content: start;
+      gap: 10px;
+      padding: 4px;
+    }
+
+    .buzzer-podium-row {
+      display: grid;
+      grid-template-columns: minmax(72px, auto) minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      border-radius: 22px;
+      background: rgba(255,255,255,0.88);
+      border: 1px solid rgba(16, 11, 47, 0.1);
+      box-shadow: 0 12px 28px rgba(16, 11, 47, 0.08);
+      text-align: left;
+    }
+
+    .buzzer-podium-rank {
+      color: var(--red);
+      font-size: clamp(1.7rem, 3.4vw, 3rem);
+      font-weight: 1000;
+      line-height: 0.9;
+    }
+
+    .buzzer-podium-name {
+      min-width: 0;
+      color: var(--ink);
+      font-size: clamp(1.2rem, 2.5vw, 2rem);
+      font-weight: 1000;
+      overflow-wrap: anywhere;
+    }
+
+    .buzzer-podium-score {
+      color: #058247;
+      font-size: clamp(1rem, 2vw, 1.5rem);
+      font-weight: 1000;
+      white-space: nowrap;
+    }
+
+    .buzzer-podium-actions {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
     .winner {
       width: min(860px, 90%);
       min-height: min(430px, 62vh);
@@ -1445,6 +1545,7 @@
         <div class="actions">
           <button id="triviaToggleBtn" class="trivia-toggle" type="button">Trivia</button>
           <button id="triviaEditBtn" type="button">Edit</button>
+          <button id="endSessionBtn" type="button">End Session</button>
           <button id="readyBtn" class="ready-toggle is-hold" type="button">Ready</button>
           <button id="clearBtn" type="button">Clear</button>
           <button id="homeBtn" type="button">Home</button>
@@ -1457,7 +1558,6 @@
           <div class="trivia-question" id="triviaQuestion">Add a question to begin.</div>
           <p class="trivia-answer hidden" id="triviaAnswer"></p>
           <div class="trivia-tools">
-            <button id="triviaPrevBtn" type="button">Prev</button>
             <button id="triviaRevealBtn" type="button">Reveal</button>
             <button id="triviaNextBtn" type="button">Next</button>
           </div>
@@ -1513,6 +1613,18 @@
     </div>
   </div>
 
+  <div class="buzzer-podium-overlay hidden" id="buzzerPodiumOverlay" aria-hidden="true">
+    <div class="buzzer-podium-card" role="dialog" aria-modal="true" aria-labelledby="buzzerPodiumTitle">
+      <p class="buzzer-podium-kicker">Game Over</p>
+      <h2 class="buzzer-podium-title" id="buzzerPodiumTitle">Top 3</h2>
+      <div class="buzzer-podium-stage" id="buzzerPodiumStage"></div>
+      <div class="buzzer-podium-actions">
+        <button id="buzzerPodiumRankingBtn" type="button">Ranking</button>
+        <button id="buzzerPodiumCloseBtn" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
   <div class="confirm-overlay hidden" id="triviaEditorOverlay" aria-hidden="true">
     <div class="confirm-card trivia-editor-card" role="dialog" aria-modal="true" aria-labelledby="triviaEditorTitle">
       <div class="trivia-editor-head">
@@ -1564,13 +1676,18 @@
     const readyBtn = document.getElementById("readyBtn");
     const clearBtn = document.getElementById("clearBtn");
     const homeBtn = document.getElementById("homeBtn");
+    const endSessionBtn = document.getElementById("endSessionBtn");
+    const buzzerPodiumOverlay = document.getElementById("buzzerPodiumOverlay");
+    const buzzerPodiumTitle = document.getElementById("buzzerPodiumTitle");
+    const buzzerPodiumStage = document.getElementById("buzzerPodiumStage");
+    const buzzerPodiumRankingBtn = document.getElementById("buzzerPodiumRankingBtn");
+    const buzzerPodiumCloseBtn = document.getElementById("buzzerPodiumCloseBtn");
     const triviaToggleBtn = document.getElementById("triviaToggleBtn");
     const triviaEditBtn = document.getElementById("triviaEditBtn");
     const triviaCard = document.getElementById("triviaCard");
     const triviaMeta = document.getElementById("triviaMeta");
     const triviaQuestion = document.getElementById("triviaQuestion");
     const triviaAnswer = document.getElementById("triviaAnswer");
-    const triviaPrevBtn = document.getElementById("triviaPrevBtn");
     const triviaRevealBtn = document.getElementById("triviaRevealBtn");
     const triviaNextBtn = document.getElementById("triviaNextBtn");
     const triviaProgressPanel = document.getElementById("triviaProgressPanel");
@@ -1612,6 +1729,7 @@
     let wrongPointValue = 25;
     let triviaItems = [];
     let selectedTriviaOptionIndex = -1;
+    let showFullPodiumRanking = false;
     const triviaPointScale = { 4: 75, 3: 50, 2: 25 };
     const turnAlarmSound = new Audio("buzzer-turn-alarm.wav");
     turnAlarmSound.preload = "auto";
@@ -1832,6 +1950,34 @@
       });
     }
 
+    function getRankedBuzzerPlayers() {
+      const source = Array.isArray(room?.podium) && room.podium.length ? room.podium : (room?.players || []);
+      return source.slice().sort((a, b) => {
+        const scoreDiff = Number(b.score || 0) - Number(a.score || 0);
+        return scoreDiff || String(a.name || "").localeCompare(String(b.name || ""));
+      });
+    }
+
+    function renderBuzzerPodium() {
+      const hasPodium = Array.isArray(room?.podium) && room.podium.length;
+      buzzerPodiumOverlay.classList.toggle("hidden", !hasPodium);
+      buzzerPodiumOverlay.setAttribute("aria-hidden", hasPodium ? "false" : "true");
+      if (!hasPodium) return;
+      const ranked = getRankedBuzzerPlayers();
+      const visible = showFullPodiumRanking ? ranked : ranked.slice(0, 3);
+      buzzerPodiumTitle.textContent = showFullPodiumRanking ? "Ranking" : "Top 3";
+      buzzerPodiumRankingBtn.textContent = showFullPodiumRanking ? "Top 3" : "Ranking";
+      buzzerPodiumStage.innerHTML = visible.length
+        ? visible.map((player, index) => `
+          <div class="buzzer-podium-row">
+            <div class="buzzer-podium-rank">#${index + 1}</div>
+            <div class="buzzer-podium-name">${escapeHtml(player.name || "Player")}</div>
+            <div class="buzzer-podium-score">${Number(player.score || 0)} pts</div>
+          </div>
+        `).join("")
+        : `<div class="empty">Final positions will appear here.</div>`;
+    }
+
     function getTriviaAttemptedIndexes() {
       return Array.isArray(room?.trivia?.attemptedOptionIndexes) ? room.trivia.attemptedOptionIndexes : [];
     }
@@ -1993,7 +2139,6 @@
       triviaToggleBtn.classList.toggle("is-on", isOn);
       triviaToggleBtn.textContent = isOn ? "Trivia On" : "Trivia";
       triviaCard.classList.toggle("hidden", !isOn || !showQuestion);
-      triviaPrevBtn.disabled = !isOn || !trivia;
       triviaNextBtn.disabled = !isOn || !trivia;
       triviaRevealBtn.disabled = !isOn || !trivia;
       triviaCheckBtn.disabled = !isOn || !trivia;
@@ -2101,9 +2246,9 @@
       render();
     }
 
-    async function moveTrivia(direction) {
+    async function moveTrivia() {
       if (!room) return;
-      const data = await api("/api/buzzer/trivia-next", { code: room.code, direction });
+      const data = await api("/api/buzzer/trivia-next", { code: room.code });
       room = data.room;
       selectedTriviaOptionIndex = -1;
       render();
@@ -2119,6 +2264,7 @@
       const attemptedTriviaOptions = Array.isArray(room.trivia?.attemptedOptionIndexes) ? room.trivia.attemptedOptionIndexes : [];
       const showTriviaQuestion = !!room.triviaMode && (isReady || !!room.winner || !!room.trivia?.answerVisible || attemptedTriviaOptions.length > 0);
       renderTrivia(showTriviaQuestion);
+      renderBuzzerPodium();
       document.querySelector(".score-actions").classList.toggle("hidden", !!room.triviaMode);
       pointsPanel.classList.toggle("hidden", !!room.triviaMode);
       triviaProgressPanel.classList.toggle("hidden", !room.triviaMode);
@@ -2194,6 +2340,8 @@
       statusMain.textContent = "0";
       lastWinnerId = "";
       winnerCard.classList.add("hidden");
+      buzzerPodiumOverlay.classList.add("hidden");
+      buzzerPodiumOverlay.setAttribute("aria-hidden", "true");
       idleState.classList.remove("hidden");
       triviaCard.classList.add("hidden");
       triviaScoreActions.classList.add("hidden");
@@ -2380,6 +2528,30 @@
     triviaToggleBtn.addEventListener("click", () => {
       updateTriviaState({ triviaMode: !room?.triviaMode }).catch(() => {});
     });
+    endSessionBtn.addEventListener("click", async () => {
+      if (!room) return;
+      const confirmed = await askConfirm({
+        title: "End session?",
+        text: "This will stop the buzzer and show the final podium to everyone.",
+        confirmLabel: "End Session"
+      });
+      if (!confirmed) return;
+      const data = await api("/api/buzzer/end-session", { code: room.code });
+      room = data.room;
+      showFullPodiumRanking = false;
+      render();
+    });
+    buzzerPodiumRankingBtn.addEventListener("click", () => {
+      showFullPodiumRanking = !showFullPodiumRanking;
+      renderBuzzerPodium();
+    });
+    buzzerPodiumCloseBtn.addEventListener("click", async () => {
+      if (!room) return;
+      const data = await api("/api/buzzer/close-podium", { code: room.code });
+      room = data.room;
+      showFullPodiumRanking = false;
+      render();
+    });
     triviaShuffleInput.addEventListener("change", () => {
       updateTriviaState({ shuffle: triviaShuffleInput.checked }).catch(() => {
         triviaShuffleInput.checked = room?.triviaShuffle !== false;
@@ -2430,8 +2602,7 @@
     easyPasteOverlay.addEventListener("click", (event) => {
       if (event.target === easyPasteOverlay) closeEasyPaste();
     });
-    triviaPrevBtn.addEventListener("click", () => moveTrivia(-1).catch(() => {}));
-    triviaNextBtn.addEventListener("click", () => moveTrivia(1).catch(() => {}));
+    triviaNextBtn.addEventListener("click", () => moveTrivia().catch(() => {}));
     triviaRevealBtn.addEventListener("click", () => {
       updateTriviaState({ reveal: !(room?.trivia?.answerVisible) }).catch(() => {});
     });

@@ -530,6 +530,7 @@ function createBuzzerRoom() {
     roundId: 0,
     players: [],
     winner: null,
+    podium: [],
     buzzes: [],
     lockedOutPlayers: [],
     buzzerHeld: true,
@@ -781,6 +782,7 @@ function serializeBuzzerRoom(room) {
     roundId: room.roundId,
     players: room.players,
     winner: room.winner,
+    podium: Array.isArray(room.podium) ? room.podium : [],
     buzzes: room.buzzes.slice(0, 12),
     lockedOutPlayers: room.lockedOutPlayers || [],
     buzzerHeld: !!room.buzzerHeld,
@@ -1779,14 +1781,10 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && url.pathname === "/api/buzzer/trivia-next") {
-      const { code, direction } = await body(req);
+      const { code } = await body(req);
       const room = getBuzzerRoom(code);
-      if (buzzerTriviaBank.length) {
-        const delta = Number(direction) < 0 ? -1 : 1;
-        room.triviaIndex = (Number(room.triviaIndex || 0) + delta + buzzerTriviaBank.length) % buzzerTriviaBank.length;
-        room.triviaAnswerVisible = false;
-        room.triviaAttemptedOptionIndexes = [];
-      }
+      markCurrentBuzzerTriviaUsed(room);
+      advanceBuzzerTrivia(room);
       touch(room);
       broadcastBuzzerRoom(room);
       return json(res, 200, { room: serializeBuzzerRoom(room) });
@@ -1885,6 +1883,7 @@ const server = http.createServer(async (req, res) => {
       room.status = "waiting";
       room.roundId = 0;
       room.winner = null;
+      room.podium = [];
       room.buzzes = [];
       room.lockedOutPlayers = [];
       room.buzzerHeld = true;
@@ -2022,6 +2021,40 @@ const server = http.createServer(async (req, res) => {
       room.roundStartedAt = Date.now();
       markCurrentBuzzerTriviaUsed(room);
       advanceBuzzerTrivia(room);
+      touch(room);
+      broadcastBuzzerRoom(room);
+      return json(res, 200, { room: serializeBuzzerRoom(room) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/buzzer/end-session") {
+      const { code } = await body(req);
+      const room = getBuzzerRoom(code);
+      const ranked = room.players
+        .slice()
+        .sort((a, b) => (Number(b.score || 0) - Number(a.score || 0)) || String(a.name || "").localeCompare(String(b.name || "")))
+        .map((player) => ({
+          id: player.id,
+          name: player.name,
+          score: Number(player.score || 0)
+        }));
+      room.podium = ranked;
+      room.status = "finished";
+      room.buzzerHeld = true;
+      room.winner = null;
+      room.buzzes = [];
+      touch(room);
+      broadcastBuzzerRoom(room);
+      return json(res, 200, { room: serializeBuzzerRoom(room) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/buzzer/close-podium") {
+      const { code } = await body(req);
+      const room = getBuzzerRoom(code);
+      room.podium = [];
+      room.status = room.players.length ? "waiting" : "waiting";
+      room.buzzerHeld = true;
+      room.winner = null;
+      room.buzzes = [];
       touch(room);
       broadcastBuzzerRoom(room);
       return json(res, 200, { room: serializeBuzzerRoom(room) });
