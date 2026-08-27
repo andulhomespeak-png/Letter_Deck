@@ -219,6 +219,10 @@ const winningScore = 500;
 const stealBonusPerLetter = 2;
 const definitionCache = new Map();
 
+function getRandomLetters(count = 8) {
+  return Array.from({ length: count }, () => "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.floor(Math.random() * 26)]);
+}
+
 function getDefinitionCandidates(rawWord, options = {}) {
   const key = String(rawWord || "").trim().toLowerCase();
   if (options.exactOnly) {
@@ -552,6 +556,7 @@ function createRoom() {
   const room = {
     code: makeCode(),
     status: "waiting",
+    gameMode: "classic",
     letters: [],
     roundId: 1,
     teams: [],
@@ -763,6 +768,7 @@ function serialize(room) {
   return {
     code: room.code,
     status: room.status,
+    gameMode: room.gameMode || "classic",
     letters: room.letters,
     roundId: room.roundId,
     teams: room.teams,
@@ -1227,10 +1233,11 @@ function consumeLetters(activeLetters, consumedLetters) {
   });
 }
 
-async function evaluateSubmission(room, submission) {
+async function evaluateSubmission(room, submission, sourceLetters = room.letters) {
   const rawWord = String(submission.word || "").trim().toLowerCase();
   const word = rawWord.toUpperCase();
-  if (room.letters.length < 2) {
+  const letters = Array.isArray(sourceLetters) ? sourceLetters : [];
+  if (letters.length < 2) {
     return { ok: false, message: "Need 2 cards on the table first." };
   }
   if (rawWord.length < 2) {
@@ -1243,11 +1250,11 @@ async function evaluateSubmission(room, submission) {
   if (!dictionaryResult.ok) {
     return { ok: false, message: `"${rawWord}" is not in the dictionary.` };
   }
-  const usage = getWordTableUsage(room.letters, word);
+  const usage = getWordTableUsage(letters, word);
   if (!usage) {
     return {
       ok: false,
-      message: `"${rawWord}" is real, but it must start and end with ${room.letters.join(" / ")}.`
+      message: `"${rawWord}" is real, but it must start and end with ${letters.join(" / ")}.`
     };
   }
   return { ok: true, rawWord, word, usage, definition: dictionaryResult.definition || "", learned: !!dictionaryResult.learned };
@@ -1407,8 +1414,21 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && url.pathname === "/api/live/sync") {
-      const { code, letters, status, lastSuccess, lastFeedback, teams, podium, clearSubmissions, clearAcceptedWords } = await body(req);
+      const { code, letters, status, gameMode, lastSuccess, lastFeedback, teams, podium, clearSubmissions, clearAcceptedWords } = await body(req);
       const room = getRoom(code);
+      if (gameMode !== undefined) {
+        const nextMode = String(gameMode || "classic").toLowerCase() === "race" ? "race" : "classic";
+        if (room.gameMode !== nextMode) {
+          room.gameMode = nextMode;
+          room.teams.forEach((team) => {
+            team.raceLetters = nextMode === "race" ? (Array.isArray(team.raceLetters) && team.raceLetters.length ? team.raceLetters : getRandomLetters(8)) : [];
+            team.acceptedWords = [];
+          });
+          room.acceptedWords = [];
+          room.lastSuccess = null;
+          room.lastFeedback = null;
+        }
+      }
       if (Array.isArray(letters)) {
         const nextLetters = letters.slice(0, 8);
         if (nextLetters.join("|") !== room.letters.join("|")) {
@@ -1430,7 +1450,9 @@ const server = http.createServer(async (req, res) => {
             id: team.id || existing?.id || `team-${index + 1}`,
             name: String(team.name || existing?.name || `Team ${index + 1}`),
             members: existing?.members ?? (Number(team.members) || 0),
-            score: Number(team.score) || 0
+            score: Number(team.score) || 0,
+            raceLetters: room.gameMode === "race" ? (Array.isArray(existing?.raceLetters) && existing.raceLetters.length ? existing.raceLetters : getRandomLetters(8)) : [],
+            acceptedWords: Array.isArray(existing?.acceptedWords) ? existing.acceptedWords : []
           };
         });
       }
@@ -1443,6 +1465,13 @@ const server = http.createServer(async (req, res) => {
       const { code } = await body(req);
       const room = getRoom(code);
       room.status = "live";
+      if (room.gameMode === "race") {
+        room.teams.forEach((team) => {
+          if (!Array.isArray(team.raceLetters) || team.raceLetters.length < 2) {
+            team.raceLetters = getRandomLetters(8);
+          }
+        });
+      }
       touch(room);
       broadcastRoom(room);
       return json(res, 200, { room: serialize(room) });
@@ -1469,7 +1498,9 @@ const server = http.createServer(async (req, res) => {
           id: `team-${room.teams.length + 1}`,
           name: clean,
           members: 0,
-          score: 0
+          score: 0,
+          raceLetters: room.gameMode === "race" ? getRandomLetters(8) : [],
+          acceptedWords: []
         };
         room.teams.push(team);
       }
@@ -1522,7 +1553,11 @@ const server = http.createServer(async (req, res) => {
           id: teamId,
           name: clean,
           members: 1,
-          score: Number(existingTeam?.score || 0)
+          score: Number(existingTeam?.score || 0),
+          raceLetters: room.gameMode === "race"
+            ? (Array.isArray(existingTeam?.raceLetters) && existingTeam.raceLetters.length ? existingTeam.raceLetters : getRandomLetters(8))
+            : [],
+          acceptedWords: Array.isArray(existingTeam?.acceptedWords) ? existingTeam.acceptedWords : []
         };
         nextTeams.push(team);
         nextPlayers.push({
@@ -1574,7 +1609,8 @@ const server = http.createServer(async (req, res) => {
         word: String(word || "").trim(),
         createdAt: Date.now()
       };
-      if (Number(roundId) !== Number(room.roundId)) {
+      const isRaceMode = room.gameMode === "race";
+      if (!isRaceMode && Number(roundId) !== Number(room.roundId)) {
         room.lastFeedback = {
           id: submission.id,
           teamId: submission.teamId || "",
@@ -1588,7 +1624,15 @@ const server = http.createServer(async (req, res) => {
         broadcastRoom(room);
         return json(res, 200, { ok: false, stale: true, room: serialize(room) });
       }
-      const evaluation = await evaluateSubmission(room, submission);
+      const team = room.teams.find((item) => submission.teamId && item.id === submission.teamId)
+        || room.teams.find((item) => item.name.toLowerCase() === String(submission.teamName || "").toLowerCase());
+      if (!team) {
+        throw new Error("Team not found");
+      }
+      if (isRaceMode && (!Array.isArray(team.raceLetters) || team.raceLetters.length < 2)) {
+        team.raceLetters = getRandomLetters(8);
+      }
+      const evaluation = await evaluateSubmission(room, submission, isRaceMode ? team.raceLetters : room.letters);
 
       if (!evaluation.ok) {
         room.lastFeedback = {
@@ -1605,21 +1649,25 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, { ok: false, room: serialize(room) });
       }
 
-      const team = room.teams.find((item) => submission.teamId && item.id === submission.teamId)
-        || room.teams.find((item) => item.name.toLowerCase() === String(submission.teamName || "").toLowerCase());
-      if (!team) {
-        throw new Error("Team not found");
-      }
-
-      const scoreBreakdown = getWordScore(evaluation.word, evaluation.usage.stolenLetters);
+      const scoreBreakdown = getWordScore(evaluation.word, isRaceMode ? 0 : evaluation.usage.stolenLetters);
       const consumedLetters = Object.entries(evaluation.usage.consumed)
         .flatMap(([letter, count]) => Array.from({ length: count }, () => letter));
 
-      room.letters = consumeLetters(room.letters, evaluation.usage.consumed);
-      while (room.letters.length < 8) {
-        room.letters.push("ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.floor(Math.random() * 26)]);
+      if (isRaceMode) {
+        team.raceLetters = consumeLetters(team.raceLetters, evaluation.usage.consumed);
+        while (team.raceLetters.length < 8) {
+          team.raceLetters.push(...getRandomLetters(1));
+        }
+        team.acceptedWords = Array.isArray(team.acceptedWords) ? team.acceptedWords : [];
+        team.acceptedWords.unshift(evaluation.rawWord);
+        team.acceptedWords = team.acceptedWords.slice(0, 80);
+      } else {
+        room.letters = consumeLetters(room.letters, evaluation.usage.consumed);
+        while (room.letters.length < 8) {
+          room.letters.push(...getRandomLetters(1));
+        }
+        room.roundId += 1;
       }
-      room.roundId += 1;
       team.score = Number(team.score || 0) + scoreBreakdown.total;
 
       room.lastSuccess = {

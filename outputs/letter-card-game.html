@@ -121,15 +121,6 @@
         min-height: 88px;
       }
 
-    .brand-logo {
-        display: block;
-        width: auto;
-        height: auto;
-        max-width: min(31vw, 460px);
-        max-height: 88px;
-        filter: drop-shadow(0 10px 18px rgba(20, 12, 55, 0.18));
-      }
-
     .button-row {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -152,11 +143,69 @@
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
     }
 
+    .info-panel.hidden {
+      visibility: hidden;
+      pointer-events: none;
+    }
+
     .info-copy {
       min-width: 0;
       display: grid;
       gap: 5px;
       align-content: center;
+    }
+
+    .mode-toggle {
+      min-width: 132px;
+      min-height: 62px;
+      display: grid;
+      gap: 4px;
+      align-content: center;
+      justify-items: center;
+      padding: 12px;
+      border-radius: 28px;
+      color: var(--ink);
+      background: rgba(255,255,255,0.76);
+      border: 1px solid rgba(8, 125, 255, 0.18);
+      box-shadow: 0 20px 50px rgba(16, 11, 47, 0.12);
+      transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+    }
+
+    .mode-toggle:hover {
+      transform: translateY(-2px);
+      background: rgba(255,255,255,0.86);
+      box-shadow: 0 24px 58px rgba(16, 11, 47, 0.16);
+    }
+
+    .mode-toggle:active {
+      transform: translateY(1px);
+    }
+
+    .mode-toggle.is-on {
+      color: #fff;
+      background: linear-gradient(135deg, #2457ff, #5b2be0);
+      border-color: rgba(8, 125, 255, 0.18);
+      box-shadow: 0 20px 50px rgba(16, 11, 47, 0.12);
+    }
+
+    .mode-toggle small {
+      font-size: 0.68rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      opacity: 0.9;
+    }
+
+    .mode-toggle strong {
+      font-size: 1.05rem;
+      line-height: 1;
+      text-transform: uppercase;
+      color: #3e3580;
+    }
+
+    .mode-toggle.is-on small,
+    .mode-toggle.is-on strong {
+      color: #fff;
     }
 
     .info-headline,
@@ -191,6 +240,32 @@
         gap: 10px;
         min-height: 0;
         height: 100%;
+        overflow: hidden;
+      }
+
+    .app-shell.is-race {
+        grid-template-columns: minmax(0, 1fr) 300px;
+        grid-template-rows: auto minmax(0, 1fr);
+        column-gap: 10px;
+      }
+
+    .app-shell.is-race .topbar {
+        grid-column: 1;
+        grid-row: 1;
+      }
+
+    .app-shell.is-race .workspace {
+        display: contents;
+      }
+
+    .app-shell.is-race .playfield {
+        grid-column: 1;
+        grid-row: 2;
+      }
+
+    .app-shell.is-race .sidebar {
+        grid-column: 2;
+        grid-row: 1 / 3;
       }
 
     .playfield {
@@ -198,13 +273,16 @@
         grid-template-rows: 1fr;
         gap: 10px;
         min-height: 0;
+        overflow: hidden;
       }
 
     .sidebar {
         display: grid;
-        grid-template-rows: auto auto 1fr;
+        grid-template-rows: auto minmax(0, 1fr);
         gap: 10px;
-        align-content: start;
+        align-content: stretch;
+        min-height: 0;
+        overflow: hidden;
         background:
           linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(236, 244, 255, 0.94));
       }
@@ -226,6 +304,92 @@
       min-height: 0;
       align-content: stretch;
       perspective: 1200px;
+    }
+
+    .race-stage-note {
+      grid-column: 1 / -1;
+      align-self: center;
+      justify-self: center;
+      width: min(760px, 92%);
+      text-align: center;
+    }
+
+    .race-feed-card {
+      grid-column: 1 / -1;
+      align-self: stretch;
+      justify-self: stretch;
+      min-height: 0;
+      display: grid;
+      place-items: center;
+      padding: clamp(24px, 4vw, 54px);
+      border-radius: clamp(28px, 4vw, 44px);
+      background:
+        radial-gradient(circle at 18% 14%, rgba(255, 47, 146, 0.18), transparent 30%),
+        radial-gradient(circle at 82% 20%, rgba(36, 87, 255, 0.2), transparent 28%),
+        linear-gradient(145deg, rgba(255,255,255,0.92), rgba(239,244,255,0.92));
+      border: 1px solid rgba(255, 255, 255, 0.74);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.72), 0 24px 60px rgba(31, 26, 23, 0.1);
+      overflow: hidden;
+      text-align: center;
+    }
+
+    .race-feed-inner {
+      display: grid;
+      gap: clamp(10px, 1.6vw, 18px);
+      justify-items: center;
+      animation: raceFeedIn 460ms ease both;
+    }
+
+    .race-feed-kicker {
+      margin: 0;
+      color: #2457ff;
+      font-size: clamp(1.05rem, 1.6vw, 1.42rem);
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .race-feed-player {
+      color: #160f2e;
+      font-size: 1.12em;
+    }
+
+    .race-feed-word {
+      margin: 0;
+      color: var(--ink);
+      font-size: clamp(4rem, 12vw, 10rem);
+      line-height: 0.82;
+      font-weight: 900;
+      text-transform: uppercase;
+      overflow-wrap: anywhere;
+      text-shadow: 0 10px 0 rgba(255, 212, 71, 0.36);
+    }
+
+    .race-feed-meta {
+      margin: 0;
+      color: #0e6d52;
+      font-size: clamp(1.05rem, 2vw, 1.7rem);
+      font-weight: 900;
+    }
+
+    .race-feed-definition {
+      max-width: 900px;
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: clamp(1.1rem, 2.2vw, 2rem);
+      line-height: 1.18;
+      font-weight: 700;
+    }
+
+    @keyframes raceFeedIn {
+      from {
+        opacity: 0;
+        transform: translateY(18px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
     }
 
     .card {
@@ -1082,6 +1246,28 @@
       display: grid;
       gap: 7px;
       align-content: start;
+      min-height: 0;
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
+      scrollbar-width: thin;
+      scrollbar-color: #7a66ea rgba(20, 11, 47, 0.08);
+      padding-right: 2px;
+    }
+
+    .team-list::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .team-list::-webkit-scrollbar-track {
+      background: rgba(20, 11, 47, 0.06);
+      border-radius: 999px;
+    }
+
+    .team-list::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, #7a66ea, #2457ff);
+      border-radius: 999px;
     }
 
     .team-card {
@@ -1388,7 +1574,7 @@
       }
 
       .sidebar {
-        grid-template-rows: auto auto auto;
+        grid-template-rows: auto minmax(0, 1fr);
       }
 
       .qr-layout {
@@ -1450,8 +1636,8 @@
         max-height: 260px;
       }
 
-      .brand-logo {
-        max-height: 76px;
+      .mode-toggle {
+        min-height: 62px;
       }
 
       .workspace {
@@ -1493,7 +1679,10 @@
     <section class="app-shell">
       <header class="panel topbar">
         <h1 class="brand">
-          <img class="brand-logo" src="./letter-clash-teacher-logo.png" alt="Letter Clash">
+          <button class="mode-toggle" id="modeToggleBtn" type="button">
+            <small>Mode</small>
+            <strong id="modeToggleText">Classic</strong>
+          </button>
         </h1>
         <div class="info-panel">
           <div class="info-copy">
@@ -1615,6 +1804,10 @@
     let liveEnabled = window.location.protocol.startsWith("http");
     let liveBaseUrl = window.location.origin;
     let lastRenderedLettersKey = "";
+    let raceFeedIndex = 0;
+    let raceFeedTimer = null;
+    let lastRaceFeedKey = "";
+    let raceFeedSelectedId = "";
     let teams = liveEnabled
       ? []
       : [
@@ -1623,10 +1816,13 @@
       ];
 
     const activeCards = document.getElementById("activeCards");
+    const appShell = document.querySelector(".app-shell");
     const infoHeadlineEl = document.getElementById("infoHeadline");
     const infoDetailEl = document.getElementById("infoDetail");
     const useLettersBtn = document.getElementById("useLettersBtn");
     const startLiveBtn = document.getElementById("startLiveBtn");
+    const modeToggleBtn = document.getElementById("modeToggleBtn");
+    const modeToggleText = document.getElementById("modeToggleText");
     const homeBtn = document.getElementById("homeBtn");
     const clearGameBtn = document.getElementById("clearGameBtn");
     const resetBtn = document.getElementById("resetBtn");
@@ -1687,6 +1883,7 @@
     let successHistory = [];
     let sideQrVisible = false;
     const liveRoomStorageKey = "letter-clash-live-room-code";
+    const liveRoomModeStorageKey = "letter-clash-live-room-mode";
     const classroomStorageKey = "friendzy-classroom-code";
     const maxActiveLetters = 8;
     const winningScore = 500;
@@ -1752,6 +1949,17 @@
 
     function isGameFinished() {
       return matchFinished || (liveRoom?.status || "") === "finished";
+    }
+
+    function getGameMode() {
+      if (liveRoom) {
+        return liveRoom.gameMode === "race" ? "race" : "classic";
+      }
+      try {
+        return window.localStorage.getItem(liveRoomModeStorageKey) === "race" ? "race" : "classic";
+      } catch (_) {
+        return "classic";
+      }
     }
 
     function getCurrentPodiumKey() {
@@ -2150,6 +2358,13 @@
       if (!liveRoom || !Array.isArray(liveRoom.letters)) {
         return;
       }
+      if (getGameMode() === "race") {
+        if (activeLetters.length) {
+          activeLetters = [];
+          lastRenderedLettersKey = "";
+        }
+        return;
+      }
       const nextLetters = liveRoom.letters.slice(0, maxActiveLetters);
       if (!nextLetters.length && activeLetters.length && liveRoom.status !== "finished") {
         return;
@@ -2175,6 +2390,9 @@
         return;
       }
       lastHandledLiveFeedbackId = feedback.id;
+      if (getGameMode() === "race") {
+        return;
+      }
       const team = teams.find((item) => feedback.teamId && item.id === feedback.teamId)
         || teams.find((item) => item.name.toLowerCase() === String(feedback.teamName || "").toLowerCase())
         || null;
@@ -2255,6 +2473,7 @@
     function clearPersistedLiveRoomCode() {
       try {
         window.localStorage.removeItem(liveRoomStorageKey);
+        window.localStorage.removeItem(liveRoomModeStorageKey);
       } catch (_) {
       }
     }
@@ -2302,9 +2521,11 @@
       try {
         if (liveRoom?.code) {
           window.localStorage.setItem(liveRoomStorageKey, liveRoom.code);
+          window.localStorage.setItem(liveRoomModeStorageKey, liveRoom.gameMode === "race" ? "race" : "classic");
           return;
         }
         window.localStorage.removeItem(liveRoomStorageKey);
+        window.localStorage.removeItem(liveRoomModeStorageKey);
       } catch (_) {
       }
     }
@@ -2339,13 +2560,16 @@
           id: liveTeam.id,
           name: liveTeam.name,
           members: liveTeam.members,
-          score: localTeam.score || 0
+          score: localTeam.score || 0,
+          raceLetters: Array.isArray(liveTeam.raceLetters) ? liveTeam.raceLetters : [],
+          acceptedWords: Array.isArray(liveTeam.acceptedWords) ? liveTeam.acceptedWords : []
         };
       });
       const data = await liveApi("/api/live/sync", {
         code: liveRoom.code,
         letters: activeLetters,
         status,
+        gameMode: getGameMode(),
         lastSuccess,
         lastFeedback,
         podium,
@@ -2519,6 +2743,21 @@
         }
       }
       if (!liveRoom) {
+        const classroomCode = window.localStorage.getItem(classroomStorageKey);
+        if (classroomCode) {
+          try {
+            const classroom = await liveApi(`/api/classroom/room?code=${encodeURIComponent(classroomCode)}`, null, "GET");
+            const activeToolCode = String(classroom.room?.activeToolCode || "").trim().toUpperCase();
+            if (classroom.room?.activeTool === "letter-clash" && activeToolCode) {
+              const existing = await liveApi(`/api/live/room?code=${encodeURIComponent(activeToolCode)}`, null, "GET");
+              liveRoom = existing.room;
+              recoveredExistingRoom = true;
+            }
+          } catch (_) {
+          }
+        }
+      }
+      if (!liveRoom) {
         const data = await liveApi("/api/live/create-room");
         liveRoom = data.room;
       }
@@ -2561,7 +2800,11 @@
         render();
         return;
       }
-      fillLettersToTarget();
+      if (getGameMode() === "classic") {
+        fillLettersToTarget();
+      } else {
+        activeLetters = [];
+      }
       lastRenderedLettersKey = "";
       await syncLiveRoom(liveRoom.status || "waiting");
       const data = await liveApi("/api/live/start", { code: liveRoom.code });
@@ -2836,7 +3079,81 @@
     window.addEventListener("pointerdown", requestWakeLock, { passive: true });
     window.addEventListener("keydown", requestWakeLock);
 
+    function getRaceFeedEntries() {
+      return (Array.isArray(liveRoom?.acceptedWords) ? liveRoom.acceptedWords : [])
+        .filter((entry) => entry && entry.word)
+        .slice(0, 24);
+    }
+
+    function stopRaceFeedRotation() {
+      if (raceFeedTimer) {
+        clearTimeout(raceFeedTimer);
+        raceFeedTimer = null;
+      }
+    }
+
+    function scheduleRaceFeedRotation(entries) {
+      stopRaceFeedRotation();
+      if (getGameMode() !== "race" || entries.length <= 1) return;
+      raceFeedTimer = setTimeout(() => {
+        raceFeedIndex = (raceFeedIndex + 1) % entries.length;
+        lastRenderedLettersKey = "";
+        renderCards();
+      }, 8500);
+    }
+
+    function renderRaceFeed() {
+      const entries = getRaceFeedEntries();
+      const feedKey = entries.map((entry) => `${entry.id}:${entry.definitionState}`).join("|");
+      if (feedKey !== lastRaceFeedKey) {
+        lastRaceFeedKey = feedKey;
+        const currentIndex = entries.findIndex((entry) => entry.id === raceFeedSelectedId);
+        raceFeedIndex = currentIndex === -1 ? Math.min(raceFeedIndex, Math.max(entries.length - 1, 0)) : currentIndex;
+      }
+      const selected = entries.length ? entries[raceFeedIndex % entries.length] : null;
+      raceFeedSelectedId = selected?.id || "";
+      const renderKey = selected
+        ? `race:${selected.id}:${selected.definitionState}:${raceFeedIndex}`
+        : "race:empty";
+      if (renderKey === lastRenderedLettersKey) {
+        scheduleRaceFeedRotation(entries);
+        return;
+      }
+      lastRenderedLettersKey = renderKey;
+      if (!selected) {
+        activeCards.innerHTML = `
+          <div class="race-feed-card">
+            <div class="race-feed-inner">
+              <p class="race-feed-kicker">Race Mode</p>
+              <h2 class="race-feed-word">Ready</h2>
+              <p class="race-feed-definition">Accepted words will appear here as students score.</p>
+            </div>
+          </div>
+        `;
+        stopRaceFeedRotation();
+        return;
+      }
+      const definition = selected.definitionState === "ready" && selected.definition
+        ? selected.definition
+        : "Definition loading...";
+      activeCards.innerHTML = `
+        <div class="race-feed-card">
+          <div class="race-feed-inner">
+            <p class="race-feed-kicker"><span class="race-feed-player">${escapeHtml(selected.teamName || "Student")}</span> scored ${Number(selected.points || 0)} points</p>
+            <h2 class="race-feed-word">${escapeHtml(selected.word || "")}</h2>
+            <p class="race-feed-definition">${escapeHtml(definition)}</p>
+          </div>
+        </div>
+      `;
+      scheduleRaceFeedRotation(entries);
+    }
+
     function renderCards() {
+      if (getGameMode() === "race") {
+        renderRaceFeed();
+        return;
+      }
+      stopRaceFeedRotation();
       const lettersKey = activeLetters.join("|");
       if (lettersKey === lastRenderedLettersKey) {
         return;
@@ -2974,15 +3291,19 @@
       renderQrPeople();
       renderInfoPanel();
       updatePodiumVisibility();
+      appShell?.classList.toggle("is-race", getGameMode() === "race");
       soundBtn.classList.toggle("is-on", musicEnabled);
       sfxBtn.classList.toggle("is-on", sfxEnabled);
       startLiveBtn.classList.toggle("is-on", liveRoom?.status === "live");
+      infoHeadlineEl.closest(".info-panel")?.classList.toggle("hidden", getGameMode() === "race");
+      modeToggleText.textContent = getGameMode() === "race" ? "Race" : "Classic";
+      modeToggleBtn.classList.toggle("is-on", getGameMode() === "race");
       qrLiveBtn.classList.toggle("is-on", liveRoom?.status === "live");
       if (sideQrToggleBtn) sideQrToggleBtn.setAttribute("aria-expanded", String(sideQrVisible));
       if (sideQrToggleBtn) sideQrToggleBtn.textContent = sideQrVisible ? "Hide QR" : "Open QR";
       if (sideQrCard) sideQrCard.classList.toggle("hidden", !sideQrVisible);
       const hasConnectedPlayers = Number(liveRoom?.teams?.length || 0) > 0;
-      useLettersBtn.disabled = activeLetters.length === 0 || isGameFinished();
+      useLettersBtn.disabled = getGameMode() === "race" || activeLetters.length === 0 || isGameFinished();
       startLiveBtn.disabled = isGameFinished() || (liveRoom && !hasConnectedPlayers);
       qrLiveBtn.disabled = isGameFinished() || liveRoom?.status === "live" || !hasConnectedPlayers;
       if (liveEnabled && liveRoom) {
@@ -3019,6 +3340,30 @@
       if (confirmed) {
         finishRound();
       }
+    });
+    modeToggleBtn.addEventListener("click", async () => {
+      if (!liveRoom) {
+        await ensureLiveRoom();
+      }
+      const nextMode = getGameMode() === "race" ? "classic" : "race";
+      const confirmed = await openConfirm({
+        title: "Switch mode?",
+        text: nextMode === "race"
+          ? "Race gives each student their own cards and keeps connected players."
+          : "Classic returns to the shared table cards and keeps connected players.",
+        confirmLabel: nextMode === "race" ? "Use Race" : "Use Classic"
+      });
+      if (!confirmed) return;
+      liveRoom.gameMode = nextMode;
+      persistLiveRoomCode();
+      if (nextMode === "race") {
+        activeLetters = [];
+      } else {
+        stopRaceFeedRotation();
+        fillLettersToTarget();
+      }
+      lastRenderedLettersKey = "";
+      await syncLiveRoom("waiting", { lastSuccess: null, lastFeedback: null, podium: [], clearAcceptedWords: true });
     });
     startLiveBtn.addEventListener("click", async () => {
       if (!liveRoom) {
@@ -3132,18 +3477,7 @@
     document.addEventListener("pointerdown", primeAudio, { once: true });
     document.addEventListener("touchstart", primeAudio, { once: true });
     window.addEventListener("beforeunload", (event) => {
-      if (allowConfirmedNavigation) {
-        return;
-      }
       releaseWakeLock();
-      const hasLiveRoom = !!liveRoom?.code;
-      const hasConnectedPlayers = Number(liveRoom?.teams?.length || 0) > 0;
-      const hasActiveMatch = (liveRoom?.status === "live") || (liveRoom?.status === "finished");
-      if (!hasLiveRoom || (!hasConnectedPlayers && !hasActiveMatch)) {
-        return;
-      }
-      event.preventDefault();
-      event.returnValue = "";
     });
     resetBtn?.addEventListener("click", async () => {
       const confirmed = await openConfirm({
@@ -3194,7 +3528,14 @@
         resetGame();
       }
     });
-    resetGame();
+    if (window.localStorage.getItem(classroomStorageKey)) {
+      activeLetters = [];
+      lastRenderedLettersKey = "";
+      matchFinished = false;
+      render();
+    } else {
+      resetGame();
+    }
     requestWakeLock().catch(() => {});
     hydrateLiveBaseUrl()
       .then(() => initLiveRoom())
