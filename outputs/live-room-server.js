@@ -216,6 +216,50 @@ const letterPoints = {
   Q: 10, Z: 10
 };
 const winningScore = 500;
+
+function getLetterRaceHandKey({ classroomPlayerId, teamName, name } = {}) {
+  const classroomId = Number(classroomPlayerId || 0);
+  if (classroomId) {
+    return `classroom:${classroomId}`;
+  }
+  const cleanName = String(teamName || name || "").trim().toLowerCase();
+  return cleanName ? `name:${cleanName}` : "";
+}
+
+function rememberLetterRaceHand(room, key, letters) {
+  if (!room || !key || !Array.isArray(letters) || letters.length < 2) {
+    return;
+  }
+  room.raceHands = room.raceHands || {};
+  room.raceHands[key] = letters.slice();
+}
+
+function getOrCreateLetterRaceHand(room, key, existingLetters = []) {
+  if (Array.isArray(existingLetters) && existingLetters.length >= 2) {
+    rememberLetterRaceHand(room, key, existingLetters);
+    return existingLetters.slice();
+  }
+  const stored = key && room?.raceHands && Array.isArray(room.raceHands[key]) ? room.raceHands[key] : [];
+  if (stored.length >= 2) {
+    return stored.slice();
+  }
+  const next = getRandomLetters(8);
+  rememberLetterRaceHand(room, key, next);
+  return next;
+}
+
+function finishLetterRaceRoom(room) {
+  room.status = "finished";
+  room.podium = room.teams
+    .slice()
+    .sort((a, b) => (Number(b.score) - Number(a.score)) || String(a.name || "").localeCompare(String(b.name || "")))
+    .slice(0, 3)
+    .map((entry) => ({
+      id: entry.id,
+      name: entry.name,
+      score: Number(entry.score) || 0
+    }));
+}
 const stealBonusPerLetter = 2;
 const definitionCache = new Map();
 
@@ -565,6 +609,7 @@ function createRoom() {
     lastSuccess: null,
     lastFeedback: null,
     acceptedWords: [],
+    raceHands: {},
     podium: [],
     nextPlayerId: 1,
     updatedAt: Date.now()
@@ -1421,7 +1466,9 @@ const server = http.createServer(async (req, res) => {
         if (room.gameMode !== nextMode) {
           room.gameMode = nextMode;
           room.teams.forEach((team) => {
-            team.raceLetters = nextMode === "race" ? (Array.isArray(team.raceLetters) && team.raceLetters.length ? team.raceLetters : getRandomLetters(8)) : [];
+            const player = room.players.find((item) => item.teamId === team.id || sameName(item.teamName, team.name));
+            const handKey = getLetterRaceHandKey({ classroomPlayerId: player?.classroomPlayerId, teamName: team.name });
+            team.raceLetters = nextMode === "race" ? getOrCreateLetterRaceHand(room, handKey, team.raceLetters) : [];
             team.acceptedWords = [];
           });
           room.acceptedWords = [];
@@ -1446,12 +1493,14 @@ const server = http.createServer(async (req, res) => {
         room.teams = teams.map((team, index) => {
           const existing = room.teams.find((item) => item.id === team.id)
             || room.teams.find((item) => item.name.toLowerCase() === String(team.name || "").toLowerCase());
+          const player = room.players.find((item) => item.teamId === existing?.id || sameName(item.teamName, team.name || existing?.name));
+          const handKey = getLetterRaceHandKey({ classroomPlayerId: player?.classroomPlayerId, teamName: team.name || existing?.name });
           return {
             id: team.id || existing?.id || `team-${index + 1}`,
             name: String(team.name || existing?.name || `Team ${index + 1}`),
             members: existing?.members ?? (Number(team.members) || 0),
             score: Number(team.score) || 0,
-            raceLetters: room.gameMode === "race" ? (Array.isArray(existing?.raceLetters) && existing.raceLetters.length ? existing.raceLetters : getRandomLetters(8)) : [],
+            raceLetters: room.gameMode === "race" ? getOrCreateLetterRaceHand(room, handKey, existing?.raceLetters) : [],
             acceptedWords: Array.isArray(existing?.acceptedWords) ? existing.acceptedWords : []
           };
         });
@@ -1467,8 +1516,12 @@ const server = http.createServer(async (req, res) => {
       room.status = "live";
       if (room.gameMode === "race") {
         room.teams.forEach((team) => {
+          const player = room.players.find((item) => item.teamId === team.id || sameName(item.teamName, team.name));
+          const handKey = getLetterRaceHandKey({ classroomPlayerId: player?.classroomPlayerId, teamName: team.name });
           if (!Array.isArray(team.raceLetters) || team.raceLetters.length < 2) {
-            team.raceLetters = getRandomLetters(8);
+            team.raceLetters = getOrCreateLetterRaceHand(room, handKey, team.raceLetters);
+          } else {
+            rememberLetterRaceHand(room, handKey, team.raceLetters);
           }
         });
       }
@@ -1485,7 +1538,8 @@ const server = http.createServer(async (req, res) => {
       if (!clean) throw new Error("Team name is required");
       const existingPlayer = room.players.find((item) => requestedClassroomId && Number(item.classroomPlayerId || 0) === requestedClassroomId)
         || room.players.find((item) => item.teamName.toLowerCase() === clean.toLowerCase());
-      if (existingPlayer && !reconnect) {
+      const sameClassroomConnection = existingPlayer && requestedClassroomId && Number(existingPlayer.classroomPlayerId || 0) === requestedClassroomId;
+      if (existingPlayer && !reconnect && !sameClassroomConnection) {
         return json(res, 409, {
           error: "A participant with this name is already connected.",
           reconnectable: true,
@@ -1493,16 +1547,19 @@ const server = http.createServer(async (req, res) => {
         });
       }
       let team = room.teams.find((item) => item.name.toLowerCase() === clean.toLowerCase());
+      const handKey = getLetterRaceHandKey({ classroomPlayerId: requestedClassroomId || existingPlayer?.classroomPlayerId, teamName: clean });
       if (!team) {
         team = {
-          id: `team-${room.teams.length + 1}`,
+          id: existingPlayer?.teamId || `team-${room.teams.length + 1}`,
           name: clean,
           members: 0,
           score: 0,
-          raceLetters: room.gameMode === "race" ? getRandomLetters(8) : [],
+          raceLetters: room.gameMode === "race" ? getOrCreateLetterRaceHand(room, handKey) : [],
           acceptedWords: []
         };
         room.teams.push(team);
+      } else if (room.gameMode === "race") {
+        team.raceLetters = getOrCreateLetterRaceHand(room, handKey, team.raceLetters);
       }
       let player = existingPlayer || null;
       if (!player) {
@@ -1554,9 +1611,11 @@ const server = http.createServer(async (req, res) => {
           name: clean,
           members: 1,
           score: Number(existingTeam?.score || 0),
-          raceLetters: room.gameMode === "race"
-            ? (Array.isArray(existingTeam?.raceLetters) && existingTeam.raceLetters.length ? existingTeam.raceLetters : getRandomLetters(8))
-            : [],
+          raceLetters: room.gameMode === "race" ? getOrCreateLetterRaceHand(
+            room,
+            getLetterRaceHandKey({ classroomPlayerId: sourcePlayer.id, teamName: clean }),
+            existingTeam?.raceLetters
+          ) : [],
           acceptedWords: Array.isArray(existingTeam?.acceptedWords) ? existingTeam.acceptedWords : []
         };
         nextTeams.push(team);
@@ -1610,6 +1669,12 @@ const server = http.createServer(async (req, res) => {
         createdAt: Date.now()
       };
       const isRaceMode = room.gameMode === "race";
+      if (isRaceMode && room.teams.some((item) => Number(item.score) >= winningScore)) {
+        finishLetterRaceRoom(room);
+        touch(room);
+        broadcastRoom(room);
+        throw new Error("The match is already finished.");
+      }
       if (!isRaceMode && Number(roundId) !== Number(room.roundId)) {
         room.lastFeedback = {
           id: submission.id,
@@ -1629,10 +1694,16 @@ const server = http.createServer(async (req, res) => {
       if (!team) {
         throw new Error("Team not found");
       }
+      const submittingPlayer = room.players.find((item) => item.id === submission.playerId || item.teamId === team.id || sameName(item.teamName, team.name));
+      const raceHandKey = getLetterRaceHandKey({ classroomPlayerId: submittingPlayer?.classroomPlayerId, teamName: team.name });
       if (isRaceMode && (!Array.isArray(team.raceLetters) || team.raceLetters.length < 2)) {
-        team.raceLetters = getRandomLetters(8);
+        team.raceLetters = getOrCreateLetterRaceHand(room, raceHandKey, team.raceLetters);
       }
       const evaluation = await evaluateSubmission(room, submission, isRaceMode ? team.raceLetters : room.letters);
+
+      if (isRaceMode && room.status !== "live") {
+        throw new Error("The match is already finished.");
+      }
 
       if (!evaluation.ok) {
         room.lastFeedback = {
@@ -1650,6 +1721,8 @@ const server = http.createServer(async (req, res) => {
       }
 
       const scoreBreakdown = getWordScore(evaluation.word, isRaceMode ? 0 : evaluation.usage.stolenLetters);
+      const previousScore = Number(team.score || 0);
+      const awardedPoints = scoreBreakdown.total;
       const consumedLetters = Object.entries(evaluation.usage.consumed)
         .flatMap(([letter, count]) => Array.from({ length: count }, () => letter));
 
@@ -1658,6 +1731,7 @@ const server = http.createServer(async (req, res) => {
         while (team.raceLetters.length < 8) {
           team.raceLetters.push(...getRandomLetters(1));
         }
+        rememberLetterRaceHand(room, raceHandKey, team.raceLetters);
         team.acceptedWords = Array.isArray(team.acceptedWords) ? team.acceptedWords : [];
         team.acceptedWords.unshift(evaluation.rawWord);
         team.acceptedWords = team.acceptedWords.slice(0, 80);
@@ -1668,7 +1742,7 @@ const server = http.createServer(async (req, res) => {
         }
         room.roundId += 1;
       }
-      team.score = Number(team.score || 0) + scoreBreakdown.total;
+      team.score = previousScore + awardedPoints;
 
       room.lastSuccess = {
         id: submission.id,
@@ -1676,7 +1750,7 @@ const server = http.createServer(async (req, res) => {
         teamName: team.name,
         word: evaluation.rawWord,
         consumedLetters,
-        points: scoreBreakdown.total
+        points: awardedPoints
       };
       room.lastFeedback = {
         id: submission.id,
@@ -1685,8 +1759,8 @@ const server = http.createServer(async (req, res) => {
         word: evaluation.rawWord,
         consumedLetters,
         tone: "good",
-        message: `+${scoreBreakdown.total} pts`,
-        points: scoreBreakdown.total,
+        message: `+${awardedPoints} pts`,
+        points: awardedPoints,
         lettersScore: scoreBreakdown.lettersScore,
         lengthBonus: scoreBreakdown.lengthBonus,
         stealBonus: scoreBreakdown.stealBonus,
@@ -1699,24 +1773,15 @@ const server = http.createServer(async (req, res) => {
         teamId: team.id,
         teamName: team.name,
         word: evaluation.rawWord,
-        points: scoreBreakdown.total,
+        points: awardedPoints,
         definition: evaluation.definition || "",
         definitionState: evaluation.definition ? "ready" : "pending",
         acceptedAt: Date.now()
       });
       room.acceptedWords = room.acceptedWords.slice(0, 300);
 
-      if (team.score >= winningScore) {
-        room.status = "finished";
-        room.podium = room.teams
-          .slice()
-          .sort((a, b) => (Number(b.score) - Number(a.score)) || String(a.name || "").localeCompare(String(b.name || "")))
-          .slice(0, 3)
-          .map((entry) => ({
-            id: entry.id,
-            name: entry.name,
-            score: Number(entry.score) || 0
-          }));
+      if (isRaceMode && team.score >= winningScore) {
+        finishLetterRaceRoom(room);
       }
 
       room.submissions = [];

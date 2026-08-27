@@ -190,7 +190,7 @@
       align-items: stretch;
     }
     .play-info.is-race {
-      grid-template-columns: minmax(0, 1fr) minmax(88px, 110px);
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
     .play-info.is-race .rank-badge {
       display: none;
@@ -395,6 +395,7 @@
       font-size: 0.78rem;
       color: #fff;
       opacity: 0.92;
+      text-transform: none;
     }
     .race-summary-word {
       padding-top: 2px;
@@ -1161,6 +1162,9 @@
     let lastClaimOverlayId = "";
     let lastRaceFeedbackWord = "";
     let lastRaceFeedbackTone = "good";
+    let lastRenderedLettersKey = "";
+    const liveRoundSeenKey = `letter-live-seen-${code}-${classroomPlayerId || effectiveAutoName || "guest"}`;
+    let hasEnteredLiveRound = sessionStorage.getItem(liveRoundSeenKey) === "1";
     let classroomPollTimer = null;
     const letterPoints = {
       A: 1, E: 1, I: 1, O: 1, N: 1, R: 1, T: 1, L: 1, S: 1, U: 1,
@@ -1218,11 +1222,15 @@
           return;
         }
         if (activeTool !== "letter-clash" || activeToolCode !== code) {
-          returnToClassroomHub();
+          if (!player) {
+            returnToClassroomHub();
+          }
           return;
         }
       } catch (_) {
-        returnToClassroomHub();
+        if (!player) {
+          returnToClassroomHub();
+        }
         return;
       } finally {
         classroomPollTimer = setTimeout(pollClassroomRoute, 1000);
@@ -1279,6 +1287,9 @@
       }
       room = null;
       player = null;
+      lastRenderedLettersKey = "";
+      hasEnteredLiveRound = false;
+      sessionStorage.removeItem(liveRoundSeenKey);
       waitingView.classList.add("hidden");
       playView.classList.add("hidden");
       joinView.classList.remove("hidden");
@@ -1712,11 +1723,22 @@
       const visibleLetters = isRaceMode
         ? (Array.isArray(ownTeam?.raceLetters) ? ownTeam.raceLetters : [])
         : (Array.isArray(room.letters) ? room.letters : []);
+      if (room.status === "waiting") {
+        hasEnteredLiveRound = false;
+        sessionStorage.removeItem(liveRoundSeenKey);
+        lastRenderedLettersKey = "";
+        letters.innerHTML = "";
+      }
       const hasPlayableLetters = visibleLetters.length > 0 && !finished;
-      const showPlay = live && hasPlayableLetters;
+      const hasRenderedLetters = letters.children.length > 0;
+      const showPlay = !finished && ((live && hasPlayableLetters) || (hasEnteredLiveRound && (live || hasRenderedLetters)));
+      if (showPlay) {
+        hasEnteredLiveRound = true;
+        sessionStorage.setItem(liveRoundSeenKey, "1");
+      }
       document.body.classList.toggle("is-letter-live", showPlay && !finished);
       playInfo.classList.toggle("is-race", isRaceMode && showPlay);
-      waitingView.classList.toggle("hidden", showPlay);
+      waitingView.classList.toggle("hidden", showPlay || hasEnteredLiveRound);
       playView.classList.toggle("hidden", !showPlay);
       if (finished) {
         mobilePodium.classList.remove("hidden");
@@ -1736,18 +1758,24 @@
         waitingView.querySelector(".waiting-copy h1").textContent = "Waiting";
         waitingView.querySelector(".waiting-copy p").textContent = "Stay ready. The teacher will start the game.";
       }
-      letters.innerHTML = "";
-      visibleLetters.forEach((item) => {
-        const el = document.createElement("div");
-        el.className = "letter";
-        el.dataset.color = String(colors[letters.children.length % colors.length]);
-        el.style.setProperty("--tilt", `${letters.children.length % 2 === 0 ? -2 : 2}deg`);
-        el.innerHTML = `
-          <div class="letter-score">${letterPoints[item] || 0}</div>
-          <div class="letter-glyph">${item}</div>
-        `;
-        letters.appendChild(el);
-      });
+      const lettersKey = `${room.gameMode || "classic"}:${visibleLetters.join("|")}`;
+      if (lettersKey !== lastRenderedLettersKey) {
+        lastRenderedLettersKey = lettersKey;
+        if (visibleLetters.length || !hasEnteredLiveRound) {
+          letters.innerHTML = "";
+          visibleLetters.forEach((item) => {
+            const el = document.createElement("div");
+            el.className = "letter";
+            el.dataset.color = String(colors[letters.children.length % colors.length]);
+            el.style.setProperty("--tilt", `${letters.children.length % 2 === 0 ? -2 : 2}deg`);
+            el.innerHTML = `
+              <div class="letter-score">${letterPoints[item] || 0}</div>
+              <div class="letter-glyph">${item}</div>
+            `;
+            letters.appendChild(el);
+          });
+        }
+      }
       if (showPlay && room.lastFeedback && room.lastFeedback.teamId === player?.teamId) {
         showFeedbackToast(room.lastFeedback);
       }
@@ -1835,8 +1863,11 @@
       const data = await api("/api/live/join", { code, teamName: teamName.value, reconnect, classroomPlayerId });
       player = data.player;
       room = data.room;
+      lastSeenSuccessId = room?.lastSuccess?.id || "";
+      lastSeenFeedbackId = room?.lastFeedback?.id || "";
+      lastClaimOverlayId = "";
+      lastRenderedLettersKey = "";
       joinView.classList.add("hidden");
-      waitingView.classList.remove("hidden");
       render();
       connectRoomSocket();
       if (!roomSocketActive) {

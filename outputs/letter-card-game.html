@@ -268,6 +268,14 @@
         grid-row: 1 / 3;
       }
 
+    .mode-toggle strong {
+        visibility: hidden;
+      }
+
+    body.is-ui-ready .mode-toggle strong {
+        visibility: visible;
+      }
+
     .playfield {
         display: grid;
         grid-template-rows: 1fr;
@@ -1808,6 +1816,7 @@
     let raceFeedTimer = null;
     let lastRaceFeedKey = "";
     let raceFeedSelectedId = "";
+    let raceFeedSeenIds = [];
     let teams = liveEnabled
       ? []
       : [
@@ -2916,6 +2925,13 @@
       }
     }
 
+    function maintainBackgroundLoop() {
+      if (!liveRoom || liveRoom.status !== "live" || isGameFinished()) {
+        return;
+      }
+      startBackgroundLoop(false);
+    }
+
     function stopMusic() {
       stopBackgroundLoop(true);
     }
@@ -3001,6 +3017,10 @@
       activeLetters = [];
       fillLettersToTarget();
       lastRenderedLettersKey = "";
+      lastRaceFeedKey = "";
+      raceFeedSelectedId = "";
+      raceFeedSeenIds = [];
+      stopRaceFeedRotation();
       matchFinished = false;
       successHistory = [];
       renderReport();
@@ -3080,9 +3100,17 @@
     window.addEventListener("keydown", requestWakeLock);
 
     function getRaceFeedEntries() {
-      return (Array.isArray(liveRoom?.acceptedWords) ? liveRoom.acceptedWords : [])
-        .filter((entry) => entry && entry.word)
-        .slice(0, 24);
+      const seenWords = new Set();
+      const entries = [];
+      (Array.isArray(liveRoom?.acceptedWords) ? liveRoom.acceptedWords : []).forEach((entry) => {
+        const wordKey = String(entry?.word || "").trim().toLowerCase();
+        if (!wordKey || seenWords.has(wordKey)) {
+          return;
+        }
+        seenWords.add(wordKey);
+        entries.push(entry);
+      });
+      return entries.slice(0, 80);
     }
 
     function stopRaceFeedRotation() {
@@ -3092,11 +3120,28 @@
       }
     }
 
-    function scheduleRaceFeedRotation(entries) {
-      stopRaceFeedRotation();
+    function scheduleRaceFeedRotation() {
+      if (raceFeedTimer) return;
+      const entries = getRaceFeedEntries();
       if (getGameMode() !== "race" || entries.length <= 1) return;
       raceFeedTimer = setTimeout(() => {
-        raceFeedIndex = (raceFeedIndex + 1) % entries.length;
+        raceFeedTimer = null;
+        const currentEntries = getRaceFeedEntries();
+        if (getGameMode() !== "race" || currentEntries.length <= 1) return;
+        const currentIds = currentEntries.map((entry) => entry.id).filter(Boolean);
+        const currentIdSet = new Set(currentIds);
+        raceFeedSeenIds = raceFeedSeenIds.filter((id) => currentIdSet.has(id));
+        if (raceFeedSelectedId && !raceFeedSeenIds.includes(raceFeedSelectedId) && currentIdSet.has(raceFeedSelectedId)) {
+          raceFeedSeenIds.push(raceFeedSelectedId);
+        }
+        let candidates = currentEntries.filter((entry) => entry.id !== raceFeedSelectedId && !raceFeedSeenIds.includes(entry.id));
+        if (!candidates.length) {
+          raceFeedSeenIds = raceFeedSelectedId && currentIdSet.has(raceFeedSelectedId) ? [raceFeedSelectedId] : [];
+          candidates = currentEntries.filter((entry) => entry.id !== raceFeedSelectedId);
+        }
+        const nextId = candidates[Math.floor(Math.random() * candidates.length)]?.id || currentIds[0];
+        const nextIndex = currentEntries.findIndex((entry) => entry.id === nextId);
+        raceFeedIndex = nextIndex === -1 ? 0 : nextIndex;
         lastRenderedLettersKey = "";
         renderCards();
       }, 8500);
@@ -3107,16 +3152,18 @@
       const feedKey = entries.map((entry) => `${entry.id}:${entry.definitionState}`).join("|");
       if (feedKey !== lastRaceFeedKey) {
         lastRaceFeedKey = feedKey;
+        const validIds = new Set(entries.map((entry) => entry.id));
+        raceFeedSeenIds = raceFeedSeenIds.filter((id) => validIds.has(id));
         const currentIndex = entries.findIndex((entry) => entry.id === raceFeedSelectedId);
         raceFeedIndex = currentIndex === -1 ? Math.min(raceFeedIndex, Math.max(entries.length - 1, 0)) : currentIndex;
       }
       const selected = entries.length ? entries[raceFeedIndex % entries.length] : null;
       raceFeedSelectedId = selected?.id || "";
       const renderKey = selected
-        ? `race:${selected.id}:${selected.definitionState}:${raceFeedIndex}`
+        ? `race:${selected.id}:${selected.definitionState}`
         : "race:empty";
       if (renderKey === lastRenderedLettersKey) {
-        scheduleRaceFeedRotation(entries);
+        scheduleRaceFeedRotation();
         return;
       }
       lastRenderedLettersKey = renderKey;
@@ -3145,7 +3192,7 @@
           </div>
         </div>
       `;
-      scheduleRaceFeedRotation(entries);
+      scheduleRaceFeedRotation();
     }
 
     function renderCards() {
@@ -3291,6 +3338,7 @@
       renderQrPeople();
       renderInfoPanel();
       updatePodiumVisibility();
+      maintainBackgroundLoop();
       appShell?.classList.toggle("is-race", getGameMode() === "race");
       soundBtn.classList.toggle("is-on", musicEnabled);
       sfxBtn.classList.toggle("is-on", sfxEnabled);
@@ -3298,6 +3346,7 @@
       infoHeadlineEl.closest(".info-panel")?.classList.toggle("hidden", getGameMode() === "race");
       modeToggleText.textContent = getGameMode() === "race" ? "Race" : "Classic";
       modeToggleBtn.classList.toggle("is-on", getGameMode() === "race");
+      document.body.classList.add("is-ui-ready");
       qrLiveBtn.classList.toggle("is-on", liveRoom?.status === "live");
       if (sideQrToggleBtn) sideQrToggleBtn.setAttribute("aria-expanded", String(sideQrVisible));
       if (sideQrToggleBtn) sideQrToggleBtn.textContent = sideQrVisible ? "Hide QR" : "Open QR";
