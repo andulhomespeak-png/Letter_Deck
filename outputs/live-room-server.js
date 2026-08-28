@@ -1043,6 +1043,7 @@ function serializeUnoRoom(room, options = {}) {
   const players = (room.players || []).map((player) => ({
     id: Number(player.id || 0),
     name: player.name || "",
+    seatNumber: Number(player.seatNumber || 0) || undefined,
     classroomPlayerId: Number(player.classroomPlayerId || 0) || undefined,
     cardCount: ensureUnoHand(room, player.id).length,
     isCurrent: Number(player.id || 0) === currentPlayerId
@@ -1080,6 +1081,10 @@ function startUnoGame(room) {
   if ((room.players || []).length < 2) {
     throw new Error("Add at least two players before starting.");
   }
+  room.players = shuffleList(room.players || []).map((player, index) => ({
+    ...player,
+    seatNumber: index + 1
+  }));
   room.handsByPlayerId = {};
   room.discardPile = [];
   room.drawPile = shuffleList(createUnoDeck());

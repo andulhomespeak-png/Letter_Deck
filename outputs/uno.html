@@ -32,6 +32,8 @@
     .table > .pile { position:absolute; top:56%; left:clamp(18px,5vw,74px); z-index:3; transform:translateY(-50%); }
     .play-area { position:absolute; inset:76px 0 0; min-height:0; }
     .played-card { position:absolute; top:42%; left:59%; transform:translate(calc(-50% + var(--x)),calc(-50% + var(--y))) rotate(var(--r)); transition:transform 220ms ease, opacity 180ms ease; }
+    .chosen-color { position:absolute; top:-32px; left:50%; z-index:4; transform:translateX(-50%); padding:6px 10px; border:2px solid rgba(255,255,255,.94); border-radius:999px; color:#fff; box-shadow:0 8px 16px rgba(0,0,0,.2); font-size:.68rem; font-weight:1000; letter-spacing:.08em; line-height:1; text-transform:uppercase; white-space:nowrap; }
+    .chosen-color.color-red { background:#d91f23; } .chosen-color.color-yellow { color:#402600; background:#ffd126; } .chosen-color.color-green { background:#149651; } .chosen-color.color-blue { background:#126ee8; }
     .played-card .uno-card { width:clamp(168px,21vw,252px); }
     .turn-banner { position:absolute; top:26px; left:50%; z-index:6; transform:translateX(-50%); padding:10px 18px; border-radius:999px; color:#fff; background:rgba(16,11,47,.76); box-shadow:0 8px 16px rgba(0,0,0,.2); font-size:.82rem; font-weight:1000; letter-spacing:.08em; text-transform:uppercase; white-space:nowrap; }
     .side { padding:16px; display:grid; grid-template-rows:auto minmax(0,1fr); gap:13px; overflow:hidden; }
@@ -72,11 +74,12 @@
     function colorClass(color) { return `color-${color || "wild"}`; }
     function cardAsset(card) { if (!card) return ""; const color = ({ red:"rojo", yellow:"amarillo", green:"verde", blue:"azul" })[card.color]; const serial = Number(String(card.id || "").split("-").pop()) || 1; if (!color) return `./assets/uno/${card.value === "wild-draw-four" ? "comodin_mas4" : "comodin"}_${((serial - 1) % 4) + 1}.svg`; if (card.type === "number") return `./assets/uno/${color}_${card.value}${Number(card.value) === 0 || serial % 2 ? "" : "_B"}.svg`; const action = ({ skip:"salta", reverse:"reversa", "draw-two":"mas2" })[card.value]; return `./assets/uno/${color}_${action}_${serial % 2 ? "A" : "B"}.svg`; }
     function cardMarkup(card, compact = false) { return card ? `<div class="uno-card ${compact ? "mini" : ""}" title="${escapeHtml(card.label)}"><img src="${cardAsset(card)}" alt="${escapeHtml(card.label)}"></div>` : ""; }
+    function chosenColorMarkup(card, index, cards) { if (index !== cards.length - 1 || card?.type !== "wild") return ""; const color = String(room?.currentColor || "").toLowerCase(); const label = ({ red:"Red", yellow:"Yellow", green:"Green", blue:"Blue" })[color]; return label ? `<span class="chosen-color color-${color}">${label}</span>` : ""; }
     function renderPlayedCards(cards) {
       const offsets = [[-44,20,-9], [31,-19,7], [-13,8,-4], [52,25,10], [-58,-15,-12], [10,-29,5], [-28,35,-7], [46,-4,11], [-4,0,-2], [22,17,6], [-18,-8,-5], [0,0,3]];
       playedCardsEl.innerHTML = cards.map((card, index) => {
         const [x, y, rotation] = offsets[index] || [0, 0, 0];
-        return `<div class="played-card" style="--x:${x}px;--y:${y}px;--r:${rotation}deg;z-index:${index + 1}">${cardMarkup(card)}</div>`;
+        return `<div class="played-card" style="--x:${x}px;--y:${y}px;--r:${rotation}deg;z-index:${index + 1}">${chosenColorMarkup(card, index, cards)}${cardMarkup(card)}</div>`;
       }).join("");
     }
     function setBusy(busy) { isBusy = !!busy; render(); } function setMessage() {}
