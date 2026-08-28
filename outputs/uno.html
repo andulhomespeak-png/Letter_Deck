@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Friendzy UNO</title>
+  <link rel="icon" type="image/png" href="./letter-clash-favicon.png">
+  <style>
+    :root { --ink:#100b2f; --muted:rgba(16,11,47,.64); --line:rgba(16,11,47,.12); --panel:rgba(255,255,255,.9); --red:#ff3b30; --yellow:#ffbf00; --green:#22c66f; --blue:#0b82ff; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; font-family:"Trebuchet MS","Segoe UI",sans-serif; color:var(--ink); background:radial-gradient(circle at 14% 14%,rgba(255,59,48,.28),transparent 28%),radial-gradient(circle at 82% 18%,rgba(11,130,255,.28),transparent 30%),radial-gradient(circle at 50% 90%,rgba(34,198,111,.22),transparent 34%),linear-gradient(135deg,#fff6d6 0%,#eef8ff 46%,#ffe3df 100%); }
+    .app { min-height:100vh; padding:clamp(10px,1.8vw,18px); display:grid; grid-template-columns:minmax(0,1fr) minmax(290px,360px); gap:clamp(9px,1.4vw,16px); }
+    .main,.side { min-height:0; border:1px solid rgba(255,255,255,.76); border-radius:clamp(25px,3vw,34px); background:var(--panel); box-shadow:0 26px 78px rgba(16,11,47,.16); backdrop-filter:blur(18px); }
+    .main { padding:clamp(12px,1.7vw,22px); display:grid; grid-template-rows:auto minmax(0,1fr); gap:clamp(10px,1.5vw,16px); overflow:hidden; }
+    .topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .brand { min-width:0; display:flex; align-items:center; gap:13px; }
+    .brand-mark { width:54px; height:54px; flex:0 0 auto; border-radius:18px; display:grid; place-items:center; color:#fff; font-size:1.38rem; font-weight:1000; font-style:italic; letter-spacing:-.13em; transform:rotate(-7deg); background:linear-gradient(135deg,#ff3c32 0 47%,#ffc400 47% 58%,#1cbf68 58% 69%,#087eff 69%); border:3px solid #fff; box-shadow:0 10px 18px rgba(16,11,47,.18); }
+    .brand p,.brand h1,.status p,.message,.empty,.side-head p { margin:0; }
+    .actions { display:flex; align-items:center; justify-content:end; gap:8px; flex-wrap:wrap; }
+    button { min-height:44px; padding:0 15px; border:0; border-radius:999px; color:var(--ink); background:rgba(255,255,255,.95); box-shadow:0 12px 26px rgba(16,11,47,.12); font:inherit; font-weight:1000; cursor:pointer; transition:transform 120ms ease,opacity 120ms ease; }
+    button:hover { transform:translateY(-2px); } button:active { transform:translateY(1px); } button:disabled { opacity:.45; cursor:not-allowed; transform:none; }
+    .primary { color:#fff; background:linear-gradient(135deg,var(--green),#039b52); } .danger { color:#fff; background:linear-gradient(135deg,#ff2f45,#a8001a); }
+    .stage { min-height:0; }
+    .table { position:relative; height:100%; min-height:0; padding:clamp(14px,2vw,24px); border:1px dashed rgba(16,11,47,.14); border-radius:32px; background:radial-gradient(ellipse at 50% 45%,rgba(11,130,255,.2),transparent 46%),radial-gradient(ellipse at 50% 50%,#2fa467,#126941 0 42%,#0f5337 80%); overflow:hidden; }
+    .pile { display:grid; justify-items:center; align-content:center; gap:10px; color:#fff; text-align:center; font-weight:1000; text-shadow:0 2px 0 rgba(0,0,0,.24); }
+    .pile-title { margin:0; font-size:.76rem; text-transform:uppercase; letter-spacing:.14em; } .pile-count { font-size:.88rem; }
+    .uno-card { position:relative; width:clamp(92px,12vw,142px); aspect-ratio:2 / 3; overflow:hidden; border-radius:12%; background:#fff; border:3px solid #fff; box-shadow:0 16px 28px rgba(0,0,0,.34); isolation:isolate; }
+    .uno-card::after { content:""; position:absolute; inset:0; z-index:2; border-radius:inherit; box-shadow:inset 0 0 0 1px rgba(16,11,47,.28),inset 0 -5px 8px rgba(16,11,47,.14); pointer-events:none; }
+    .uno-card img { display:block; width:100%; height:100%; object-fit:cover; transform:scale(1.035); transform-origin:center; }
+    .card-back { display:grid; place-items:center; background:radial-gradient(ellipse at center,rgba(255,255,255,.16),transparent 38%),linear-gradient(135deg,#ff2c31 0 45%,#ffd300 45% 55%,#1fbd68 55% 65%,#087eff 65%); color:#fff; font-weight:1000; font-style:italic; letter-spacing:-.08em; font-size:clamp(1.25rem,2.5vw,2rem); transform:rotate(-4deg); }
+    .discard { transform:rotate(4deg); } .draw { transform:rotate(-4deg); }
+    .table > .pile { position:absolute; top:56%; left:clamp(18px,5vw,74px); z-index:3; transform:translateY(-50%); }
+    .play-area { position:absolute; inset:76px 0 0; min-height:0; }
+    .played-card { position:absolute; top:42%; left:59%; transform:translate(calc(-50% + var(--x)),calc(-50% + var(--y))) rotate(var(--r)); transition:transform 220ms ease, opacity 180ms ease; }
+    .played-card .uno-card { width:clamp(168px,21vw,252px); }
+    .turn-banner { position:absolute; top:26px; left:50%; z-index:6; transform:translateX(-50%); padding:10px 18px; border-radius:999px; color:#fff; background:rgba(16,11,47,.76); box-shadow:0 8px 16px rgba(0,0,0,.2); font-size:.82rem; font-weight:1000; letter-spacing:.08em; text-transform:uppercase; white-space:nowrap; }
+    .side { padding:16px; display:grid; grid-template-rows:auto minmax(0,1fr); gap:13px; overflow:hidden; }
+    .side-head { display:flex; align-items:center; justify-content:space-between; gap:10px; } .side-head h2 { margin:0; font-size:1.35rem; letter-spacing:-.04em; }
+    .players { min-height:0; overflow:auto; display:grid; align-content:start; gap:9px; padding-right:3px; } .player { padding:12px; border:1px solid var(--line); border-radius:20px; background:rgba(255,255,255,.8); } .player-row { display:flex; align-items:center; gap:9px; min-width:0; } .avatar { width:32px; height:32px; flex:0 0 auto; border-radius:12px; display:grid; place-items:center; color:#fff; background:linear-gradient(135deg,#0b82ff,#3024d8); font-size:.84rem; font-weight:1000; } .player-name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:1000; }
+    .empty { padding:14px; border:1px solid var(--line); border-radius:18px; color:var(--muted); background:rgba(255,255,255,.72); font-weight:1000; line-height:1.35; }
+    @media (max-width:1050px) { .app { grid-template-columns:1fr; } .side { min-height:300px; } .players { grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); } }
+    @media (max-width:720px) { body { overflow:auto; } .app { min-height:100dvh; height:auto; } .main { min-height:70vh; overflow:visible; } .topbar { align-items:flex-start; } .actions { justify-content:stretch; } .actions button { flex:1; } .table > .pile { top:auto; bottom:18px; left:18px; transform:none; } .play-area { inset:62px 0 0; } .played-card .uno-card { width:clamp(132px,42vw,190px); } }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="main">
+      <header class="topbar">
+        <div class="brand"><div class="brand-mark">UNO</div></div>
+        <div class="actions"><button class="primary" id="startBtn" type="button">Start</button><button class="danger" id="clearRoomBtn" type="button">Clear</button><button id="homeBtn" type="button">Home</button></div>
+      </header>
+      <section class="stage">
+        <section class="table" aria-label="UNO table">
+          <div class="turn-banner" id="turnBanner" hidden></div>
+          <article class="pile"><div class="uno-card card-back draw">UNO</div><span class="pile-count" id="drawPileCount" hidden>0 cards</span></article>
+          <section class="play-area" id="playedCards" aria-label="Played UNO cards"></section>
+          <span class="pile-count" id="discardCount" hidden>0 cards</span>
+        </section>
+      </section>
+    </section>
+    <aside class="side" aria-label="Friendzy players">
+      <div class="side-head"><h2>Players <span id="playerCount">0</span></h2></div>
+      <section class="players" id="bench"></section>
+    </aside>
+  </main>
+  <script>
+    const roomStorageKey = "uno-room-code";
+    const classroomStorageKey = "friendzy-classroom-code";
+    const playerCountEl = document.getElementById("playerCount"), drawPileCountEl = document.getElementById("drawPileCount"), discardCountEl = document.getElementById("discardCount"), playedCardsEl = document.getElementById("playedCards"), turnBannerEl = document.getElementById("turnBanner"), benchEl = document.getElementById("bench"), startBtn = document.getElementById("startBtn"), clearRoomBtn = document.getElementById("clearRoomBtn");
+    let room = null, friendzyPlayers = [], pollTimer = null, isBusy = false;
+    function escapeHtml(value) { return String(value || "").replace(/[&<>'"]/g, (character) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", "'":"&#39;", '"':"&quot;" })[character]); }
+    function colorClass(color) { return `color-${color || "wild"}`; }
+    function cardAsset(card) { if (!card) return ""; const color = ({ red:"rojo", yellow:"amarillo", green:"verde", blue:"azul" })[card.color]; const serial = Number(String(card.id || "").split("-").pop()) || 1; if (!color) return `./assets/uno/${card.value === "wild-draw-four" ? "comodin_mas4" : "comodin"}_${((serial - 1) % 4) + 1}.svg`; if (card.type === "number") return `./assets/uno/${color}_${card.value}${Number(card.value) === 0 || serial % 2 ? "" : "_B"}.svg`; const action = ({ skip:"salta", reverse:"reversa", "draw-two":"mas2" })[card.value]; return `./assets/uno/${color}_${action}_${serial % 2 ? "A" : "B"}.svg`; }
+    function cardMarkup(card, compact = false) { return card ? `<div class="uno-card ${compact ? "mini" : ""}" title="${escapeHtml(card.label)}"><img src="${cardAsset(card)}" alt="${escapeHtml(card.label)}"></div>` : ""; }
+    function renderPlayedCards(cards) {
+      const offsets = [[-44,20,-9], [31,-19,7], [-13,8,-4], [52,25,10], [-58,-15,-12], [10,-29,5], [-28,35,-7], [46,-4,11], [-4,0,-2], [22,17,6], [-18,-8,-5], [0,0,3]];
+      playedCardsEl.innerHTML = cards.map((card, index) => {
+        const [x, y, rotation] = offsets[index] || [0, 0, 0];
+        return `<div class="played-card" style="--x:${x}px;--y:${y}px;--r:${rotation}deg;z-index:${index + 1}">${cardMarkup(card)}</div>`;
+      }).join("");
+    }
+    function setBusy(busy) { isBusy = !!busy; render(); } function setMessage() {}
+    async function api(path, payload = null, method = "POST") { const response = await fetch(path, { method, headers: payload ? { "Content-Type":"application/json" } : undefined, body: payload ? JSON.stringify(payload) : undefined }); const data = await response.json(); if (!response.ok) throw new Error(data.error || "Request failed"); return data; }
+    async function createRoom() { const oldCode = localStorage.getItem(roomStorageKey), data = await api("/api/uno/create-room"); room = data.room; localStorage.setItem(roomStorageKey, room.code); if (oldCode && oldCode !== room.code) api("/api/uno/delete-room", { code:oldCode }).catch(() => {}); render(); }
+    async function ensureRoom() { const savedCode = localStorage.getItem(roomStorageKey); if (savedCode) { try { room = (await api(`/api/uno/room?code=${encodeURIComponent(savedCode)}&viewer=teacher`, null, "GET")).room; render(); return; } catch (_) { localStorage.removeItem(roomStorageKey); } } await createRoom(); }
+    async function loadFriendzyPlayers() { const classroomCode = localStorage.getItem(classroomStorageKey); if (!classroomCode) { friendzyPlayers = []; render(); return; } try { friendzyPlayers = (await api(`/api/classroom/room?code=${encodeURIComponent(classroomCode)}`, null, "GET")).room?.players || []; render(); } catch (_) { friendzyPlayers = []; render(); } }
+    async function pollRoom() { if (!room?.code) return; try { room = (await api(`/api/uno/room?code=${encodeURIComponent(room.code)}&viewer=teacher`, null, "GET")).room; render(); } finally { pollTimer = setTimeout(pollRoom, 1000); } }
+    function render() {
+      const unoPlayers = room?.players || []; playerCountEl.textContent = String(friendzyPlayers.length || unoPlayers.length); drawPileCountEl.textContent = `${room?.drawPileCount || 0} cards`; discardCountEl.textContent = `${room?.discardCount || 0} cards`; renderPlayedCards(room?.discardTrail || (room?.topCard ? [room.topCard] : [])); turnBannerEl.hidden = !room?.currentPlayerName || room?.status !== "live"; turnBannerEl.textContent = room?.currentPlayerName ? `${room.currentPlayerName}'s turn` : ""; startBtn.disabled = isBusy || !room || room.status === "live" || (friendzyPlayers.length ? friendzyPlayers.length < 2 : unoPlayers.length < 2); clearRoomBtn.disabled = isBusy || !room;
+      const unoByClassroomId = new Map(unoPlayers.map((player) => [Number(player.classroomPlayerId || player.id), player])); const displayPlayers = friendzyPlayers.length ? friendzyPlayers : unoPlayers;
+      benchEl.innerHTML = displayPlayers.length ? displayPlayers.map((player) => `<article class="player"><div class="player-row"><span class="avatar">${escapeHtml(String(player.name || "?").trim().slice(0,1).toUpperCase())}</span><strong class="player-name">${escapeHtml(player.name)}</strong></div></article>`).join("") : '<div class="empty">Open Friendzy to connect players.</div>';
+    }
+    startBtn.addEventListener("click", async () => { if (!room?.code) return; setBusy(true); try { const classroomCode = localStorage.getItem(classroomStorageKey); if (classroomCode) room = (await api("/api/uno/import-classroom", { code:room.code, classroomCode })).room; room = (await api("/api/uno/start", { code:room.code })).room; } catch (error) { setMessage(error.message || "Could not start UNO."); } finally { setBusy(false); } });
+    clearRoomBtn.addEventListener("click", async () => { if (!room?.code) return; setBusy(true); try { room = (await api("/api/uno/reset", { code:room.code, clearPlayers:false })).room; } catch (error) { setMessage(error.message || "Could not clear the table."); } finally { setBusy(false); } });
+    document.getElementById("homeBtn").addEventListener("click", () => { window.location.href = "/"; });
+    benchEl.addEventListener("click", async (event) => { const button = event.target.closest("[data-remove]"); if (!button || !room?.code) return; button.disabled = true; try { room = (await api("/api/uno/remove-player", { code:room.code, playerId:Number(button.dataset.remove) })).room; render(); } catch (error) { setMessage(error.message || "Could not remove player."); } });
+    window.addEventListener("friendzy:players-updated", (event) => { friendzyPlayers = event.detail?.room?.players || []; render(); });
+    window.addEventListener("load", async () => { await ensureRoom(); await loadFriendzyPlayers(); render(); pollRoom(); });
+  </script>
+  <script src="./friendzy-panel.js"></script>
+</body>
+</html>

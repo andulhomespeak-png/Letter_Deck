@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Friendzy UNO</title>
+  <link rel="icon" type="image/png" href="./letter-clash-favicon.png">
+  <style>
+    :root { --ink:#100b2f; --line:rgba(16,11,47,.12); --red:#ff3b30; --green:#22c66f; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100dvh; overflow:auto; font-family:"Trebuchet MS","Segoe UI",sans-serif; color:var(--ink); background:#f6edce; }
+    .card { width:100%; min-height:100dvh; height:100dvh; display:grid; grid-template-rows:minmax(0,1fr) minmax(0,1fr); overflow:hidden; }
+    .table-zone { position:relative; min-height:0; padding:max(16px,env(safe-area-inset-top)) 16px 16px; background:radial-gradient(ellipse at 50% 45%,rgba(11,130,255,.18),transparent 52%),radial-gradient(ellipse at 50% 50%,#30a56a,#126941 0 48%,#0d5035 88%); border-bottom:5px solid rgba(255,255,255,.8); }
+    .turn-status { position:absolute; top:max(12px,env(safe-area-inset-top)); left:50%; z-index:5; transform:translateX(-50%); min-width:120px; padding:8px 13px; border-radius:999px; color:#fff; background:rgba(16,11,47,.72); box-shadow:0 6px 12px rgba(0,0,0,.2); font-size:.72rem; font-weight:1000; letter-spacing:.08em; text-align:center; text-transform:uppercase; white-space:nowrap; }
+    .table { position:relative; width:100%; height:100%; }
+    .draw-card { position:absolute; left:clamp(8px,5vw,32px); top:58%; z-index:3; width:clamp(72px,23vw,112px); aspect-ratio:2 / 3; padding:0; overflow:hidden; border:3px solid #fff; border-radius:12%; color:#fff; background:radial-gradient(ellipse at center,rgba(255,255,255,.16),transparent 38%),linear-gradient(135deg,#ff2c31 0 45%,#ffd300 45% 55%,#1fbd68 55% 65%,#087eff 65%); box-shadow:0 14px 24px rgba(0,0,0,.35); font:inherit; font-size:clamp(1rem,5vw,1.5rem); font-weight:1000; font-style:italic; letter-spacing:-.08em; transform:translateY(-50%) rotate(-5deg); cursor:pointer; }
+    .draw-card:disabled { opacity:.48; cursor:not-allowed; }
+    .play-area { position:absolute; inset:42px 0 0; }
+    .played-card { position:absolute; top:38%; left:69%; transform:translate(calc(-50% + var(--x)),calc(-50% + var(--y))) rotate(var(--r)); transition:transform 220ms ease; }
+    .uno-card { position:relative; width:clamp(108px,34vw,160px); aspect-ratio:2 / 3; overflow:hidden; border:3px solid #fff; border-radius:12%; background:#fff; box-shadow:0 15px 25px rgba(0,0,0,.34); }
+    .uno-card::after { content:""; position:absolute; inset:0; border-radius:inherit; box-shadow:inset 0 0 0 1px rgba(16,11,47,.28),inset 0 -5px 8px rgba(16,11,47,.14); pointer-events:none; }
+    .uno-card img { display:block; width:100%; height:100%; object-fit:cover; transform:scale(1.035); }
+    .hand-zone { min-width:0; min-height:0; overflow:hidden; padding:12px 12px max(12px,env(safe-area-inset-bottom)); background:linear-gradient(135deg,#fff7d8,#eef8ff); box-shadow:inset 0 8px 20px rgba(16,11,47,.06); }
+    .hand { width:100%; min-width:0; height:100%; min-height:0; overflow-x:scroll; overflow-y:hidden; display:flex; align-items:center; gap:11px; padding:8px 10px; scroll-snap-type:x proximity; overscroll-behavior-x:contain; -webkit-overflow-scrolling:touch; touch-action:pan-x; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
+    .play-card { position:relative; flex:0 0 clamp(104px,31vw,142px); aspect-ratio:2 / 3; min-width:0; padding:0; overflow:hidden; border:3px solid transparent; border-radius:12%; background:#fff; box-shadow:0 7px 14px rgba(16,11,47,.18); cursor:pointer; scroll-snap-align:center; transition:transform 120ms ease,opacity 120ms ease; touch-action:pan-x; }
+    .play-card img { display:block; width:100%; height:100%; object-fit:cover; transform:scale(1.035); }
+    .play-card:active { transform:translateY(2px) scale(.98); } .play-card:disabled { opacity:.38; cursor:not-allowed; transform:none; } .play-card.is-playable { border-color:#fff; outline:3px solid var(--green); outline-offset:1px; }
+    .play-card.is-armed { border-color:#fff; outline:4px solid #ffc400; outline-offset:2px; transform:translateY(-5px); }
+    .draw-card.is-armed { outline:4px solid #ffc400; outline-offset:3px; }
+    .incoming-cards { position:absolute; inset:48px 0 0; z-index:7; display:grid; place-items:center; pointer-events:none; }
+    .incoming-stack { display:flex; align-items:center; justify-content:center; }
+    .incoming-card { margin-left:calc(var(--card-index) * -30px); animation:reveal-card 1.5s cubic-bezier(.18,.78,.22,1.05) var(--reveal-delay) both; }
+    .incoming-card:first-child { margin-left:0; }
+    .incoming-card .uno-card { width:clamp(122px,38vw,176px); }
+    .incoming-cards.is-penalty { position:fixed; inset:0; z-index:30; align-content:center; background:rgba(16,11,47,.4); backdrop-filter:blur(8px); pointer-events:auto; cursor:pointer; }
+    .incoming-cards.is-penalty .incoming-stack { max-width:90vw; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .incoming-cards.is-penalty .incoming-card { margin:0; }
+    .incoming-cards.is-penalty .incoming-card .uno-card { width:clamp(112px,34vw,166px); }
+    .incoming-cards.is-single-draw .incoming-stack { grid-template-columns:1fr; }
+    .incoming-cards.is-single-draw .incoming-card { display:grid; justify-items:center; }
+    .incoming-cards.is-single-draw .incoming-card .uno-card { width:clamp(152px,47vw,214px); }
+    .incoming-cards.is-penalty .incoming-card { animation:penalty-reveal 480ms cubic-bezier(.18,.78,.22,1.05) var(--reveal-delay) both; }
+    @keyframes reveal-card { 0% { opacity:0; transform:translateY(-52px) scale(.72) rotate(-10deg); } 22% { opacity:1; transform:translateY(0) scale(1.06) rotate(2deg); } 72% { opacity:1; transform:translateY(0) scale(1) rotate(0); } 100% { opacity:0; transform:translateY(14px) scale(.94) rotate(0); } }
+    @keyframes penalty-reveal { from { opacity:0; transform:translateY(-32px) scale(.82) rotate(-4deg); } to { opacity:1; transform:translateY(0) scale(1) rotate(0); } }
+    .wild-panel { position:fixed; inset:0; z-index:10; display:grid; place-items:center; padding:24px; background:rgba(16,11,47,.46); backdrop-filter:blur(5px); }
+    .wild-panel > div { width:min(100%,360px); padding:20px; border:1px solid rgba(255,255,255,.74); border-radius:28px; background:#fffaf0; box-shadow:0 28px 80px rgba(16,11,47,.28); }
+    .wild-chooser { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+    .wild-chooser button { min-height:74px; border:3px solid #fff; border-radius:20px; color:#fff; font:inherit; font-weight:1000; cursor:pointer; box-shadow:0 10px 18px rgba(16,11,47,.16); }
+    .color-red { background:linear-gradient(135deg,#ff564a,#c91510); } .color-yellow { color:#402600 !important; background:linear-gradient(135deg,#ffd74a,#e28a00); } .color-green { background:linear-gradient(135deg,#44dd86,#0d8d43); } .color-blue { background:linear-gradient(135deg,#2aa0ff,#1550db); }
+    .message { position:absolute; width:1px; height:1px; padding:0; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+    .hidden { display:none !important; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <section class="table-zone" id="tableZone">
+      <div class="turn-status" id="status">Connecting</div>
+      <section class="table" aria-label="UNO table">
+        <button class="draw-card" id="drawBtn" type="button" aria-label="Draw one card">UNO</button>
+        <section class="play-area" id="playedCards" aria-label="Played cards"></section>
+        <section class="incoming-cards hidden" id="incomingCards" aria-label="New cards"><div class="incoming-stack" id="incomingStack"></div></section>
+      </section>
+    </section>
+    <section class="hand-zone"><section class="hand" id="hand" aria-label="Your cards"></section></section>
+  </main>
+  <div class="wild-panel hidden" id="wildPanel"><div><section class="wild-chooser"><button class="color-red" data-color="red" type="button">Red</button><button class="color-yellow" data-color="yellow" type="button">Yellow</button><button class="color-green" data-color="green" type="button">Green</button><button class="color-blue" data-color="blue" type="button">Blue</button></section></div></div>
+  <div class="message" id="message" aria-live="polite"></div>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const code = String(params.get("code") || "").toUpperCase(); const autoName = String(params.get("name") || "").trim(); const classroomCode = String(params.get("classroom") || "").toUpperCase(); const classroomPlayerId = Number(params.get("classroomPlayerId") || 0); const shouldAutoJoin = params.get("auto") === "1";
+    const playerKey = `uno-player-${code}`, nameKey = `uno-name-${code}`;
+    const statusEl = document.getElementById("status"), handEl = document.getElementById("hand"), drawBtn = document.getElementById("drawBtn"), messageEl = document.getElementById("message"), wildPanel = document.getElementById("wildPanel"), playedCardsEl = document.getElementById("playedCards"), incomingCardsEl = document.getElementById("incomingCards"), incomingStackEl = document.getElementById("incomingStack");
+    let room = null, playerId = Number(localStorage.getItem(playerKey) || 0), playerName = localStorage.getItem(nameKey) || autoName, pollTimer = null, classroomTimer = null, pendingWildCardId = "", busy = false, armedCardId = "", armedCardTimer = null, drawArmed = false, drawTimer = null, incomingCards = [], incomingCardsTimer = null, incomingRequiresCheck = false;
+    function escapeHtml(value) { return String(value || "").replace(/[&<>'"]/g, (character) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", "'":"&#39;", '"':"&quot;" })[character]); }
+    function cardAsset(card) { if (!card) return ""; const color = ({ red:"rojo", yellow:"amarillo", green:"verde", blue:"azul" })[card.color]; const serial = Number(String(card.id || "").split("-").pop()) || 1; if (!color) return `./assets/uno/${card.value === "wild-draw-four" ? "comodin_mas4" : "comodin"}_${((serial - 1) % 4) + 1}.svg`; if (card.type === "number") return `./assets/uno/${color}_${card.value}${Number(card.value) === 0 || serial % 2 ? "" : "_B"}.svg`; const action = ({ skip:"salta", reverse:"reversa", "draw-two":"mas2" })[card.value]; return `./assets/uno/${color}_${action}_${serial % 2 ? "A" : "B"}.svg`; }
+    function cardMarkup(card) { return `<div class="uno-card"><img src="${cardAsset(card)}" alt="${escapeHtml(card.label)}"></div>`; }
+    function sortHand(cards) { const colorOrder = { red:0, yellow:1, green:2, blue:3, "":4 }; const valueOrder = { skip:10, reverse:11, "draw-two":12, wild:20, "wild-draw-four":21 }; return cards.slice().sort((a,b) => (colorOrder[a.color || ""] - colorOrder[b.color || ""]) || ((a.type === "number" ? Number(a.value) : valueOrder[a.value] || 99) - (b.type === "number" ? Number(b.value) : valueOrder[b.value] || 99)) || String(a.id).localeCompare(String(b.id))); }
+    function announceDrawnCards(cards, requiresCheck = false) { if (!cards.length) return; incomingCards = cards.slice(); incomingRequiresCheck = requiresCheck; clearTimeout(incomingCardsTimer); if (!requiresCheck) incomingCardsTimer = setTimeout(() => { incomingCards = []; render(); }, 1600 + Math.max(0, cards.length - 1) * 180); }
+    function renderIncomingCards(cards) { const signature = `${incomingRequiresCheck}|${cards.map((card) => card.id).join("|")}`; if (incomingCardsEl.dataset.signature === signature) return; incomingCardsEl.dataset.signature = signature; incomingCardsEl.classList.toggle("hidden", !cards.length); incomingCardsEl.classList.toggle("is-penalty", incomingRequiresCheck); incomingCardsEl.classList.toggle("is-single-draw", incomingRequiresCheck && cards.length === 1); incomingStackEl.innerHTML = cards.map((card, index) => `<div class="incoming-card" style="--card-index:${index};--reveal-delay:${index * 150}ms">${cardMarkup(card)}</div>`).join(""); }
+    function renderPlayedCards(cards) { const offsets = [[-22,12,-8], [20,-13,7], [-7,5,-4], [29,13,9], [-30,-9,-11], [5,-17,5], [-14,21,-7], [24,-3,9], [-3,0,-2], [12,9,5], [-10,-5,-4], [0,0,2]]; playedCardsEl.innerHTML = cards.map((card, index) => { const [x,y,r] = offsets[index] || [0,0,0]; return `<div class="played-card" style="--x:${x}px;--y:${y}px;--r:${r}deg;z-index:${index + 1}">${cardMarkup(card)}</div>`; }).join(""); }
+    async function api(path, payload = null, method = "POST") { const response = await fetch(path, { method, headers:payload ? { "Content-Type":"application/json" } : undefined, body:payload ? JSON.stringify(payload) : undefined }); const data = await response.json(); if (!response.ok) throw new Error(data.error || "Request failed"); return data; }
+    async function joinRoom() { if (!code || !playerName) return; const data = await api("/api/uno/join", { code, name:playerName, playerId, classroomPlayerId }); playerId = Number(data.player.id || 0); playerName = data.player.name || playerName; localStorage.setItem(playerKey, String(playerId)); localStorage.setItem(nameKey, playerName); room = data.room; render(); }
+    async function fetchRoom() { if (!code) return; const previousIds = new Set((room?.hand || []).map((card) => card.id)); const nextRoom = (await api(`/api/uno/room?code=${encodeURIComponent(code)}&playerId=${encodeURIComponent(playerId)}`, null, "GET")).room; room = nextRoom; const addedCards = (nextRoom.hand || []).filter((card) => !previousIds.has(card.id)); if (previousIds.size) announceDrawnCards(addedCards, addedCards.length > 0); render(); }
+    function setBusy(nextBusy) { busy = nextBusy; drawBtn.disabled = nextBusy || !room?.isCurrentPlayer || room?.status !== "live"; handEl.querySelectorAll("button").forEach((button) => { button.disabled = nextBusy || button.dataset.playable !== "1"; }); }
+    function render() { const hand = sortHand(room?.hand || []), playable = new Set(room?.playableCardIds || []); statusEl.textContent = room?.status === "finished" ? `${room?.winner?.name || "Player"} won` : room?.isCurrentPlayer ? "Your turn" : room?.status === "live" ? `${room?.currentPlayerName || "Player"}'s turn` : "Waiting"; renderPlayedCards(room?.discardTrail || (room?.topCard ? [room.topCard] : [])); renderIncomingCards(incomingCards); handEl.innerHTML = hand.map((card) => `<button class="play-card ${playable.has(card.id) && room?.isCurrentPlayer ? "is-playable" : ""} ${armedCardId === card.id ? "is-armed" : ""}" data-card-id="${card.id}" data-playable="${playable.has(card.id) && room?.isCurrentPlayer ? "1" : "0"}" type="button" aria-label="${escapeHtml(card.label)}"><img src="${cardAsset(card)}" alt=""></button>`).join(""); drawBtn.disabled = busy || !room?.isCurrentPlayer || room?.status !== "live"; if (room?.status === "finished" || !room?.isCurrentPlayer) { pendingWildCardId = ""; wildPanel.classList.add("hidden"); } }
+    async function pollRoom() { try { if (!playerId && playerName) await joinRoom(); else await fetchRoom(); } catch (error) { messageEl.textContent = error.message || "UNO room unavailable."; } finally { pollTimer = setTimeout(pollRoom, 900); } }
+    async function pollClassroomRoute() { if (!classroomCode) return; try { const data = await api(`/api/classroom/room?code=${encodeURIComponent(classroomCode)}`, null, "GET"); if (String(data.room?.activeTool || "") !== "uno" || String(data.room?.activeToolCode || "") !== code) { window.location.replace(`./student-hub.html?code=${encodeURIComponent(classroomCode)}`); return; } } catch (_) { window.location.replace(`./student-hub.html?code=${encodeURIComponent(classroomCode)}`); return; } finally { classroomTimer = setTimeout(pollClassroomRoute, 1200); } }
+    async function playCard(cardId) { const selected = (room?.hand || []).find((card) => card.id === cardId); if (!selected || busy) return; if (selected.type === "wild") { pendingWildCardId = cardId; wildPanel.classList.remove("hidden"); return; } setBusy(true); try { room = (await api("/api/uno/play", { code, playerId, cardId })).room; render(); } catch (error) { messageEl.textContent = error.message || "Could not play that card."; } finally { setBusy(false); } }
+    function clearCardArm() { armedCardId = ""; clearTimeout(armedCardTimer); armedCardTimer = null; handEl.querySelectorAll(".is-armed").forEach((card) => card.classList.remove("is-armed")); }
+    function clearDrawArm() { drawArmed = false; clearTimeout(drawTimer); drawTimer = null; drawBtn.classList.remove("is-armed"); }
+    handEl.addEventListener("click", (event) => { const button = event.target.closest("[data-card-id]"); if (!button || button.dataset.playable !== "1" || busy) return; if (armedCardId === button.dataset.cardId) { clearCardArm(); playCard(button.dataset.cardId); return; } clearCardArm(); armedCardId = button.dataset.cardId; button.classList.add("is-armed"); armedCardTimer = setTimeout(clearCardArm, 900); });
+    incomingCardsEl.addEventListener("click", () => { if (!incomingRequiresCheck) return; incomingCards = []; incomingRequiresCheck = false; render(); });
+    wildPanel.addEventListener("click", async (event) => { const button = event.target.closest("[data-color]"); if (!button || !pendingWildCardId || busy) return; setBusy(true); try { room = (await api("/api/uno/play", { code, playerId, cardId:pendingWildCardId, chosenColor:button.dataset.color })).room; pendingWildCardId = ""; wildPanel.classList.add("hidden"); render(); } catch (error) { messageEl.textContent = error.message || "Could not play the wild card."; } finally { setBusy(false); } });
+    drawBtn.addEventListener("click", async () => { if (!room?.isCurrentPlayer || busy) return; if (!drawArmed) { drawArmed = true; drawBtn.classList.add("is-armed"); drawTimer = setTimeout(clearDrawArm, 900); return; } clearDrawArm(); const previousCards = new Set((room?.hand || []).map((card) => card.id)); setBusy(true); try { room = (await api("/api/uno/draw", { code, playerId })).room; announceDrawnCards((room.hand || []).filter((card) => !previousCards.has(card.id)), true); render(); } catch (error) { messageEl.textContent = error.message || "Could not draw a card."; } finally { setBusy(false); } });
+    window.addEventListener("load", async () => { if (shouldAutoJoin && autoName) playerName = autoName; if (playerName) { try { await joinRoom(); } catch (error) { messageEl.textContent = error.message || "Could not join the UNO table."; } } render(); pollRoom(); pollClassroomRoute(); });
+  </script>
+</body>
+</html>

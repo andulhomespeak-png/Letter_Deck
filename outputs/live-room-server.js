@@ -22,6 +22,8 @@ const QUICK_POLL_HTML = path.join(ROOT, "quick-poll.html");
 const QUICK_POLL_STUDENT_HTML = path.join(ROOT, "quick-poll-student.html");
 const BINGO_HTML = path.join(ROOT, "bingo.html");
 const BINGO_STUDENT_HTML = path.join(ROOT, "bingo-student.html");
+const UNO_HTML = path.join(ROOT, "uno.html");
+const UNO_STUDENT_HTML = path.join(ROOT, "uno-student.html");
 const STUDENT_HUB_HTML = path.join(ROOT, "student-hub.html");
 const WORDS_JS = path.join(ROOT, "english-words.js");
 const LEARNED_WORDS_JSON = path.join(ROOT, "learned-words.json");
@@ -36,6 +38,7 @@ const buzzerSockets = new Map();
 const wheelRooms = new Map();
 const pollRooms = new Map();
 const bingoRooms = new Map();
+const unoRooms = new Map();
 const classroomRooms = new Map();
 let buzzerTriviaBank = loadBuzzerTriviaBank();
 
@@ -487,7 +490,7 @@ function makeCode() {
   let code = "";
   do {
     code = Array.from({ length: 5 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-  } while (rooms.has(code) || buzzerRooms.has(code) || wheelRooms.has(code) || pollRooms.has(code) || bingoRooms.has(code) || classroomRooms.has(code));
+  } while (rooms.has(code) || buzzerRooms.has(code) || wheelRooms.has(code) || pollRooms.has(code) || bingoRooms.has(code) || unoRooms.has(code) || classroomRooms.has(code));
   return code;
 }
 
@@ -568,6 +571,28 @@ function createBingoRoom() {
     updatedAt: Date.now()
   };
   bingoRooms.set(room.code, room);
+  return room;
+}
+
+function createUnoRoom() {
+  const room = {
+    code: makeCode(),
+    status: "lobby",
+    players: [],
+    handsByPlayerId: {},
+    drawPile: [],
+    discardPile: [],
+    currentPlayerId: 0,
+    currentColor: "",
+    direction: 1,
+    turnNumber: 0,
+    winner: null,
+    lastAction: "",
+    nextPlayerId: 1,
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+  unoRooms.set(room.code, room);
   return room;
 }
 
@@ -660,6 +685,12 @@ function cleanupRooms() {
     }
     bingoRooms.delete(code);
   });
+  unoRooms.forEach((room, code) => {
+    if (now - Number(room.updatedAt || 0) < ROOM_TTL_MS) {
+      return;
+    }
+    unoRooms.delete(code);
+  });
   classroomRooms.forEach((room, code) => {
     if (now - Number(room.updatedAt || 0) < CLASSROOM_ROOM_TTL_MS) {
       return;
@@ -695,6 +726,12 @@ function getPollRoom(code) {
 function getBingoRoom(code) {
   const room = bingoRooms.get(String(code || "").toUpperCase());
   if (!room) throw new Error("Bingo room not found");
+  return room;
+}
+
+function getUnoRoom(code) {
+  const room = unoRooms.get(String(code || "").toUpperCase());
+  if (!room) throw new Error("UNO room not found");
   return room;
 }
 
@@ -854,6 +891,242 @@ function serializeClassroomRoom(room) {
     players: (room.players || []).slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""))),
     updatedAt: room.updatedAt
   };
+}
+
+const unoColors = ["red", "yellow", "green", "blue"];
+const unoColorNames = {
+  red: "Red",
+  yellow: "Yellow",
+  green: "Green",
+  blue: "Blue"
+};
+
+function shuffleList(values) {
+  const list = values.slice();
+  for (let index = list.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [list[index], list[swapIndex]] = [list[swapIndex], list[index]];
+  }
+  return list;
+}
+
+function createUnoCard(color, type, value, serial) {
+  const colorLabel = color ? `${unoColorNames[color]} ` : "";
+  const actionLabel = value === "draw-two"
+    ? "+2"
+    : value === "wild-draw-four"
+      ? "Wild +4"
+      : value === "wild"
+        ? "Wild"
+        : String(value).replace(/(^|-)([a-z])/g, (_, dash, letter) => `${dash}${letter.toUpperCase()}`);
+  return {
+    id: `uno-${color || "wild"}-${type}-${value}-${serial}`,
+    color: color || "",
+    type,
+    value,
+    label: `${colorLabel}${actionLabel}`.trim()
+  };
+}
+
+function createUnoDeck() {
+  const deck = [];
+  let serial = 1;
+  unoColors.forEach((color) => {
+    deck.push(createUnoCard(color, "number", 0, serial++));
+    for (let number = 1; number <= 9; number += 1) {
+      deck.push(createUnoCard(color, "number", number, serial++));
+      deck.push(createUnoCard(color, "number", number, serial++));
+    }
+    ["skip", "reverse", "draw-two"].forEach((action) => {
+      deck.push(createUnoCard(color, "action", action, serial++));
+      deck.push(createUnoCard(color, "action", action, serial++));
+    });
+  });
+  for (let index = 0; index < 4; index += 1) {
+    deck.push(createUnoCard("", "wild", "wild", serial++));
+    deck.push(createUnoCard("", "wild", "wild-draw-four", serial++));
+  }
+  return deck;
+}
+
+function ensureUnoHand(room, playerId) {
+  const key = String(playerId || "");
+  room.handsByPlayerId = room.handsByPlayerId || {};
+  if (!Array.isArray(room.handsByPlayerId[key])) {
+    room.handsByPlayerId[key] = [];
+  }
+  return room.handsByPlayerId[key];
+}
+
+function getUnoTopCard(room) {
+  const pile = Array.isArray(room.discardPile) ? room.discardPile : [];
+  return pile.length ? pile[pile.length - 1] : null;
+}
+
+function refillUnoDrawPile(room) {
+  if (Array.isArray(room.drawPile) && room.drawPile.length) return;
+  const discard = Array.isArray(room.discardPile) ? room.discardPile : [];
+  if (discard.length <= 1) return;
+  const topCard = discard.pop();
+  room.drawPile = shuffleList(discard);
+  room.discardPile = [topCard];
+}
+
+function drawUnoCards(room, playerId, count) {
+  const hand = ensureUnoHand(room, playerId);
+  const drawn = [];
+  for (let index = 0; index < count; index += 1) {
+    refillUnoDrawPile(room);
+    if (!room.drawPile.length) break;
+    const card = room.drawPile.pop();
+    if (!card) break;
+    hand.push(card);
+    drawn.push(card);
+  }
+  return drawn;
+}
+
+function getUnoPlayerIndex(room, playerId) {
+  return (room.players || []).findIndex((player) => Number(player.id) === Number(playerId || 0));
+}
+
+function getUnoNextPlayerId(room, fromPlayerId, steps = 1, direction = Number(room.direction || 1) || 1) {
+  const players = Array.isArray(room.players) ? room.players : [];
+  if (!players.length) return 0;
+  let index = getUnoPlayerIndex(room, fromPlayerId);
+  if (index < 0) index = 0;
+  for (let move = 0; move < Math.max(1, steps); move += 1) {
+    index = (index + direction + players.length) % players.length;
+  }
+  return Number(players[index]?.id || 0);
+}
+
+function isUnoCardPlayable(room, card) {
+  if (!card) return false;
+  if (card.type === "wild") return true;
+  const topCard = getUnoTopCard(room);
+  if (!topCard) return true;
+  if (card.color && card.color === room.currentColor) return true;
+  if (String(card.value) === String(topCard.value)) return true;
+  return false;
+}
+
+function getUnoPlayableCardIds(room, playerId) {
+  return ensureUnoHand(room, playerId)
+    .filter((card) => isUnoCardPlayable(room, card))
+    .map((card) => card.id);
+}
+
+function setUnoLastAction(room, text) {
+  room.lastAction = String(text || "").trim();
+}
+
+function resetUnoRoundState(room) {
+  room.status = "lobby";
+  room.handsByPlayerId = {};
+  room.drawPile = [];
+  room.discardPile = [];
+  room.currentPlayerId = 0;
+  room.currentColor = "";
+  room.direction = 1;
+  room.turnNumber = 0;
+  room.winner = null;
+  room.lastAction = "";
+}
+
+function serializeUnoRoom(room, options = {}) {
+  const teacher = !!options.teacher;
+  const viewerId = Number(options.playerId || 0);
+  const currentPlayerId = Number(room.currentPlayerId || 0);
+  const currentPlayer = (room.players || []).find((player) => Number(player.id) === currentPlayerId) || null;
+  const winner = room.winner ? { id: Number(room.winner.id || 0), name: room.winner.name || "" } : null;
+  const players = (room.players || []).map((player) => ({
+    id: Number(player.id || 0),
+    name: player.name || "",
+    classroomPlayerId: Number(player.classroomPlayerId || 0) || undefined,
+    cardCount: ensureUnoHand(room, player.id).length,
+    isCurrent: Number(player.id || 0) === currentPlayerId
+  }));
+  const payload = {
+    code: room.code,
+    status: room.status,
+    players,
+    currentPlayerId,
+    currentPlayerName: currentPlayer?.name || "",
+    currentColor: room.currentColor || "",
+    direction: Number(room.direction || 1) || 1,
+    turnNumber: Number(room.turnNumber || 0),
+    topCard: getUnoTopCard(room),
+    discardTrail: (room.discardPile || []).slice(-12),
+    drawPileCount: Array.isArray(room.drawPile) ? room.drawPile.length : 0,
+    discardCount: Array.isArray(room.discardPile) ? room.discardPile.length : 0,
+    winner,
+    lastAction: room.lastAction || "",
+    updatedAt: room.updatedAt
+  };
+  if (teacher) {
+    payload.handsByPlayerId = Object.fromEntries(players.map((player) => [String(player.id), ensureUnoHand(room, player.id)]));
+  }
+  if (viewerId) {
+    payload.playerId = viewerId;
+    payload.hand = ensureUnoHand(room, viewerId);
+    payload.playableCardIds = getUnoPlayableCardIds(room, viewerId);
+    payload.isCurrentPlayer = viewerId === currentPlayerId;
+  }
+  return payload;
+}
+
+function startUnoGame(room) {
+  if ((room.players || []).length < 2) {
+    throw new Error("Add at least two players before starting.");
+  }
+  room.handsByPlayerId = {};
+  room.discardPile = [];
+  room.drawPile = shuffleList(createUnoDeck());
+  room.direction = 1;
+  room.turnNumber = 1;
+  room.winner = null;
+  room.lastAction = "";
+  (room.players || []).forEach((player) => {
+    drawUnoCards(room, player.id, 7);
+  });
+  let openingCard = null;
+  while (room.drawPile.length) {
+    const candidate = room.drawPile.pop();
+    if (candidate?.type === "number") {
+      openingCard = candidate;
+      break;
+    }
+    room.drawPile.unshift(candidate);
+  }
+  if (!openingCard) {
+    openingCard = room.drawPile.pop() || null;
+  }
+  if (!openingCard) {
+    throw new Error("Could not prepare the UNO deck.");
+  }
+  room.discardPile = [openingCard];
+  room.currentColor = openingCard.color || "red";
+  room.currentPlayerId = Number(room.players[0]?.id || 0);
+  room.status = "live";
+  setUnoLastAction(room, `Game started. ${room.players[0]?.name || "First player"} goes first.`);
+}
+
+function syncUnoCurrentPlayer(room, removedPlayerId = 0) {
+  const players = Array.isArray(room.players) ? room.players : [];
+  if (!players.length) {
+    room.currentPlayerId = 0;
+    room.winner = null;
+    room.status = "lobby";
+    return;
+  }
+  const currentStillExists = players.some((player) => Number(player.id) === Number(room.currentPlayerId || 0));
+  if (currentStillExists) return;
+  if (room.status !== "live") {
+    room.currentPlayerId = 0;
+    return;
+  }
+  room.currentPlayerId = getUnoNextPlayerId(room, removedPlayerId || players[0].id, 1);
 }
 
 function serializeWheelRoom(room) {
@@ -1336,11 +1609,13 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/name-wheel") return html(res, NAME_WHEEL_HTML);
     if (req.method === "GET" && url.pathname === "/quick-poll") return html(res, QUICK_POLL_HTML);
     if (req.method === "GET" && url.pathname === "/bingo") return html(res, BINGO_HTML);
+    if (req.method === "GET" && url.pathname === "/uno") return html(res, UNO_HTML);
     if (req.method === "GET" && url.pathname === "/student-hub.html") return html(res, STUDENT_HUB_HTML);
     if (req.method === "GET" && url.pathname === "/buzzer-student.html") return html(res, BUZZER_STUDENT_HTML);
     if (req.method === "GET" && url.pathname === "/name-wheel-student.html") return html(res, NAME_WHEEL_STUDENT_HTML);
     if (req.method === "GET" && url.pathname === "/quick-poll-student.html") return html(res, QUICK_POLL_STUDENT_HTML);
     if (req.method === "GET" && url.pathname === "/bingo-student.html") return html(res, BINGO_STUDENT_HTML);
+    if (req.method === "GET" && url.pathname === "/uno-student.html") return html(res, UNO_STUDENT_HTML);
     if (req.method === "GET" && url.pathname === "/student.html") return html(res, STUDENT_HTML);
     if (req.method === "GET" && url.pathname === "/english-words.js") {
       res.writeHead(200, { "Content-Type": "application/javascript; charset=utf-8", "Cache-Control": "no-store" });
@@ -1393,7 +1668,7 @@ const server = http.createServer(async (req, res) => {
       const { code, activeTool, activeToolCode } = await body(req);
       const room = getClassroomRoom(code);
       const cleanTool = String(activeTool || "standby").trim().toLowerCase();
-      const allowedTools = new Set(["standby", "buzzer", "letter-clash", "wheel", "quick-poll", "bingo", "timer"]);
+      const allowedTools = new Set(["standby", "buzzer", "letter-clash", "wheel", "quick-poll", "bingo", "timer", "uno"]);
       room.activeTool = allowedTools.has(cleanTool) ? cleanTool : "standby";
       room.activeToolCode = room.activeTool === "standby" ? "" : String(activeToolCode || "").trim().toUpperCase();
       touch(room);
@@ -2800,6 +3075,231 @@ const server = http.createServer(async (req, res) => {
       room.votes.push({ voterId: voter.id, voterName: voter.name, candidateId: candidate.id, candidateLabel: candidate.label, createdAt: Date.now() });
       touch(room);
       return json(res, 200, { room: serializePollRoom(room), vote: room.votes[room.votes.length - 1] });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/uno/create-room") {
+      return json(res, 200, { room: serializeUnoRoom(createUnoRoom(), { teacher: true }) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/uno/delete-room") {
+      const { code } = await body(req);
+      unoRooms.delete(String(code || "").toUpperCase());
+      return json(res, 200, { ok: true });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/uno/room") {
+      const room = getUnoRoom(url.searchParams.get("code"));
+      touch(room);
+      return json(res, 200, {
+        room: serializeUnoRoom(room, {
+          teacher: url.searchParams.get("viewer") === "teacher",
+          playerId: Number(url.searchParams.get("playerId") || 0)
+        })
+      });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/uno/join") {
+      const { code, name, playerId, classroomPlayerId } = await body(req);
+      const room = getUnoRoom(code);
+      const clean = String(name || "").trim();
+      if (!clean) throw new Error("Name is required.");
+      const requestedId = Number(playerId || 0);
+      const requestedClassroomId = Number(classroomPlayerId || 0);
+      let player = room.players.find((item) => Number(item.id) === requestedId)
+        || room.players.find((item) => requestedClassroomId && Number(item.classroomPlayerId || 0) === requestedClassroomId);
+      const duplicate = room.players.find((item) => item !== player && String(item.name || "").trim().toLowerCase() === clean.toLowerCase());
+      if (duplicate && (requestedClassroomId || requestedId)) {
+        player = duplicate;
+      } else if (duplicate) {
+        throw new Error("A player with this name is already connected.");
+      }
+      if (!player && room.status === "live") {
+        throw new Error("This UNO game is already running. Wait for the next round.");
+      }
+      if (!player) {
+        player = {
+          id: room.nextPlayerId || 1,
+          name: clean,
+          joinedAt: Date.now(),
+          updatedAt: Date.now(),
+          classroomPlayerId: requestedClassroomId || undefined
+        };
+        room.nextPlayerId = Number(player.id) + 1;
+        room.players.push(player);
+        ensureUnoHand(room, player.id);
+      } else {
+        player.name = clean;
+        if (requestedClassroomId) player.classroomPlayerId = requestedClassroomId;
+        player.updatedAt = Date.now();
+        ensureUnoHand(room, player.id);
+      }
+      touch(room);
+      return json(res, 200, { room: serializeUnoRoom(room, { playerId: player.id }), player });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/uno/import-classroom") {
+      const { code, classroomCode } = await body(req);
+      const room = getUnoRoom(code);
+      if (room.status === "live") {
+        throw new Error("Finish or reset the current game before importing players.");
+      }
+      const classroom = getClassroomRoom(classroomCode);
+      const previousPlayers = Array.isArray(room.players) ? room.players : [];
+      const previousHands = room.handsByPlayerId || {};
+      const usedNames = new Set();
+      const nextHands = {};
+      const nextPlayers = (classroom.players || [])
+        .map((sourcePlayer) => {
+          const clean = String(sourcePlayer.name || "").trim();
+          if (!clean) return null;
+          const nameKey = clean.toLowerCase();
+          if (usedNames.has(nameKey)) return null;
+          usedNames.add(nameKey);
+          const existing = previousPlayers.find((player) => Number(player.classroomPlayerId || 0) === Number(sourcePlayer.id || 0))
+            || previousPlayers.find((player) => sameName(player.name, clean));
+          const player = {
+            id: existing?.id || room.nextPlayerId || 1,
+            name: clean,
+            joinedAt: existing?.joinedAt || sourcePlayer.joinedAt || Date.now(),
+            updatedAt: Date.now(),
+            classroomPlayerId: sourcePlayer.id
+          };
+          if (!existing) room.nextPlayerId = Number(player.id) + 1;
+          nextHands[String(player.id)] = Array.isArray(previousHands[String(player.id)]) ? previousHands[String(player.id)] : [];
+          return player;
+        })
+        .filter(Boolean);
+      room.players = nextPlayers;
+      room.handsByPlayerId = nextHands;
+      room.winner = null;
+      touch(room);
+      return json(res, 200, { room: serializeUnoRoom(room, { teacher: true }) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/uno/start") {
+      const { code } = await body(req);
+      const room = getUnoRoom(code);
+      startUnoGame(room);
+      touch(room);
+      return json(res, 200, { room: serializeUnoRoom(room, { teacher: true }) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/uno/reset") {
+      const { code, clearPlayers } = await body(req);
+      const room = getUnoRoom(code);
+      resetUnoRoundState(room);
+      if (clearPlayers) {
+        room.players = [];
+        room.nextPlayerId = 1;
+      }
+      touch(room);
+      return json(res, 200, { room: serializeUnoRoom(room, { teacher: true }) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/uno/remove-player") {
+      const { code, playerId, name } = await body(req);
+      const room = getUnoRoom(code);
+      const removedId = Number(playerId || 0);
+      const cleanName = String(name || "").trim().toLowerCase();
+      const before = room.players.length;
+      room.players = room.players.filter((player) => {
+        if (removedId && Number(player.id) === removedId) return false;
+        if (cleanName && String(player.name || "").trim().toLowerCase() === cleanName) return false;
+        return true;
+      });
+      if (room.players.length === before) throw new Error("Player not found.");
+      delete room.handsByPlayerId[String(removedId)];
+      if (room.winner && Number(room.winner.id || 0) === removedId) {
+        room.winner = null;
+      }
+      syncUnoCurrentPlayer(room, removedId);
+      if (room.status === "live" && room.players.length === 1) {
+        const survivor = room.players[0];
+        room.status = "finished";
+        room.winner = { id: survivor.id, name: survivor.name };
+        room.currentPlayerId = survivor.id;
+        setUnoLastAction(room, `${survivor.name} wins because they are the last player remaining.`);
+      }
+      touch(room);
+      return json(res, 200, { room: serializeUnoRoom(room, { teacher: true }) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/uno/draw") {
+      const { code, playerId } = await body(req);
+      const room = getUnoRoom(code);
+      if (room.status !== "live") throw new Error("The UNO game is not running.");
+      const id = Number(playerId || 0);
+      const player = room.players.find((item) => Number(item.id) === id);
+      if (!player) throw new Error("Join the UNO room first.");
+      if (id !== Number(room.currentPlayerId || 0)) throw new Error("It is not your turn.");
+      const drawn = drawUnoCards(room, id, 1);
+      if (!drawn.length) throw new Error("No cards are left to draw.");
+      room.currentPlayerId = getUnoNextPlayerId(room, id, 1);
+      room.turnNumber = Number(room.turnNumber || 0) + 1;
+      setUnoLastAction(room, `${player.name} drew 1 card and ended their turn.`);
+      touch(room);
+      return json(res, 200, { room: serializeUnoRoom(room, { playerId: id }), drawn });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/uno/play") {
+      const { code, playerId, cardId, chosenColor } = await body(req);
+      const room = getUnoRoom(code);
+      if (room.status !== "live") throw new Error("The UNO game is not running.");
+      const id = Number(playerId || 0);
+      if (id !== Number(room.currentPlayerId || 0)) throw new Error("It is not your turn.");
+      const player = room.players.find((item) => Number(item.id) === id);
+      if (!player) throw new Error("Join the UNO room first.");
+      const hand = ensureUnoHand(room, id);
+      const cardIndex = hand.findIndex((card) => card.id === String(cardId || ""));
+      if (cardIndex < 0) throw new Error("Card not found in your hand.");
+      const card = hand[cardIndex];
+      if (!isUnoCardPlayable(room, card)) throw new Error("That card cannot be played right now.");
+      const nextColor = card.type === "wild" ? String(chosenColor || "").trim().toLowerCase() : card.color;
+      if (card.type === "wild" && !unoColors.includes(nextColor)) {
+        throw new Error("Choose a color for the wild card.");
+      }
+      hand.splice(cardIndex, 1);
+      room.discardPile.push(card);
+      room.currentColor = nextColor || card.color || room.currentColor || "red";
+      if (!hand.length) {
+        room.status = "finished";
+        room.winner = { id: player.id, name: player.name };
+        room.currentPlayerId = player.id;
+        setUnoLastAction(room, `${player.name} played ${card.label} and won the game.`);
+        touch(room);
+        return json(res, 200, { room: serializeUnoRoom(room, { playerId: id }), played: card });
+      }
+      let nextPlayerId = getUnoNextPlayerId(room, id, 1);
+      let actionText = `${player.name} played ${card.label}.`;
+      if (card.value === "skip") {
+        nextPlayerId = getUnoNextPlayerId(room, id, 2);
+        const skippedId = getUnoNextPlayerId(room, id, 1);
+        const skipped = room.players.find((item) => Number(item.id) === skippedId);
+        actionText = `${player.name} played Skip. ${skipped?.name || "Next player"} lost their turn.`;
+      } else if (card.value === "reverse") {
+        room.direction = Number(room.direction || 1) * -1;
+        nextPlayerId = getUnoNextPlayerId(room, id, room.players.length === 2 ? 2 : 1, room.direction);
+        actionText = `${player.name} reversed the order.`;
+      } else if (card.value === "draw-two") {
+        const targetId = getUnoNextPlayerId(room, id, 1);
+        const target = room.players.find((item) => Number(item.id) === targetId);
+        drawUnoCards(room, targetId, 2);
+        nextPlayerId = getUnoNextPlayerId(room, id, 2);
+        actionText = `${player.name} played +2. ${target?.name || "Next player"} drew 2 cards.`;
+      } else if (card.value === "wild") {
+        actionText = `${player.name} played Wild and chose ${unoColorNames[room.currentColor]}.`;
+      } else if (card.value === "wild-draw-four") {
+        const targetId = getUnoNextPlayerId(room, id, 1);
+        const target = room.players.find((item) => Number(item.id) === targetId);
+        drawUnoCards(room, targetId, 4);
+        nextPlayerId = getUnoNextPlayerId(room, id, 2);
+        actionText = `${player.name} played Wild +4 and chose ${unoColorNames[room.currentColor]}. ${target?.name || "Next player"} drew 4 cards.`;
+      }
+      room.currentPlayerId = nextPlayerId;
+      room.turnNumber = Number(room.turnNumber || 0) + 1;
+      setUnoLastAction(room, actionText);
+      touch(room);
+      return json(res, 200, { room: serializeUnoRoom(room, { playerId: id }), played: card });
     }
 
     res.writeHead(404);

@@ -12,6 +12,8 @@
     "/quick-poll.html",
     "/bingo",
     "/bingo.html",
+    "/uno",
+    "/uno.html",
     "/timer",
     "/timer.html"
   ]);
@@ -621,6 +623,9 @@
     }
     if (path.endsWith("/bingo")) {
       return { activeTool: "bingo", activeToolCode: localStorage.getItem("bingo-room-code") || "" };
+    }
+    if (path.endsWith("/uno") || path.endsWith("/uno.html")) {
+      return { activeTool: "uno", activeToolCode: localStorage.getItem("uno-room-code") || "" };
     }
     if (isHomePage()) {
       return { activeTool: "standby", activeToolCode: "" };
