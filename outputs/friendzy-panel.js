@@ -161,6 +161,33 @@
       animation: friendzyDrawerIn 180ms ease both;
     }
 
+    .friendzy-copy-toast {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      z-index: 4;
+      min-width: 150px;
+      padding: 12px 18px;
+      border-radius: 999px;
+      color: #fff;
+      background: rgba(16, 11, 47, 0.86);
+      box-shadow: 0 16px 34px rgba(16, 11, 47, 0.28);
+      font-size: 0.82rem;
+      font-weight: 1000;
+      letter-spacing: 0.08em;
+      text-align: center;
+      text-transform: uppercase;
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(-50%, -44%) scale(0.92);
+      transition: opacity 140ms ease, transform 140ms ease;
+    }
+
+    .friendzy-copy-toast.is-visible {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
     .friendzy-head {
       display: flex;
       align-items: center;
@@ -200,7 +227,7 @@
       place-items: center;
       background: rgba(255,255,255,0.76);
       border: 1px solid rgba(16, 11, 47, 0.12);
-      cursor: zoom-in;
+      cursor: default;
       transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
     }
 
@@ -455,17 +482,18 @@
           <button id="friendzyPanelClose" type="button">Close</button>
         </div>
       </div>
-      <section class="friendzy-qr" id="friendzyQrBox" role="button" tabindex="0" aria-label="Enlarge Friendzy QR">
+      <section class="friendzy-qr" id="friendzyQrBox">
         <img id="friendzyQrImage" alt="Friendzy classroom QR">
         <p class="friendzy-fallback" id="friendzyFallback">Creating QR...</p>
         <p class="friendzy-code" id="friendzyCode">-----</p>
       </section>
       <div class="friendzy-players" id="friendzyPlayers"></div>
       <div class="friendzy-actions">
-        <button id="friendzyEnlarge" type="button">Enlarge</button>
+        <button id="friendzyCopyLink" type="button">Copy Link</button>
         <button id="friendzyRefresh" type="button">Sync</button>
         <button class="danger" id="friendzyReset" type="button">Reset</button>
       </div>
+      <div class="friendzy-copy-toast" id="friendzyCopyToast" role="status" aria-live="polite">Link copied</div>
     </aside>
     <div class="friendzy-large hidden" id="friendzyLarge" aria-hidden="true">
       <div class="friendzy-large-card">
@@ -490,14 +518,14 @@
   const backdrop = document.getElementById("friendzyBackdrop");
   const drawer = document.getElementById("friendzyDrawer");
   const closeBtn = document.getElementById("friendzyPanelClose");
-  const qrBox = document.getElementById("friendzyQrBox");
   const qrToggle = document.getElementById("friendzyQrToggle");
   const qrImage = document.getElementById("friendzyQrImage");
   const fallback = document.getElementById("friendzyFallback");
   const codeEl = document.getElementById("friendzyCode");
   const countEl = document.getElementById("friendzyPlayerCount");
   const playersEl = document.getElementById("friendzyPlayers");
-  const enlargeBtn = document.getElementById("friendzyEnlarge");
+  const copyLinkBtn = document.getElementById("friendzyCopyLink");
+  const copyToast = document.getElementById("friendzyCopyToast");
   const refreshBtn = document.getElementById("friendzyRefresh");
   const resetBtn = document.getElementById("friendzyReset");
   const large = document.getElementById("friendzyLarge");
@@ -508,6 +536,7 @@
   const largeClose = document.getElementById("friendzyLargeClose");
   let qrVisible = true;
   let serverInstanceId = "";
+  let copyToastTimer = null;
 
   async function api(path, payload = null, method = "POST") {
     const response = await fetch(path, {
@@ -723,11 +752,33 @@
     large.setAttribute("aria-hidden", "true");
   }
 
+  async function copyJoinLink() {
+    const link = getJoinUrl();
+    if (!link) return;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(link);
+      } else {
+        const input = document.createElement("textarea");
+        input.value = link;
+        input.setAttribute("readonly", "");
+        input.style.position = "fixed";
+        input.style.opacity = "0";
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand("copy");
+        input.remove();
+      }
+      clearTimeout(copyToastTimer);
+      copyToast.classList.add("is-visible");
+      copyToastTimer = setTimeout(() => copyToast.classList.remove("is-visible"), 1300);
+    } catch (_) {}
+  }
+
   tab.addEventListener("click", openDrawer);
   closeBtn.addEventListener("click", closeDrawer);
   backdrop.addEventListener("click", closeDrawer);
-  qrBox.addEventListener("click", openLarge);
-  enlargeBtn.addEventListener("click", openLarge);
+  copyLinkBtn.addEventListener("click", copyJoinLink);
   largeClose.addEventListener("click", closeLarge);
   large.addEventListener("click", (event) => {
     if (event.target === large) closeLarge();

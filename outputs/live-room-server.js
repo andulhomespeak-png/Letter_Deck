@@ -39,7 +39,10 @@ const wheelRooms = new Map();
 const pollRooms = new Map();
 const bingoRooms = new Map();
 const unoRooms = new Map();
+const unoSockets = new Map();
+const unoPenaltyTimers = new Map();
 const classroomRooms = new Map();
+const UNO_CALL_WINDOW_MS = 4500;
 let buzzerTriviaBank = loadBuzzerTriviaBank();
 
 function loadDictionary() {
@@ -588,6 +591,9 @@ function createUnoRoom() {
     turnNumber: 0,
     winner: null,
     lastAction: "",
+    unoCall: null,
+    unoPenalty: null,
+    unoPending: [],
     nextPlayerId: 1,
     createdAt: Date.now(),
     updatedAt: Date.now()
@@ -686,10 +692,15 @@ function cleanupRooms() {
     bingoRooms.delete(code);
   });
   unoRooms.forEach((room, code) => {
+    const hasSockets = !!unoSockets.get(code)?.size;
+    if (hasSockets) {
+      return;
+    }
     if (now - Number(room.updatedAt || 0) < ROOM_TTL_MS) {
       return;
     }
     unoRooms.delete(code);
+    unoSockets.delete(code);
   });
   classroomRooms.forEach((room, code) => {
     if (now - Number(room.updatedAt || 0) < CLASSROOM_ROOM_TTL_MS) {
@@ -765,6 +776,14 @@ function getBuzzerSocketSet(code) {
   return buzzerSockets.get(key);
 }
 
+function getUnoSocketSet(code) {
+  const key = String(code || "").toUpperCase();
+  if (!unoSockets.has(key)) {
+    unoSockets.set(key, new Set());
+  }
+  return unoSockets.get(key);
+}
+
 function detachSocket(socket) {
   const code = socket._roomCode;
   if (!code || !roomSockets.has(code)) {
@@ -786,6 +805,18 @@ function detachBuzzerSocket(socket) {
   sockets.delete(socket);
   if (!sockets.size) {
     buzzerSockets.delete(code);
+  }
+}
+
+function detachUnoSocket(socket) {
+  const code = socket._unoCode;
+  if (!code || !unoSockets.has(code)) {
+    return;
+  }
+  const sockets = unoSockets.get(code);
+  sockets.delete(socket);
+  if (!sockets.size) {
+    unoSockets.delete(code);
   }
 }
 
@@ -844,6 +875,70 @@ function broadcastBuzzerRoom(room) {
       detachBuzzerSocket(socket);
     }
   });
+}
+
+function broadcastUnoRoom(room) {
+  const sockets = unoSockets.get(room.code);
+  if (!sockets || !sockets.size) {
+    return;
+  }
+  sockets.forEach((socket) => {
+    try {
+      const options = socket._unoTeacher
+        ? { teacher: true }
+        : { playerId: Number(socket._unoPlayerId || 0) };
+      sendWebSocketJson(socket, { type: "uno-room", room: serializeUnoRoom(room, options) });
+    } catch (_) {
+      detachUnoSocket(socket);
+    }
+  });
+}
+
+function getUnoPenaltyTimerKey(code, playerId) {
+  return `${String(code || "").toUpperCase()}:${Number(playerId || 0)}`;
+}
+
+function clearUnoPenaltyTimer(code, playerId) {
+  const prefix = `${String(code || "").toUpperCase()}:`;
+  const keys = playerId ? [getUnoPenaltyTimerKey(code, playerId)] : [...unoPenaltyTimers.keys()].filter((key) => key.startsWith(prefix));
+  keys.forEach((key) => {
+    const timer = unoPenaltyTimers.get(key);
+    if (timer) clearTimeout(timer);
+    unoPenaltyTimers.delete(key);
+  });
+}
+
+function cancelUnoPenalty(room, playerId) {
+  clearUnoPenaltyTimer(room.code, playerId);
+  const pending = Array.isArray(room.unoPending) ? room.unoPending : [];
+  room.unoPending = playerId ? pending.filter((item) => Number(item.playerId) !== Number(playerId)) : [];
+}
+
+function scheduleUnoPenalty(room, player) {
+  cancelUnoPenalty(room, player.id);
+  const pending = { playerId: Number(player.id), name: player.name, dueAt: Date.now() + UNO_CALL_WINDOW_MS };
+  room.unoPending = [...(Array.isArray(room.unoPending) ? room.unoPending : []), pending];
+  const timer = setTimeout(() => {
+    unoPenaltyTimers.delete(getUnoPenaltyTimerKey(room.code, pending.playerId));
+    const activeRoom = unoRooms.get(room.code);
+    const activePending = Array.isArray(activeRoom?.unoPending) ? activeRoom.unoPending : [];
+    if (!activeRoom || activeRoom.status !== "live" || !activePending.some((item) => Number(item.playerId) === pending.playerId)) {
+      return;
+    }
+    const hand = ensureUnoHand(activeRoom, pending.playerId);
+    if (hand.length !== 1) {
+      cancelUnoPenalty(activeRoom, pending.playerId);
+      return;
+    }
+    drawUnoCards(activeRoom, pending.playerId, 4);
+    cancelUnoPenalty(activeRoom, pending.playerId);
+    if (Number(activeRoom.unoCall?.playerId || 0) === pending.playerId) activeRoom.unoCall = null;
+    activeRoom.unoPenalty = { playerId: pending.playerId, name: pending.name, cards: 4, at: Date.now() };
+    setUnoLastAction(activeRoom, `${pending.name} did not say UNO and drew 4 cards.`);
+    touch(activeRoom);
+    broadcastUnoRoom(activeRoom);
+  }, UNO_CALL_WINDOW_MS);
+  unoPenaltyTimers.set(getUnoPenaltyTimerKey(room.code, pending.playerId), timer);
 }
 
 function serialize(room) {
@@ -1022,6 +1117,7 @@ function setUnoLastAction(room, text) {
 }
 
 function resetUnoRoundState(room) {
+  clearUnoPenaltyTimer(room.code);
   room.status = "lobby";
   room.handsByPlayerId = {};
   room.drawPile = [];
@@ -1032,6 +1128,9 @@ function resetUnoRoundState(room) {
   room.turnNumber = 0;
   room.winner = null;
   room.lastAction = "";
+  room.unoCall = null;
+  room.unoPenalty = null;
+  room.unoPending = [];
 }
 
 function serializeUnoRoom(room, options = {}) {
@@ -1062,6 +1161,8 @@ function serializeUnoRoom(room, options = {}) {
     drawPileCount: Array.isArray(room.drawPile) ? room.drawPile.length : 0,
     discardCount: Array.isArray(room.discardPile) ? room.discardPile.length : 0,
     winner,
+    unoCall: room.unoCall ? { playerId: Number(room.unoCall.playerId || 0), name: room.unoCall.name || "", at: Number(room.unoCall.at || 0) } : null,
+    unoPenalty: room.unoPenalty ? { playerId: Number(room.unoPenalty.playerId || 0), name: room.unoPenalty.name || "", cards: Number(room.unoPenalty.cards || 0), at: Number(room.unoPenalty.at || 0) } : null,
     lastAction: room.lastAction || "",
     updatedAt: room.updatedAt
   };
@@ -1078,6 +1179,7 @@ function serializeUnoRoom(room, options = {}) {
 }
 
 function startUnoGame(room) {
+  clearUnoPenaltyTimer(room.code);
   if ((room.players || []).length < 2) {
     throw new Error("Add at least two players before starting.");
   }
@@ -1092,6 +1194,9 @@ function startUnoGame(room) {
   room.turnNumber = 1;
   room.winner = null;
   room.lastAction = "";
+  room.unoCall = null;
+  room.unoPenalty = null;
+  room.unoPending = [];
   (room.players || []).forEach((player) => {
     drawUnoCards(room, player.id, 7);
   });
@@ -3088,7 +3193,19 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && url.pathname === "/api/uno/delete-room") {
       const { code } = await body(req);
-      unoRooms.delete(String(code || "").toUpperCase());
+      const cleanCode = String(code || "").toUpperCase();
+      const sockets = unoSockets.get(cleanCode);
+      if (sockets) {
+        sockets.forEach((socket) => {
+          try {
+            sendWebSocketJson(socket, { type: "uno-room-deleted", code: cleanCode });
+            socket.destroy();
+          } catch (_) {}
+        });
+      }
+      clearUnoPenaltyTimer(cleanCode);
+      unoRooms.delete(cleanCode);
+      unoSockets.delete(cleanCode);
       return json(res, 200, { ok: true });
     }
 
@@ -3139,6 +3256,7 @@ const server = http.createServer(async (req, res) => {
         ensureUnoHand(room, player.id);
       }
       touch(room);
+      broadcastUnoRoom(room);
       return json(res, 200, { room: serializeUnoRoom(room, { playerId: player.id }), player });
     }
 
@@ -3177,7 +3295,9 @@ const server = http.createServer(async (req, res) => {
       room.players = nextPlayers;
       room.handsByPlayerId = nextHands;
       room.winner = null;
+      cancelUnoPenalty(room);
       touch(room);
+      broadcastUnoRoom(room);
       return json(res, 200, { room: serializeUnoRoom(room, { teacher: true }) });
     }
 
@@ -3186,6 +3306,7 @@ const server = http.createServer(async (req, res) => {
       const room = getUnoRoom(code);
       startUnoGame(room);
       touch(room);
+      broadcastUnoRoom(room);
       return json(res, 200, { room: serializeUnoRoom(room, { teacher: true }) });
     }
 
@@ -3198,6 +3319,7 @@ const server = http.createServer(async (req, res) => {
         room.nextPlayerId = 1;
       }
       touch(room);
+      broadcastUnoRoom(room);
       return json(res, 200, { room: serializeUnoRoom(room, { teacher: true }) });
     }
 
@@ -3213,6 +3335,7 @@ const server = http.createServer(async (req, res) => {
         return true;
       });
       if (room.players.length === before) throw new Error("Player not found.");
+      cancelUnoPenalty(room, removedId);
       delete room.handsByPlayerId[String(removedId)];
       if (room.winner && Number(room.winner.id || 0) === removedId) {
         room.winner = null;
@@ -3226,6 +3349,7 @@ const server = http.createServer(async (req, res) => {
         setUnoLastAction(room, `${survivor.name} wins because they are the last player remaining.`);
       }
       touch(room);
+      broadcastUnoRoom(room);
       return json(res, 200, { room: serializeUnoRoom(room, { teacher: true }) });
     }
 
@@ -3239,11 +3363,30 @@ const server = http.createServer(async (req, res) => {
       if (id !== Number(room.currentPlayerId || 0)) throw new Error("It is not your turn.");
       const drawn = drawUnoCards(room, id, 1);
       if (!drawn.length) throw new Error("No cards are left to draw.");
+      if (Number(room.unoCall?.playerId || 0) === id) room.unoCall = null;
+      cancelUnoPenalty(room, id);
       room.currentPlayerId = getUnoNextPlayerId(room, id, 1);
       room.turnNumber = Number(room.turnNumber || 0) + 1;
       setUnoLastAction(room, `${player.name} drew 1 card and ended their turn.`);
       touch(room);
+      broadcastUnoRoom(room);
       return json(res, 200, { room: serializeUnoRoom(room, { playerId: id }), drawn });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/uno/declare-uno") {
+      const { code, playerId } = await body(req);
+      const room = getUnoRoom(code);
+      if (room.status !== "live") throw new Error("The UNO game is not running.");
+      const id = Number(playerId || 0);
+      const player = room.players.find((item) => Number(item.id) === id);
+      if (!player) throw new Error("Join the UNO room first.");
+      if (ensureUnoHand(room, id).length !== 1) throw new Error("You can only call UNO with one card.");
+      cancelUnoPenalty(room, id);
+      room.unoCall = { playerId: id, name: player.name, at: Date.now() };
+      setUnoLastAction(room, `${player.name} said UNO!`);
+      touch(room);
+      broadcastUnoRoom(room);
+      return json(res, 200, { room: serializeUnoRoom(room, { playerId: id }) });
     }
 
     if (req.method === "POST" && url.pathname === "/api/uno/play") {
@@ -3264,6 +3407,8 @@ const server = http.createServer(async (req, res) => {
         throw new Error("Choose a color for the wild card.");
       }
       hand.splice(cardIndex, 1);
+      if (Number(room.unoCall?.playerId || 0) === id && hand.length !== 1) room.unoCall = null;
+      if (hand.length !== 1) cancelUnoPenalty(room, id);
       room.discardPile.push(card);
       room.currentColor = nextColor || card.color || room.currentColor || "red";
       if (!hand.length) {
@@ -3272,6 +3417,7 @@ const server = http.createServer(async (req, res) => {
         room.currentPlayerId = player.id;
         setUnoLastAction(room, `${player.name} played ${card.label} and won the game.`);
         touch(room);
+        broadcastUnoRoom(room);
         return json(res, 200, { room: serializeUnoRoom(room, { playerId: id }), played: card });
       }
       let nextPlayerId = getUnoNextPlayerId(room, id, 1);
@@ -3289,6 +3435,8 @@ const server = http.createServer(async (req, res) => {
         const targetId = getUnoNextPlayerId(room, id, 1);
         const target = room.players.find((item) => Number(item.id) === targetId);
         drawUnoCards(room, targetId, 2);
+        if (Number(room.unoCall?.playerId || 0) === targetId) room.unoCall = null;
+        cancelUnoPenalty(room, targetId);
         nextPlayerId = getUnoNextPlayerId(room, id, 2);
         actionText = `${player.name} played +2. ${target?.name || "Next player"} drew 2 cards.`;
       } else if (card.value === "wild") {
@@ -3297,13 +3445,17 @@ const server = http.createServer(async (req, res) => {
         const targetId = getUnoNextPlayerId(room, id, 1);
         const target = room.players.find((item) => Number(item.id) === targetId);
         drawUnoCards(room, targetId, 4);
+        if (Number(room.unoCall?.playerId || 0) === targetId) room.unoCall = null;
+        cancelUnoPenalty(room, targetId);
         nextPlayerId = getUnoNextPlayerId(room, id, 2);
         actionText = `${player.name} played Wild +4 and chose ${unoColorNames[room.currentColor]}. ${target?.name || "Next player"} drew 4 cards.`;
       }
       room.currentPlayerId = nextPlayerId;
       room.turnNumber = Number(room.turnNumber || 0) + 1;
+      if (hand.length === 1) scheduleUnoPenalty(room, player);
       setUnoLastAction(room, actionText);
       touch(room);
+      broadcastUnoRoom(room);
       return json(res, 200, { room: serializeUnoRoom(room, { playerId: id }), played: card });
     }
 
@@ -3319,12 +3471,13 @@ server.on("upgrade", (req, socket) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const isLiveSocket = url.pathname === "/ws/live";
     const isBuzzerSocket = url.pathname === "/ws/buzzer";
-    if (!isLiveSocket && !isBuzzerSocket) {
+    const isUnoSocket = url.pathname === "/ws/uno";
+    if (!isLiveSocket && !isBuzzerSocket && !isUnoSocket) {
       socket.destroy();
       return;
     }
     const code = String(url.searchParams.get("code") || "").toUpperCase();
-    if (!code || (isLiveSocket && !rooms.has(code)) || (isBuzzerSocket && !buzzerRooms.has(code))) {
+    if (!code || (isLiveSocket && !rooms.has(code)) || (isBuzzerSocket && !buzzerRooms.has(code)) || (isUnoSocket && !unoRooms.has(code))) {
       socket.destroy();
       return;
     }
@@ -3351,27 +3504,42 @@ server.on("upgrade", (req, socket) => {
       socket.on("close", () => detachSocket(socket));
       socket.on("end", () => detachSocket(socket));
       socket.on("error", () => detachSocket(socket));
-    } else {
+    } else if (isBuzzerSocket) {
       socket._buzzerCode = code;
       getBuzzerSocketSet(code).add(socket);
       socket.on("close", () => detachBuzzerSocket(socket));
       socket.on("end", () => detachBuzzerSocket(socket));
       socket.on("error", () => detachBuzzerSocket(socket));
+    } else {
+      socket._unoCode = code;
+      socket._unoPlayerId = Number(url.searchParams.get("playerId") || 0);
+      socket._unoTeacher = url.searchParams.get("viewer") === "teacher";
+      getUnoSocketSet(code).add(socket);
+      socket.on("close", () => detachUnoSocket(socket));
+      socket.on("end", () => detachUnoSocket(socket));
+      socket.on("error", () => detachUnoSocket(socket));
     }
     socket.on("data", (chunk) => {
       if (chunk && chunk.length && (chunk[0] & 0x0f) === 0x8) {
         if (isLiveSocket) {
           detachSocket(socket);
-        } else {
+        } else if (isBuzzerSocket) {
           detachBuzzerSocket(socket);
+        } else {
+          detachUnoSocket(socket);
         }
         socket.end();
       }
     });
     if (isLiveSocket) {
       sendWebSocketJson(socket, { type: "room", room: serialize(getRoom(code)) });
-    } else {
+    } else if (isBuzzerSocket) {
       sendWebSocketJson(socket, { type: "buzzer-room", room: serializeBuzzerRoom(getBuzzerRoom(code)) });
+    } else {
+      sendWebSocketJson(socket, {
+        type: "uno-room",
+        room: serializeUnoRoom(getUnoRoom(code), socket._unoTeacher ? { teacher: true } : { playerId: socket._unoPlayerId })
+      });
     }
   } catch (_) {
     socket.destroy();
