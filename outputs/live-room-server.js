@@ -591,6 +591,7 @@ function createUnoRoom() {
     roundId: 0,
     turnNumber: 0,
     winner: null,
+    winsByPlayerId: {},
     lastAction: "",
     unoCall: null,
     unoPenalty: null,
@@ -931,11 +932,11 @@ function scheduleUnoPenalty(room, player) {
       cancelUnoPenalty(activeRoom, pending.playerId);
       return;
     }
-    drawUnoCards(activeRoom, pending.playerId, 4);
+    drawUnoCards(activeRoom, pending.playerId, 2);
     cancelUnoPenalty(activeRoom, pending.playerId);
     if (Number(activeRoom.unoCall?.playerId || 0) === pending.playerId) activeRoom.unoCall = null;
-    activeRoom.unoPenalty = { playerId: pending.playerId, name: pending.name, cards: 4, at: Date.now() };
-    setUnoLastAction(activeRoom, `${pending.name} did not say UNO and drew 4 cards.`);
+    activeRoom.unoPenalty = { playerId: pending.playerId, name: pending.name, cards: 2, at: Date.now() };
+    setUnoLastAction(activeRoom, `${pending.name} did not say UNO and drew 2 cards.`);
     touch(activeRoom);
     broadcastUnoRoom(activeRoom);
   }, UNO_CALL_WINDOW_MS);
@@ -1197,6 +1198,13 @@ function setUnoLastAction(room, text) {
   room.lastAction = String(text || "").trim();
 }
 
+function setUnoWinner(room, player) {
+  const playerId = Number(player?.id || 0);
+  room.winner = { id: playerId, name: player?.name || "" };
+  room.winsByPlayerId = room.winsByPlayerId || {};
+  room.winsByPlayerId[String(playerId)] = Number(room.winsByPlayerId[String(playerId)] || 0) + 1;
+}
+
 function resetUnoRoundState(room) {
   clearUnoPenaltyTimer(room.code);
   room.status = "lobby";
@@ -1208,6 +1216,7 @@ function resetUnoRoundState(room) {
   room.direction = 1;
   room.turnNumber = 0;
   room.winner = null;
+  room.winsByPlayerId = {};
   room.lastAction = "";
   room.unoCall = null;
   room.unoPenalty = null;
@@ -1228,6 +1237,7 @@ function serializeUnoRoom(room, options = {}) {
     seatNumber: Number(player.seatNumber || 0) || undefined,
     classroomPlayerId: Number(player.classroomPlayerId || 0) || undefined,
     cardCount: ensureUnoHand(room, player.id).length,
+    wins: Number(room.winsByPlayerId?.[String(player.id)] || 0),
     isCurrent: Number(player.id || 0) === currentPlayerId
   }));
   const startDraw = ensureUnoStartDraw(room);
@@ -1376,7 +1386,7 @@ function playUnoBotCard(room, bot, card) {
   if (!hand.length) {
     room.unoCall = null;
     room.status = "finished";
-    room.winner = { id: bot.id, name: bot.name };
+    setUnoWinner(room, bot);
     room.currentPlayerId = bot.id;
     setUnoLastAction(room, `${bot.name} played ${card.label} and won the game.`);
     return;
@@ -3557,7 +3567,7 @@ const server = http.createServer(async (req, res) => {
         if (nextPlayers.length === 1) {
           const survivor = nextPlayers[0];
           room.status = "finished";
-          room.winner = { id: survivor.id, name: survivor.name };
+          setUnoWinner(room, survivor);
           room.currentPlayerId = survivor.id;
           setUnoLastAction(room, `${survivor.name} wins because they are the last player remaining.`);
         }
@@ -3639,7 +3649,7 @@ const server = http.createServer(async (req, res) => {
       if (room.status === "live" && room.players.length === 1) {
         const survivor = room.players[0];
         room.status = "finished";
-        room.winner = { id: survivor.id, name: survivor.name };
+        setUnoWinner(room, survivor);
         room.currentPlayerId = survivor.id;
         setUnoLastAction(room, `${survivor.name} wins because they are the last player remaining.`);
       }
@@ -3736,20 +3746,20 @@ const server = http.createServer(async (req, res) => {
       room.currentColor = nextColor || card.color || room.currentColor || "red";
       if (!hand.length) {
         if (!declaredUno) {
-          drawUnoCards(room, id, 4);
+          drawUnoCards(room, id, 2);
           room.unoCall = null;
           cancelUnoPenalty(room, id);
-          room.unoPenalty = { playerId: id, name: player.name, cards: 4, at: Date.now() };
+          room.unoPenalty = { playerId: id, name: player.name, cards: 2, at: Date.now() };
           room.currentPlayerId = getUnoNextPlayerId(room, id, 1);
           room.turnNumber = Number(room.turnNumber || 0) + 1;
-          setUnoLastAction(room, `${player.name} played their last card without saying UNO and drew 4 cards.`);
+          setUnoLastAction(room, `${player.name} played their last card without saying UNO and drew 2 cards.`);
           touch(room);
           broadcastUnoRoom(room);
           return json(res, 200, { room: serializeUnoRoom(room, { playerId: id }), played: card });
         }
         room.unoCall = null;
         room.status = "finished";
-        room.winner = { id: player.id, name: player.name };
+        setUnoWinner(room, player);
         room.currentPlayerId = player.id;
         setUnoLastAction(room, `${player.name} played ${card.label} and won the game.`);
         touch(room);
