@@ -1224,6 +1224,7 @@ function serializeUnoRoom(room, options = {}) {
   const players = normalizeUnoSeats(room).map((player) => ({
     id: Number(player.id || 0),
     name: player.name || "",
+    isBot: isUnoBot(player),
     seatNumber: Number(player.seatNumber || 0) || undefined,
     classroomPlayerId: Number(player.classroomPlayerId || 0) || undefined,
     cardCount: ensureUnoHand(room, player.id).length,
@@ -1429,15 +1430,18 @@ function runUnoBotTurn(room) {
 }
 
 function scheduleUnoBotTurn(room) {
-  clearTimeout(unoBotTimers.get(room.code));
-  unoBotTimers.delete(room.code);
   const current = (room.players || []).find((player) => Number(player.id) === Number(room.currentPlayerId || 0));
-  if (room.status !== "live" || !isUnoBot(current) || room.pendingDraw) return;
+  if (room.status !== "live" || !isUnoBot(current) || room.pendingDraw) {
+    clearTimeout(unoBotTimers.get(room.code));
+    unoBotTimers.delete(room.code);
+    return;
+  }
+  if (unoBotTimers.has(room.code)) return;
   const timer = setTimeout(() => {
     unoBotTimers.delete(room.code);
     const activeRoom = unoRooms.get(room.code);
     if (activeRoom) runUnoBotTurn(activeRoom);
-  }, 750 + Math.floor(Math.random() * 450));
+  }, 2600 + Math.floor(Math.random() * 1200));
   unoBotTimers.set(room.code, timer);
 }
 
@@ -3493,6 +3497,9 @@ const server = http.createServer(async (req, res) => {
       const previousHands = room.handsByPlayerId || {};
       const usedNames = new Set();
       const nextHands = {};
+      botPlayers.forEach((player) => {
+        nextHands[String(player.id)] = Array.isArray(previousHands[String(player.id)]) ? previousHands[String(player.id)] : [];
+      });
       const classroomPlayers = (classroom.players || [])
         .map((sourcePlayer) => {
           const clean = String(sourcePlayer.name || "").trim();
@@ -3524,6 +3531,16 @@ const server = http.createServer(async (req, res) => {
           ]
         : classroomPlayers;
       const nextPlayers = [...nextHumans, ...botPlayers];
+      const playerSignature = (players) => players.map((player) => [
+        Number(player.id || 0),
+        Number(player.classroomPlayerId || 0),
+        String(player.name || "").trim(),
+        isUnoBot(player) ? 1 : 0
+      ].join(":")).join("|");
+      const rosterChanged = playerSignature(previousPlayers) !== playerSignature(nextPlayers);
+      if (room.status === "live" && !rosterChanged) {
+        return json(res, 200, { room: serializeUnoRoom(room, { teacher: true }), changed: false });
+      }
       room.players = nextPlayers;
       room.handsByPlayerId = nextHands;
       normalizeUnoSeats(room);
@@ -3547,7 +3564,7 @@ const server = http.createServer(async (req, res) => {
       }
       touch(room);
       broadcastUnoRoom(room);
-      return json(res, 200, { room: serializeUnoRoom(room, { teacher: true }) });
+      return json(res, 200, { room: serializeUnoRoom(room, { teacher: true }), changed: true });
     }
 
     if (req.method === "POST" && url.pathname === "/api/uno/reorder-seats") {
