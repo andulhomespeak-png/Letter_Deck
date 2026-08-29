@@ -613,6 +613,7 @@
     }
     renderPlayers(playersEl);
     renderPlayers(largePlayers);
+    window.__friendzyClassroom = { code: room?.code || "", players };
     if (playersSignature !== lastPlayersSignature) {
       lastPlayersSignature = playersSignature;
       window.dispatchEvent(new CustomEvent("friendzy:players-updated", {
@@ -721,9 +722,8 @@
       render();
     } catch (error) {
       if (isMissingRoomError(error)) {
-        room = null;
-        localStorage.removeItem(storageKey);
-        await ensureRoom();
+        // Never replace a displayed QR while the teacher is working.
+        tabCount.textContent = "offline";
       }
     } finally {
       pollTimer = setTimeout(pollRoom, 1200);

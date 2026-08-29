@@ -7,6 +7,10 @@ Teacher view and student join flow for the classroom letter game.
 1. Open `outputs/Start-Letter-Room.bat`
 2. Teacher view opens at `http://localhost:8787/`
 
+## Friendzy QR rule
+
+The Friendzy QR is a single classroom-session identity shared by every activity. It must remain unchanged for the lifetime of a running server. Only an explicit teacher `Reset` or a server restart may create a new QR; navigation, polling, activity changes, player updates, synchronization errors, and inactivity must never replace it.
+
 ## Deploy to Render
 
 This project is already prepared for Render with:

@@ -29,7 +29,6 @@ const WORDS_JS = path.join(ROOT, "english-words.js");
 const LEARNED_WORDS_JSON = path.join(ROOT, "learned-words.json");
 const BUZZER_TRIVIA_JSON = path.join(ROOT, "buzzer-trivia.json");
 const ROOM_TTL_MS = 60 * 60 * 1000;
-const CLASSROOM_ROOM_TTL_MS = 12 * 60 * 60 * 1000;
 
 const rooms = new Map();
 const roomSockets = new Map();
@@ -588,6 +587,7 @@ function createUnoRoom() {
     currentPlayerId: 0,
     currentColor: "",
     direction: 1,
+    roundId: 0,
     turnNumber: 0,
     winner: null,
     lastAction: "",
@@ -701,12 +701,6 @@ function cleanupRooms() {
     }
     unoRooms.delete(code);
     unoSockets.delete(code);
-  });
-  classroomRooms.forEach((room, code) => {
-    if (now - Number(room.updatedAt || 0) < CLASSROOM_ROOM_TTL_MS) {
-      return;
-    }
-    classroomRooms.delete(code);
   });
 }
 
@@ -1155,6 +1149,7 @@ function serializeUnoRoom(room, options = {}) {
     currentPlayerName: currentPlayer?.name || "",
     currentColor: room.currentColor || "",
     direction: Number(room.direction || 1) || 1,
+    roundId: Number(room.roundId || 0),
     turnNumber: Number(room.turnNumber || 0),
     topCard: getUnoTopCard(room),
     discardTrail: (room.discardPile || []).slice(-12),
@@ -1191,6 +1186,7 @@ function startUnoGame(room) {
   room.discardPile = [];
   room.drawPile = shuffleList(createUnoDeck());
   room.direction = 1;
+  room.roundId = Number(room.roundId || 0) + 1;
   room.turnNumber = 1;
   room.winner = null;
   room.lastAction = "";
@@ -3263,15 +3259,12 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/api/uno/import-classroom") {
       const { code, classroomCode } = await body(req);
       const room = getUnoRoom(code);
-      if (room.status === "live") {
-        throw new Error("Finish or reset the current game before importing players.");
-      }
       const classroom = getClassroomRoom(classroomCode);
       const previousPlayers = Array.isArray(room.players) ? room.players : [];
       const previousHands = room.handsByPlayerId || {};
       const usedNames = new Set();
       const nextHands = {};
-      const nextPlayers = (classroom.players || [])
+      const classroomPlayers = (classroom.players || [])
         .map((sourcePlayer) => {
           const clean = String(sourcePlayer.name || "").trim();
           if (!clean) return null;
@@ -3285,17 +3278,41 @@ const server = http.createServer(async (req, res) => {
             name: clean,
             joinedAt: existing?.joinedAt || sourcePlayer.joinedAt || Date.now(),
             updatedAt: Date.now(),
-            classroomPlayerId: sourcePlayer.id
+            classroomPlayerId: sourcePlayer.id,
+            seatNumber: existing?.seatNumber
           };
           if (!existing) room.nextPlayerId = Number(player.id) + 1;
           nextHands[String(player.id)] = Array.isArray(previousHands[String(player.id)]) ? previousHands[String(player.id)] : [];
           return player;
         })
         .filter(Boolean);
+      const nextByClassroomId = new Map(classroomPlayers.map((player) => [Number(player.classroomPlayerId || 0), player]));
+      const existingClassroomIds = new Set(previousPlayers.map((player) => Number(player.classroomPlayerId || 0)));
+      const nextPlayers = room.status === "live"
+        ? [
+            ...previousPlayers.map((player) => nextByClassroomId.get(Number(player.classroomPlayerId || 0))).filter(Boolean),
+            ...classroomPlayers.filter((player) => !existingClassroomIds.has(Number(player.classroomPlayerId || 0)))
+          ]
+        : classroomPlayers;
       room.players = nextPlayers;
       room.handsByPlayerId = nextHands;
-      room.winner = null;
+      if (room.status !== "finished") room.winner = null;
       cancelUnoPenalty(room);
+      if (room.status === "live") {
+        let nextSeatNumber = Math.max(0, ...nextPlayers.map((player) => Number(player.seatNumber || 0)));
+        nextPlayers.forEach((player) => {
+          if (!Number(player.seatNumber || 0)) player.seatNumber = ++nextSeatNumber;
+          if (!ensureUnoHand(room, player.id).length) drawUnoCards(room, player.id, 7);
+        });
+        syncUnoCurrentPlayer(room, Number(room.currentPlayerId || 0));
+        if (nextPlayers.length === 1) {
+          const survivor = nextPlayers[0];
+          room.status = "finished";
+          room.winner = { id: survivor.id, name: survivor.name };
+          room.currentPlayerId = survivor.id;
+          setUnoLastAction(room, `${survivor.name} wins because they are the last player remaining.`);
+        }
+      }
       touch(room);
       broadcastUnoRoom(room);
       return json(res, 200, { room: serializeUnoRoom(room, { teacher: true }) });
@@ -3406,12 +3423,24 @@ const server = http.createServer(async (req, res) => {
       if (card.type === "wild" && !unoColors.includes(nextColor)) {
         throw new Error("Choose a color for the wild card.");
       }
+      const declaredUno = Number(room.unoCall?.playerId || 0) === id && hand.length === 1;
       hand.splice(cardIndex, 1);
-      if (Number(room.unoCall?.playerId || 0) === id && hand.length !== 1) room.unoCall = null;
-      if (hand.length !== 1) cancelUnoPenalty(room, id);
       room.discardPile.push(card);
       room.currentColor = nextColor || card.color || room.currentColor || "red";
       if (!hand.length) {
+        if (!declaredUno) {
+          drawUnoCards(room, id, 4);
+          room.unoCall = null;
+          cancelUnoPenalty(room, id);
+          room.unoPenalty = { playerId: id, name: player.name, cards: 4, at: Date.now() };
+          room.currentPlayerId = getUnoNextPlayerId(room, id, 1);
+          room.turnNumber = Number(room.turnNumber || 0) + 1;
+          setUnoLastAction(room, `${player.name} played their last card without saying UNO and drew 4 cards.`);
+          touch(room);
+          broadcastUnoRoom(room);
+          return json(res, 200, { room: serializeUnoRoom(room, { playerId: id }), played: card });
+        }
+        room.unoCall = null;
         room.status = "finished";
         room.winner = { id: player.id, name: player.name };
         room.currentPlayerId = player.id;
@@ -3420,6 +3449,8 @@ const server = http.createServer(async (req, res) => {
         broadcastUnoRoom(room);
         return json(res, 200, { room: serializeUnoRoom(room, { playerId: id }), played: card });
       }
+      if (Number(room.unoCall?.playerId || 0) === id && hand.length !== 1) room.unoCall = null;
+      if (hand.length !== 1) cancelUnoPenalty(room, id);
       let nextPlayerId = getUnoNextPlayerId(room, id, 1);
       let actionText = `${player.name} played ${card.label}.`;
       if (card.value === "skip") {
