@@ -593,7 +593,7 @@ function createUnoRoom() {
     winner: null,
     winsByPlayerId: {},
     lastAction: "",
-    unoCall: null,
+    unoCallsByPlayerId: {},
     unoPenalty: null,
     unoPending: [],
     pendingDraw: null,
@@ -916,6 +916,37 @@ function cancelUnoPenalty(room, playerId) {
   room.unoPending = playerId ? pending.filter((item) => Number(item.playerId) !== Number(playerId)) : [];
 }
 
+function ensureUnoCalls(room) {
+  if (!room.unoCallsByPlayerId || typeof room.unoCallsByPlayerId !== "object" || Array.isArray(room.unoCallsByPlayerId)) {
+    room.unoCallsByPlayerId = {};
+  }
+  // Migrate a room created before UNO declarations were tracked per player.
+  if (room.unoCall?.playerId) {
+    room.unoCallsByPlayerId[String(room.unoCall.playerId)] = room.unoCall;
+    room.unoCall = null;
+  }
+  return room.unoCallsByPlayerId;
+}
+
+function hasUnoCall(room, playerId) {
+  return !!ensureUnoCalls(room)[String(Number(playerId || 0))];
+}
+
+function setUnoCall(room, player) {
+  const playerId = Number(player?.id || player?.playerId || 0);
+  if (!playerId) return;
+  ensureUnoCalls(room)[String(playerId)] = { playerId, name: player?.name || "", at: Date.now() };
+}
+
+function clearUnoCall(room, playerId) {
+  delete ensureUnoCalls(room)[String(Number(playerId || 0))];
+}
+
+function clearUnoCalls(room) {
+  room.unoCallsByPlayerId = {};
+  room.unoCall = null;
+}
+
 function scheduleUnoPenalty(room, player) {
   cancelUnoPenalty(room, player.id);
   const pending = { playerId: Number(player.id), name: player.name, dueAt: Date.now() + UNO_CALL_WINDOW_MS };
@@ -934,7 +965,7 @@ function scheduleUnoPenalty(room, player) {
     }
     drawUnoCards(activeRoom, pending.playerId, 2);
     cancelUnoPenalty(activeRoom, pending.playerId);
-    if (Number(activeRoom.unoCall?.playerId || 0) === pending.playerId) activeRoom.unoCall = null;
+    clearUnoCall(activeRoom, pending.playerId);
     activeRoom.unoPenalty = { playerId: pending.playerId, name: pending.name, cards: 2, at: Date.now() };
     setUnoLastAction(activeRoom, `${pending.name} did not say UNO and drew 2 cards.`);
     touch(activeRoom);
@@ -1218,7 +1249,7 @@ function resetUnoRoundState(room) {
   room.winner = null;
   room.winsByPlayerId = {};
   room.lastAction = "";
-  room.unoCall = null;
+  clearUnoCalls(room);
   room.unoPenalty = null;
   room.unoPending = [];
   room.pendingDraw = null;
@@ -1234,6 +1265,7 @@ function serializeUnoRoom(room, options = {}) {
     id: Number(player.id || 0),
     name: player.name || "",
     isBot: isUnoBot(player),
+    isAutoBot: isUnoAutoBot(player),
     seatNumber: Number(player.seatNumber || 0) || undefined,
     classroomPlayerId: Number(player.classroomPlayerId || 0) || undefined,
     cardCount: ensureUnoHand(room, player.id).length,
@@ -1256,7 +1288,7 @@ function serializeUnoRoom(room, options = {}) {
     drawPileCount: Array.isArray(room.drawPile) ? room.drawPile.length : 0,
     discardCount: Array.isArray(room.discardPile) ? room.discardPile.length : 0,
     winner,
-    unoCall: room.unoCall ? { playerId: Number(room.unoCall.playerId || 0), name: room.unoCall.name || "", at: Number(room.unoCall.at || 0) } : null,
+    unoCalls: Object.values(ensureUnoCalls(room)).map((call) => ({ playerId: Number(call.playerId || 0), name: call.name || "", at: Number(call.at || 0) })),
     unoPenalty: room.unoPenalty ? { playerId: Number(room.unoPenalty.playerId || 0), name: room.unoPenalty.name || "", cards: Number(room.unoPenalty.cards || 0), at: Number(room.unoPenalty.at || 0) } : null,
     pendingDraw: room.pendingDraw ? { playerId: Number(room.pendingDraw.playerId || 0), cardId: room.pendingDraw.cardId || "" } : null,
     startDraw: {
@@ -1313,7 +1345,7 @@ function startUnoGame(room) {
   room.turnNumber = 1;
   room.winner = null;
   room.lastAction = "";
-  room.unoCall = null;
+  clearUnoCalls(room);
   room.unoPenalty = null;
   room.unoPending = [];
   room.pendingDraw = null;
@@ -1347,21 +1379,49 @@ function isUnoBot(player) {
   return !!player?.isBot;
 }
 
+function isUnoAutoBot(player) {
+  return isUnoBot(player) && (player.autoBot === true || player.name === "Friendzy Bot");
+}
+
+function addUnoBot(room, automatic = false) {
+  const names = new Set((room.players || []).map((player) => String(player.name || "").trim().toLowerCase()));
+  let number = automatic ? 1 : 2;
+  let name = `Bot ${number}`;
+  while (names.has(name.toLowerCase())) {
+    number += 1;
+    name = `Bot ${number}`;
+  }
+  const bot = {
+    id: room.nextPlayerId || 1,
+    name,
+    isBot: true,
+    autoBot: automatic,
+    joinedAt: Date.now(),
+    updatedAt: Date.now(),
+    seatNumber: (room.players || []).length + 1
+  };
+  room.nextPlayerId = Number(room.nextPlayerId || 1) + 1;
+  room.players.push(bot);
+  ensureUnoHand(room, bot.id);
+  return bot;
+}
+
+function normalizeUnoBotNames(room) {
+  const bots = (room.players || []).filter(isUnoBot).sort((left, right) => Number(isUnoAutoBot(right)) - Number(isUnoAutoBot(left)) || Number(left.joinedAt || 0) - Number(right.joinedAt || 0));
+  bots.forEach((bot, index) => {
+    bot.name = `Bot ${index + 1}`;
+    if (index === 0 && isUnoAutoBot(bot)) bot.autoBot = true;
+  });
+}
+
 function ensureUnoBot(room) {
   const humans = (room.players || []).filter((player) => !isUnoBot(player));
-  if (humans.length === 1 && !(room.players || []).some(isUnoBot)) {
-    room.players.push({
-      id: room.nextPlayerId || 1,
-      name: "Friendzy Bot",
-      isBot: true,
-      joinedAt: Date.now(),
-      updatedAt: Date.now(),
-      seatNumber: (room.players || []).length + 1
-    });
-    room.nextPlayerId = Number(room.nextPlayerId || 1) + 1;
+  if (humans.length === 1 && !(room.players || []).some(isUnoAutoBot)) {
+    addUnoBot(room, true);
   } else if (humans.length >= 2) {
-    room.players = (room.players || []).filter((player) => !isUnoBot(player));
+    room.players = (room.players || []).filter((player) => !isUnoAutoBot(player));
   }
+  normalizeUnoBotNames(room);
   normalizeUnoSeats(room);
 }
 
@@ -1376,31 +1436,34 @@ function finishUnoBotTurn(room, bot) {
   room.turnNumber = Number(room.turnNumber || 0) + 1;
 }
 
-function playUnoBotCard(room, bot, card) {
+function playUnoBotCard(room, bot, card, { drewCard = false } = {}) {
   const hand = ensureUnoHand(room, bot.id);
   const cardIndex = hand.findIndex((item) => item.id === card.id);
   if (cardIndex < 0) return;
-  if (hand.length === 1) room.unoCall = { playerId: bot.id, name: bot.name, at: Date.now() };
+  if (hand.length === 1) setUnoCall(room, bot);
   hand.splice(cardIndex, 1);
   room.discardPile.push(card);
   room.currentColor = card.type === "wild" ? getUnoBotColor(hand) : card.color || room.currentColor || "red";
+  const actionPrefix = drewCard ? `${bot.name} drew a card and played` : `${bot.name} played`;
   if (!hand.length) {
-    room.unoCall = null;
+    clearUnoCall(room, bot.id);
     room.status = "finished";
     setUnoWinner(room, bot);
     room.currentPlayerId = bot.id;
-    setUnoLastAction(room, `${bot.name} played ${card.label} and won the game.`);
+    setUnoLastAction(room, `${actionPrefix} ${card.label} and won the game.`);
     return;
   }
   let nextPlayerId = getUnoNextPlayerId(room, bot.id, 1);
-  let actionText = `${bot.name} played ${card.label}.`;
+  let actionText = `${actionPrefix} ${card.label}.`;
   if (card.value === "skip") {
     nextPlayerId = getUnoNextPlayerId(room, bot.id, 2);
-    actionText = `${bot.name} played Skip.`;
+    const skippedId = getUnoNextPlayerId(room, bot.id, 1);
+    const skipped = room.players.find((player) => Number(player.id) === skippedId);
+    actionText = `${actionPrefix} Skip. ${skipped?.name || "Next player"} lost their turn.`;
   } else if (card.value === "reverse") {
     room.direction = Number(room.direction || 1) * -1;
     nextPlayerId = getUnoNextPlayerId(room, bot.id, room.players.length === 2 ? 2 : 1, room.direction);
-    actionText = `${bot.name} reversed the order.`;
+    actionText = drewCard ? `${actionPrefix} Reverse and reversed the order.` : `${bot.name} reversed the order.`;
   } else if (card.value === "draw-two" || card.value === "wild-draw-four") {
     const cardsToDraw = card.value === "draw-two" ? 2 : 4;
     const targetId = getUnoNextPlayerId(room, bot.id, 1);
@@ -1408,14 +1471,14 @@ function playUnoBotCard(room, bot, card) {
     drawUnoCards(room, targetId, cardsToDraw);
     cancelUnoPenalty(room, targetId);
     nextPlayerId = getUnoNextPlayerId(room, bot.id, 2);
-    actionText = `${bot.name} played ${card.label}. ${target?.name || "Next player"} drew ${cardsToDraw} cards.`;
+    actionText = `${actionPrefix} ${card.label}. ${target?.name || "Next player"} drew ${cardsToDraw} cards and lost their turn.`;
   } else if (card.value === "wild") {
-    actionText = `${bot.name} chose ${unoColorNames[room.currentColor]}.`;
+    actionText = `${actionPrefix} Wild and chose ${unoColorNames[room.currentColor]}.`;
   }
   room.currentPlayerId = nextPlayerId;
   room.turnNumber = Number(room.turnNumber || 0) + 1;
-  if (hand.length === 1) room.unoCall = { playerId: bot.id, name: bot.name, at: Date.now() };
-  else if (Number(room.unoCall?.playerId || 0) === bot.id) room.unoCall = null;
+  if (hand.length === 1) setUnoCall(room, bot);
+  else clearUnoCall(room, bot.id);
   setUnoLastAction(room, actionText);
 }
 
@@ -1430,7 +1493,7 @@ function runUnoBotTurn(room) {
     playUnoBotCard(room, bot, card);
   } else {
     const drawn = drawUnoCards(room, bot.id, 1)[0];
-    if (drawn && isUnoCardPlayable(room, drawn)) playUnoBotCard(room, bot, drawn);
+    if (drawn && isUnoCardPlayable(room, drawn)) playUnoBotCard(room, bot, drawn, { drewCard: true });
     else {
       finishUnoBotTurn(room, bot);
       setUnoLastAction(room, `${bot.name} drew a card and kept it.`);
@@ -1441,16 +1504,16 @@ function runUnoBotTurn(room) {
 }
 
 function scheduleUnoBotTurn(room) {
-  const openingBot = (room.players || []).find(isUnoBot);
   const startDraw = ensureUnoStartDraw(room);
   const openingEligibleIds = startDraw.eligiblePlayerIds.length ? startDraw.eligiblePlayerIds : (room.players || []).map((player) => Number(player.id));
-  const botHasOpeningCard = Number(startDraw.results[String(openingBot?.id || 0)]?.round || 0) === Number(startDraw.round || 1);
-  if (room.status === "lobby" && !Number(room.roundStarterId || 0) && openingBot && startDraw.phase !== "ready" && openingEligibleIds.includes(Number(openingBot.id)) && !botHasOpeningCard) {
+  const openingBot = (room.players || []).find((player) => isUnoBot(player) && openingEligibleIds.includes(Number(player.id)) && Number(startDraw.results[String(player.id)]?.round || 0) !== Number(startDraw.round || 1));
+  if (room.status === "lobby" && !Number(room.roundStarterId || 0) && openingBot && startDraw.phase !== "ready") {
     if (unoBotTimers.has(room.code)) return;
+    const openingBotId = Number(openingBot.id);
     const timer = setTimeout(() => {
       unoBotTimers.delete(room.code);
       const activeRoom = unoRooms.get(room.code);
-      const activeBot = (activeRoom?.players || []).find(isUnoBot);
+      const activeBot = (activeRoom?.players || []).find((player) => Number(player.id) === openingBotId && isUnoBot(player));
       if (!activeRoom || !activeBot) return;
       try {
         drawUnoStartCard(activeRoom, activeBot.id);
@@ -3616,6 +3679,36 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { room: serializeUnoRoom(room, { teacher: true }) });
     }
 
+    if (req.method === "POST" && url.pathname === "/api/uno/add-bot") {
+      const { code } = await body(req);
+      const room = getUnoRoom(code);
+      if (room.status === "live") throw new Error("Bots can only be added between rounds.");
+      addUnoBot(room);
+      normalizeUnoBotNames(room);
+      normalizeUnoSeats(room);
+      reconcileUnoOpeningDrawRoster(room);
+      touch(room);
+      broadcastUnoRoom(room);
+      return json(res, 200, { room: serializeUnoRoom(room, { teacher: true }) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/uno/remove-bot") {
+      const { code, playerId } = await body(req);
+      const room = getUnoRoom(code);
+      if (room.status === "live") throw new Error("Bots can only be removed between rounds.");
+      const botId = Number(playerId || 0);
+      const bot = (room.players || []).find((player) => Number(player.id) === botId);
+      if (!bot || !isUnoBot(bot) || isUnoAutoBot(bot)) throw new Error("Only manually added bots can be removed here.");
+      room.players = room.players.filter((player) => Number(player.id) !== botId);
+      delete room.handsByPlayerId[String(botId)];
+      cancelUnoPenalty(room, botId);
+      normalizeUnoSeats(room);
+      reconcileUnoOpeningDrawRoster(room);
+      touch(room);
+      broadcastUnoRoom(room);
+      return json(res, 200, { room: serializeUnoRoom(room, { teacher: true }) });
+    }
+
     if (req.method === "POST" && url.pathname === "/api/uno/draw-opening-card") {
       const { code, playerId } = await body(req);
       const room = getUnoRoom(code);
@@ -3664,6 +3757,7 @@ const server = http.createServer(async (req, res) => {
       normalizeUnoSeats(room);
       reconcileUnoOpeningDrawRoster(room);
       cancelUnoPenalty(room, removedId);
+      clearUnoCall(room, removedId);
       delete room.handsByPlayerId[String(removedId)];
       if (room.winner && Number(room.winner.id || 0) === removedId) {
         room.winner = null;
@@ -3692,18 +3786,17 @@ const server = http.createServer(async (req, res) => {
       if (room.pendingDraw) throw new Error("Choose whether to play the drawn card or keep it.");
       const drawn = drawUnoCards(room, id, 1);
       if (!drawn.length) throw new Error("No cards are left to draw.");
-      if (Number(room.unoCall?.playerId || 0) === id) room.unoCall = null;
+      clearUnoCall(room, id);
       cancelUnoPenalty(room, id);
       if (isUnoCardPlayable(room, drawn[0])) {
         room.pendingDraw = { playerId: id, cardId: drawn[0].id };
-        setUnoLastAction(room, `${player.name} drew a playable card.`);
         touch(room);
         broadcastUnoRoom(room);
         return json(res, 200, { room: serializeUnoRoom(room, { playerId: id }), drawn, canPlayDrawnCard: true });
       }
       room.currentPlayerId = getUnoNextPlayerId(room, id, 1);
       room.turnNumber = Number(room.turnNumber || 0) + 1;
-      setUnoLastAction(room, `${player.name} drew 1 card and ended their turn.`);
+      setUnoLastAction(room, `${player.name} drew a card and kept it.`);
       touch(room);
       broadcastUnoRoom(room);
       return json(res, 200, { room: serializeUnoRoom(room, { playerId: id }), drawn });
@@ -3720,7 +3813,7 @@ const server = http.createServer(async (req, res) => {
       room.pendingDraw = null;
       room.currentPlayerId = getUnoNextPlayerId(room, id, 1);
       room.turnNumber = Number(room.turnNumber || 0) + 1;
-      setUnoLastAction(room, `${player.name} kept the drawn card and ended their turn.`);
+      setUnoLastAction(room, `${player.name} drew a card and kept it.`);
       touch(room);
       broadcastUnoRoom(room);
       return json(res, 200, { room: serializeUnoRoom(room, { playerId: id }) });
@@ -3735,7 +3828,7 @@ const server = http.createServer(async (req, res) => {
       if (!player) throw new Error("Join the UNO room first.");
       if (ensureUnoHand(room, id).length !== 1) throw new Error("You can only call UNO with one card.");
       cancelUnoPenalty(room, id);
-      room.unoCall = { playerId: id, name: player.name, at: Date.now() };
+      setUnoCall(room, player);
       setUnoLastAction(room, `${player.name} said UNO!`);
       touch(room);
       broadcastUnoRoom(room);
@@ -3762,7 +3855,8 @@ const server = http.createServer(async (req, res) => {
       if (card.type === "wild" && !unoColors.includes(nextColor)) {
         throw new Error("Choose a color for the wild card.");
       }
-      const declaredUno = Number(room.unoCall?.playerId || 0) === id && hand.length === 1;
+      const declaredUno = hasUnoCall(room, id) && hand.length === 1;
+      const playedDrawnCard = Number(room.pendingDraw?.playerId || 0) === id && String(room.pendingDraw.cardId || "") === card.id;
       room.pendingDraw = null;
       hand.splice(cardIndex, 1);
       room.discardPile.push(card);
@@ -3770,7 +3864,7 @@ const server = http.createServer(async (req, res) => {
       if (!hand.length) {
         if (!declaredUno) {
           drawUnoCards(room, id, 2);
-          room.unoCall = null;
+          clearUnoCall(room, id);
           cancelUnoPenalty(room, id);
           room.unoPenalty = { playerId: id, name: player.name, cards: 2, at: Date.now() };
           room.currentPlayerId = getUnoNextPlayerId(room, id, 1);
@@ -3780,46 +3874,47 @@ const server = http.createServer(async (req, res) => {
           broadcastUnoRoom(room);
           return json(res, 200, { room: serializeUnoRoom(room, { playerId: id }), played: card });
         }
-        room.unoCall = null;
+        clearUnoCall(room, id);
         room.status = "finished";
         setUnoWinner(room, player);
         room.currentPlayerId = player.id;
-        setUnoLastAction(room, `${player.name} played ${card.label} and won the game.`);
+        setUnoLastAction(room, `${playedDrawnCard ? `${player.name} drew a card and played` : `${player.name} played`} ${card.label} and won the game.`);
         touch(room);
         broadcastUnoRoom(room);
         return json(res, 200, { room: serializeUnoRoom(room, { playerId: id }), played: card });
       }
-      if (Number(room.unoCall?.playerId || 0) === id && hand.length !== 1) room.unoCall = null;
+      if (hand.length !== 1) clearUnoCall(room, id);
       if (hand.length !== 1) cancelUnoPenalty(room, id);
       let nextPlayerId = getUnoNextPlayerId(room, id, 1);
-      let actionText = `${player.name} played ${card.label}.`;
+      const actionPrefix = playedDrawnCard ? `${player.name} drew a card and played` : `${player.name} played`;
+      let actionText = `${actionPrefix} ${card.label}.`;
       if (card.value === "skip") {
         nextPlayerId = getUnoNextPlayerId(room, id, 2);
         const skippedId = getUnoNextPlayerId(room, id, 1);
         const skipped = room.players.find((item) => Number(item.id) === skippedId);
-        actionText = `${player.name} played Skip. ${skipped?.name || "Next player"} lost their turn.`;
+        actionText = `${actionPrefix} Skip. ${skipped?.name || "Next player"} lost their turn.`;
       } else if (card.value === "reverse") {
         room.direction = Number(room.direction || 1) * -1;
         nextPlayerId = getUnoNextPlayerId(room, id, room.players.length === 2 ? 2 : 1, room.direction);
-        actionText = `${player.name} reversed the order.`;
+        actionText = playedDrawnCard ? `${actionPrefix} Reverse and reversed the order.` : `${player.name} reversed the order.`;
       } else if (card.value === "draw-two") {
         const targetId = getUnoNextPlayerId(room, id, 1);
         const target = room.players.find((item) => Number(item.id) === targetId);
         drawUnoCards(room, targetId, 2);
-        if (Number(room.unoCall?.playerId || 0) === targetId) room.unoCall = null;
+        clearUnoCall(room, targetId);
         cancelUnoPenalty(room, targetId);
         nextPlayerId = getUnoNextPlayerId(room, id, 2);
-        actionText = `${player.name} played +2. ${target?.name || "Next player"} drew 2 cards.`;
+        actionText = `${actionPrefix} +2. ${target?.name || "Next player"} drew 2 cards and lost their turn.`;
       } else if (card.value === "wild") {
-        actionText = `${player.name} played Wild and chose ${unoColorNames[room.currentColor]}.`;
+        actionText = `${actionPrefix} Wild and chose ${unoColorNames[room.currentColor]}.`;
       } else if (card.value === "wild-draw-four") {
         const targetId = getUnoNextPlayerId(room, id, 1);
         const target = room.players.find((item) => Number(item.id) === targetId);
         drawUnoCards(room, targetId, 4);
-        if (Number(room.unoCall?.playerId || 0) === targetId) room.unoCall = null;
+        clearUnoCall(room, targetId);
         cancelUnoPenalty(room, targetId);
         nextPlayerId = getUnoNextPlayerId(room, id, 2);
-        actionText = `${player.name} played Wild +4 and chose ${unoColorNames[room.currentColor]}. ${target?.name || "Next player"} drew 4 cards.`;
+        actionText = `${actionPrefix} Wild +4 and chose ${unoColorNames[room.currentColor]}. ${target?.name || "Next player"} drew 4 cards and lost their turn.`;
       }
       room.currentPlayerId = nextPlayerId;
       room.turnNumber = Number(room.turnNumber || 0) + 1;
