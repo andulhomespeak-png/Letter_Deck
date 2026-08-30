@@ -1291,6 +1291,7 @@ function serializeUnoRoom(room, options = {}) {
 function startUnoGame(room) {
   clearUnoPenaltyTimer(room.code);
   ensureUnoBot(room);
+  reconcileUnoOpeningDrawRoster(room);
   if ((room.players || []).length < 2) {
     throw new Error("Add at least two players before starting.");
   }
@@ -1440,6 +1441,26 @@ function runUnoBotTurn(room) {
 }
 
 function scheduleUnoBotTurn(room) {
+  const openingBot = (room.players || []).find(isUnoBot);
+  const startDraw = ensureUnoStartDraw(room);
+  const openingEligibleIds = startDraw.eligiblePlayerIds.length ? startDraw.eligiblePlayerIds : (room.players || []).map((player) => Number(player.id));
+  const botHasOpeningCard = Number(startDraw.results[String(openingBot?.id || 0)]?.round || 0) === Number(startDraw.round || 1);
+  if (room.status === "lobby" && !Number(room.roundStarterId || 0) && openingBot && startDraw.phase !== "ready" && openingEligibleIds.includes(Number(openingBot.id)) && !botHasOpeningCard) {
+    if (unoBotTimers.has(room.code)) return;
+    const timer = setTimeout(() => {
+      unoBotTimers.delete(room.code);
+      const activeRoom = unoRooms.get(room.code);
+      const activeBot = (activeRoom?.players || []).find(isUnoBot);
+      if (!activeRoom || !activeBot) return;
+      try {
+        drawUnoStartCard(activeRoom, activeBot.id);
+        touch(activeRoom);
+        broadcastUnoRoom(activeRoom);
+      } catch (_) {}
+    }, 2600 + Math.floor(Math.random() * 1200));
+    unoBotTimers.set(room.code, timer);
+    return;
+  }
   const current = (room.players || []).find((player) => Number(player.id) === Number(room.currentPlayerId || 0));
   if (room.status !== "live" || !isUnoBot(current) || room.pendingDraw) {
     clearTimeout(unoBotTimers.get(room.code));
@@ -3491,6 +3512,7 @@ const server = http.createServer(async (req, res) => {
         player.updatedAt = Date.now();
         ensureUnoHand(room, player.id);
       }
+      ensureUnoBot(room);
       normalizeUnoSeats(room);
       reconcileUnoOpeningDrawRoster(room);
       touch(room);
@@ -3553,6 +3575,7 @@ const server = http.createServer(async (req, res) => {
       }
       room.players = nextPlayers;
       room.handsByPlayerId = nextHands;
+      ensureUnoBot(room);
       normalizeUnoSeats(room);
       reconcileUnoOpeningDrawRoster(room);
       if (room.status !== "finished") room.winner = null;
