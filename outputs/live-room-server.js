@@ -1407,10 +1407,21 @@ function addUnoBot(room, automatic = false) {
 }
 
 function normalizeUnoBotNames(room) {
-  const bots = (room.players || []).filter(isUnoBot).sort((left, right) => Number(isUnoAutoBot(right)) - Number(isUnoAutoBot(left)) || Number(left.joinedAt || 0) - Number(right.joinedAt || 0));
-  bots.forEach((bot, index) => {
-    bot.name = `Bot ${index + 1}`;
-    if (index === 0 && isUnoAutoBot(bot)) bot.autoBot = true;
+  const names = new Set((room.players || []).filter((player) => !isUnoBot(player)).map((player) => String(player.name || "").trim().toLowerCase()));
+  (room.players || []).filter(isUnoBot).forEach((bot, index) => {
+    const currentName = String(bot.name || "").trim();
+    if (currentName) {
+      names.add(currentName.toLowerCase());
+      return;
+    }
+    let number = index + 1;
+    let nextName = `Bot ${number}`;
+    while (names.has(nextName.toLowerCase())) {
+      number += 1;
+      nextName = `Bot ${number}`;
+    }
+    bot.name = nextName;
+    names.add(nextName.toLowerCase());
   });
 }
 
@@ -3704,6 +3715,24 @@ const server = http.createServer(async (req, res) => {
       cancelUnoPenalty(room, botId);
       normalizeUnoSeats(room);
       reconcileUnoOpeningDrawRoster(room);
+      touch(room);
+      broadcastUnoRoom(room);
+      return json(res, 200, { room: serializeUnoRoom(room, { teacher: true }) });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/uno/rename-bot") {
+      const { code, playerId, name } = await body(req);
+      const room = getUnoRoom(code);
+      if (room.status === "live") throw new Error("Bots can only be renamed between rounds.");
+      const botId = Number(playerId || 0);
+      const bot = (room.players || []).find((player) => Number(player.id) === botId);
+      const cleanName = String(name || "").trim().replace(/\s+/g, " ").slice(0, 32);
+      if (!bot || !isUnoBot(bot)) throw new Error("Bot not found.");
+      if (!cleanName) throw new Error("Enter a name for the bot.");
+      const duplicate = (room.players || []).some((player) => Number(player.id) !== botId && String(player.name || "").trim().toLowerCase() === cleanName.toLowerCase());
+      if (duplicate) throw new Error("That name is already at the table.");
+      bot.name = cleanName;
+      bot.updatedAt = Date.now();
       touch(room);
       broadcastUnoRoom(room);
       return json(res, 200, { room: serializeUnoRoom(room, { teacher: true }) });
